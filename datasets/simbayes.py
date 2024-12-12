@@ -41,5 +41,5 @@ class Dataset(BaseDataset):
 
         # The dictionary defines the keyword arguments for `Objective.set_data`
         return dict(
-            X=X, y=y, categorical_indicator=cat_indicator, seed=self.seed
+            X=X, y=y, categorical_indicator=cat_indicator, beta=beta
             )

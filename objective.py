@@ -52,85 +52,42 @@ class Objective(BaseObjective):
             return True, "RepeatedKFold with 1 repeat is equivalent to KFold"
         if self.procedure != "RepeatedKFold" and self.n_repeats != 1:
             return True, f"{self.procedure} does not require n_repeats"
-        # if self.procedure == "ShuffleSplit" and self.n_splits is None:
-        #     return True, "ShuffleSplit requires n_splits to be defined"
-        # return False, None
+        return False, None
 
-    def set_data(self, X, y, categorical_indicator, seed):
+    def set_data(self, X, y, categorical_indicator, beta):
         # The keyword arguments of this function are the keys of the dictionary
         # returned by `Dataset.get_data`. This defines the benchmark's
         # API to pass data. This is customizable for each benchmark.
-        rng = np.random.RandomState(seed)
+        self.X, self.y = X, y
 
         if self.procedure == "train_test_split":
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=self.test_size, random_state=rng
-            )
+            self.cv_bool = False
         elif self.procedure == "KFold":
-            folding = KFold(
-                n_splits=self.n_splits, shuffle=True, random_state=rng
+            self.cv_bool = True
+            self.cv = KFold(
+                n_splits=self.n_splits, shuffle=True
             )
         elif self.procedure == "RepeatedKFold":
-            folding = RepeatedKFold(
-                n_splits=self.n_splits, n_repeats=self.n_repeats,
-                random_state=rng
+            self.cv_bool = True
+            self.cv = RepeatedKFold(
+                n_splits=self.n_splits, n_repeats=self.n_repeats
             )
         elif self.procedure == "ShuffleSplit":
-            folding = ShuffleSplit(
-                n_splits=self.n_splits, test_size=self.test_size,
-                random_state=rng
+            self.cv_bool = True
+            self.cv = ShuffleSplit(
+                n_splits=self.n_splits, test_size=self.test_size
             )
 
-        if self.n_splits != 1:
-            X_train, y_train = [], []
-            X_val, y_val = [], []
-            X_test, y_test = [], []
-            for train_index, test_index in folding.split(X):
-                X_train_tmp, X_val_tmp, y_train_tmp, y_val_tmp = \
-                    train_test_split(
-                        X[train_index], y[train_index],
-                        test_size=self.val_size/(1-self.test_size),
-                        random_state=rng
-                        )
-                X_train.append(X_train_tmp)
-                X_val.append(X_val_tmp)
-                X_test.append(X[test_index])
-                y_train.append(y_train_tmp)
-                y_val.append(y_val_tmp)
-                y_test.append(y[test_index])
-        else:
-            X_train, X_val, y_train, y_val = train_test_split(
-                X_train, y_train, test_size=self.val_size/(1-self.test_size),
-                random_state=rng
-                )
-
-        self.X_train, self.y_train = X_train, y_train
-        self.X_val, self.y_val = X_val, y_val
-        self.X_test, self.y_test = X_test, y_test
         self.categorical_indicator = categorical_indicator
-        self.seed = seed
+        self.beta = beta
 
     def evaluate_result(self, model):
         # The arguments of this function are the outputs of the
         # `Solver.get_result`. This defines the benchmark's API to pass
         # solvers' result. This is customizable for each benchmark.
-        if self.n_splits == 1:
-            score_train = model.score(self.X_train, self.y_train)
-            score_test = model.score(self.X_test, self.y_test)
-            score_val = model.score(self.X_val, self.y_val)
-        else:
-            score_train, score_test, score_val = 0, 0, 0
-            for i in range(self.n_repeats):
-                for j in range(self.n_splits):
-                    k = i * self.n_splits + j
-                    score_train += model.score(
-                        self.X_train[k], self.y_train[k]
-                        )
-                    score_test += model.score(self.X_test[k], self.y_test[k])
-                    score_val += model.score(self.X_val[k], self.y_val[k])
-            score_train /= (self.n_splits * self.n_repeats)
-            score_test /= (self.n_splits * self.n_repeats)
-            score_val /= (self.n_splits * self.n_repeats)
+        score_train = model.score(self.X_train, self.y_train)
+        score_test = model.score(self.X_test, self.y_test)
+        score_val = model.score(self.X_val, self.y_val)
 
         # This method can return many metrics in a dictionary. One of these
         # metrics needs to be `value` for convergence detection purposes.
@@ -144,12 +101,7 @@ class Objective(BaseObjective):
     def get_one_result(self):
         # Return one solution. The return value should be an object compatible
         # with `self.compute`. This is mainly for testing purposes.
-        if self.n_splits == 1:
-            return dict(model=DummyRegressor().fit(self.X_train, self.y_train))
-        else:
-            return dict(model=DummyRegressor().fit(
-                self.X_train[0], self.y_train[0]
-                ))
+        return dict(model=DummyRegressor().fit(self.X_train, self.y_train))
 
     def get_objective(self):
         # Define the information to pass to each solver to run the benchmark.
@@ -157,11 +109,26 @@ class Objective(BaseObjective):
         # for `Solver.set_objective`. This defines the
         # benchmark's API for passing the objective to the solver.
         # It is customizable for each benchmark.
+        if self.cv_bool:
+            self.X_train, self.X_test, self.y_train, self.y_test = \
+                self.get_split(self.X, self.y)
+        else:
+            self.X_train, self.X_test, self.y_train, self.y_test = \
+                train_test_split(
+                    self.X, self.y, test_size=self.test_size
+                )
+
+        self.X_train, self.X_val, self.y_train, self.y_val = \
+            train_test_split(
+                self.X_train, self.y_train,
+                test_size=self.val_size/(1-self.test_size)
+                )
+
         return dict(
             X_train=self.X_train,
             y_train=self.y_train,
             X_val=self.X_val,
             y_val=self.y_val,
             categorical_indicator=self.categorical_indicator,
-            seed=self.seed,
+            beta=self.beta
         )

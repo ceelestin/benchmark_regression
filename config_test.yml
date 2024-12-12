@@ -2,7 +2,9 @@ dataset:
     - Simbayes:
         seed: [0]
         n_samples: [100, 200, 500, 1000, 5000, 10000, 50000, 100000]
-        noise: [0.2, 0.3, 0.5, 1, 2]
+        noise: [0, 0.2, 0.3, 0.5, 1, 2]
 solver:
     - Bayes:
         noise: [0, 0.1, 0.2, 0.3, 0.5, 0.75, 1]
+    # - ExtraTrees_noHPO:
+    #     n_estimators: [10, 50, 100]

@@ -1,9 +1,8 @@
 from benchopt import BaseSolver, safe_import_context
 
-from benchmark_utils.bayes_estimator import BayesEstimator
-
 with safe_import_context() as import_ctx:
     from sklearn.compose import ColumnTransformer
+    from sklearn.ensemble import ExtraTreesRegressor
     from sklearn.pipeline import Pipeline
     from sklearn.preprocessing import OneHotEncoder as OHE
 
@@ -14,14 +13,15 @@ with safe_import_context() as import_ctx:
 # The benchmark solvers must be named `Solver` and
 # inherit from `BaseSolver` for `benchopt` to work properly.
 class Solver(BaseSolver):
+
     # Name to select the solver in the CLI and to display the results.
-    name = "Bayes"
+    name = 'ExtraTrees_noHPO'
     # List of parameters for the solver. The benchmark will consider
     # the cross product for each key in the dictionary.
     # All parameters 'p' defined here are available as 'self.p'.
     parameters = {
-        # 'noise': [0, 0.1, 0.2, 0.3, 0.5, 0.75, 1],
-        "noise": [0],
+        # "n_estimators": [10, 50, 100],
+        "n_estimators": [100],
     }
 
     # Force solver to run only once if you don't want to record training steps
@@ -40,8 +40,7 @@ class Solver(BaseSolver):
         self.cat_ind = categorical_indicator
         self.beta = beta
 
-        self.model = BayesEstimator(n_features=5, noise=self.noise,
-                                    beta=self.beta)
+        self.model = ExtraTreesRegressor(n_estimators=self.n_estimators)
 
     def run(self, n_iter):
         # This is the function that is called to fit the model.
