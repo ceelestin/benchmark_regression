@@ -1,10 +1,7 @@
 from benchopt import BaseSolver, safe_import_context
 
 with safe_import_context() as import_ctx:
-    from sklearn.compose import ColumnTransformer
     from sklearn.ensemble import ExtraTreesRegressor
-    from sklearn.pipeline import Pipeline
-    from sklearn.preprocessing import OneHotEncoder as OHE
 
 
 # Protect the import with `safe_import_context()`. This allows:
@@ -20,7 +17,7 @@ class Solver(BaseSolver):
     # the cross product for each key in the dictionary.
     # All parameters 'p' defined here are available as 'self.p'.
     parameters = {
-        # "n_estimators": [10, 50, 100],
+        # "n_estimators": [2, 20, 200],
         "n_estimators": [100],
     }
 
@@ -28,7 +25,8 @@ class Solver(BaseSolver):
     sampling_strategy = "run_once"
 
     def set_objective(
-        self, X_train, y_train, X_val, y_val, categorical_indicator, beta
+        self, X_train, y_train, X_val, y_val, X_bench, y_bench,
+        categorical_indicator, beta
     ):
         # Define the information received by each solver from the objective.
         # The arguments of this function are the results of the
@@ -37,6 +35,7 @@ class Solver(BaseSolver):
         # It is customizable for each benchmark.
         self.X_train, self.y_train = X_train, y_train
         self.X_val, self.y_val = X_val, y_val
+        self.X_bench, self.y_bench = X_bench, y_bench
         self.cat_ind = categorical_indicator
         self.beta = beta
 

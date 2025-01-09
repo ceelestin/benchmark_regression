@@ -4,11 +4,9 @@ from benchopt import BaseObjective, safe_import_context
 # - skipping import to speed up autocompletion in CLI.
 # - getting requirements info when all dependencies are not installed.
 with safe_import_context() as import_ctx:
-    import numpy as np
     from sklearn.dummy import DummyRegressor
-    from sklearn.model_selection import (
-        KFold, RepeatedKFold, ShuffleSplit, train_test_split
-    )
+    from sklearn.model_selection import (KFold, RepeatedKFold, ShuffleSplit,
+                                         train_test_split)
 
 
 # The benchmark objective must be named `Objective` and
@@ -27,13 +25,13 @@ class Objective(BaseObjective):
     # All parameters 'p' defined here are available as 'self.p'.
     # This means the OLS objective will have a parameter `self.whiten_y`.
     parameters = {
-        # "seed": list(range(200)),
-        "test_size": [0.20],
-        "val_size": [0.20],
-        "procedure": ["train_test_split", "KFold", "RepeatedKFold",
-                      "ShuffleSplit"],
         "n_repeats": [1, 2, 3],
         "n_splits": list(range(1, 11)),
+        "procedure": ["train_test_split", "KFold", "RepeatedKFold",
+                      "ShuffleSplit"],
+        "study_size": [0.05],
+        "test_size": [0.20],
+        "val_size": [0.20],
     }
 
     # Minimal version of benchopt required to run this benchmark.
@@ -88,6 +86,7 @@ class Objective(BaseObjective):
         score_train = model.score(self.X_train, self.y_train)
         score_test = model.score(self.X_test, self.y_test)
         score_val = model.score(self.X_val, self.y_val)
+        score_bench = model.score(self.X_bench, self.y_bench)
 
         # This method can return many metrics in a dictionary. One of these
         # metrics needs to be `value` for convergence detection purposes.
@@ -95,6 +94,7 @@ class Objective(BaseObjective):
             score_test=score_test,
             score_train=score_train,
             score_val=score_val,
+            score_bench=score_bench,
             value=1 - score_test,
         )
 
@@ -109,13 +109,21 @@ class Objective(BaseObjective):
         # for `Solver.set_objective`. This defines the
         # benchmark's API for passing the objective to the solver.
         # It is customizable for each benchmark.
+        if self.study_size == 1:
+            self.X_study, self.y_study = self.X, self.y
+        else:
+            self.X_bench, self.X_study, self.y_bench, self.y_study = \
+                train_test_split(
+                    self.X, self.y, test_size=self.study_size
+                )
+
         if self.cv_bool:
             self.X_train, self.X_test, self.y_train, self.y_test = \
-                self.get_split(self.X, self.y)
+                self.get_split(self.X_study, self.y_study)
         else:
             self.X_train, self.X_test, self.y_train, self.y_test = \
                 train_test_split(
-                    self.X, self.y, test_size=self.test_size
+                    self.X_study, self.y_study, test_size=self.test_size
                 )
 
         self.X_train, self.X_val, self.y_train, self.y_val = \
@@ -129,6 +137,8 @@ class Objective(BaseObjective):
             y_train=self.y_train,
             X_val=self.X_val,
             y_val=self.y_val,
+            X_bench=self.X_bench,
+            y_bench=self.y_bench,
             categorical_indicator=self.categorical_indicator,
             beta=self.beta
         )
