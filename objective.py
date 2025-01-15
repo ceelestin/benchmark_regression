@@ -29,7 +29,7 @@ class Objective(BaseObjective):
         "n_splits": list(range(1, 11)),
         "procedure": ["train_test_split", "KFold", "RepeatedKFold",
                       "ShuffleSplit"],
-        "study_size": [0.05],
+        "study_size": [10, 25, 50, 100, 250, 500, 1000, 5000, 10000],
         "test_size": [0.20],
         "val_size": [0.20],
     }
@@ -109,12 +109,14 @@ class Objective(BaseObjective):
         # for `Solver.set_objective`. This defines the
         # benchmark's API for passing the objective to the solver.
         # It is customizable for each benchmark.
-        if self.study_size == 1:
-            self.X_study, self.y_study = self.X, self.y
-        else:
-            self.X_bench, self.X_study, self.y_bench, self.y_study = \
-                train_test_split(
-                    self.X, self.y, test_size=self.study_size
+        self.X_study, self.X_bench, self.y_study, self.y_bench = \
+            train_test_split(
+                self.X, self.y, test_size=100000, random_state=0
+            )
+
+        if self.study_size != 10000:
+            _, self.X_study, _, self.y_study = train_test_split(
+                self.X_study, self.y_study, test_size=self.study_size
                 )
 
         if self.cv_bool:
