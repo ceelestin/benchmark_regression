@@ -29,7 +29,8 @@ class Objective(BaseObjective):
         "n_splits": list(range(1, 11)),
         "procedure": ["train_test_split", "KFold", "RepeatedKFold",
                       "ShuffleSplit"],
-        "study_size": [10, 25, 50, 100, 250, 500, 1000, 5000, 10000],
+        "study_size": [10, 25, 50, 100, 250, 375, 500, 750, 1000, 3000, 5000,
+                       7500, 10000],
         "test_size": [0.20],
         "val_size": [0.20],
     }
@@ -96,6 +97,8 @@ class Objective(BaseObjective):
             score_val=score_val,
             score_bench=score_bench,
             value=1 - score_test,
+            predictions=model.predict(self.X_bench),
+            true_values=self.y_bench,
         )
 
     def get_one_result(self):

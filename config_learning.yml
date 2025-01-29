@@ -6,5 +6,5 @@ dataset:
 solver:
     - ExtraTrees_noHPO:
         n_estimators: [2, 20, 200]
-    - ExtraTrees_random_state:
-        random_state: [0, 42, 120]
+    # - ExtraTrees_random_state:
+        # random_state: [0, 42, 120]

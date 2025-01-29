@@ -39,7 +39,8 @@ class Solver(BaseSolver):
         self.cat_ind = categorical_indicator
         self.beta = beta
 
-        self.model = ExtraTreesRegressor(random_state=self.random_state)
+        self.model = ExtraTreesRegressor(n_estimators=10,
+                                         random_state=self.random_state)
 
     def run(self, n_iter):
         # This is the function that is called to fit the model.
