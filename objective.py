@@ -5,7 +5,7 @@ from benchopt import BaseObjective, safe_import_context
 # - getting requirements info when all dependencies are not installed.
 with safe_import_context() as import_ctx:
     from sklearn.dummy import DummyRegressor
-    from sklearn.model_selection import (KFold, RepeatedKFold, ShuffleSplit,
+    from sklearn.model_selection import (RepeatedKFold, ShuffleSplit,
                                          train_test_split)
 
 
@@ -27,8 +27,7 @@ class Objective(BaseObjective):
     parameters = {
         "n_repeats": [1, 2, 3],
         "n_splits": list(range(1, 11)),
-        "procedure": ["train_test_split", "KFold", "RepeatedKFold",
-                      "ShuffleSplit"],
+        "procedure": ["train_test_split", "RepeatedKFold", "ShuffleSplit"],
         # "study_size": [10, 25, 50, 100, 250, 375, 500, 750, 1000, 3000, 5000,
         #               7500, 10000],
         "study_size": [10, 18, 32, 56, 100, 178, 316, 562, 1000, 1778, 3162,
@@ -44,13 +43,9 @@ class Objective(BaseObjective):
     def skip(self, **data):
         if self.procedure == "train_test_split" and self.n_splits != 1:
             return True, "train_test_split does not require n_splits"
-        if self.n_splits != int(1.0 / self.test_size):
-            if self.procedure == "KFold":
-                return True, "KFold's n_splits must be 1/test_size"
-            if self.procedure == "RepeatedKFold":
+        if self.procedure == "RepeatedKFold":
+            if self.n_splits != int(1.0 / self.test_size):
                 return True, "RepeatedKFold's n_splits must be 1/test_size"
-        if self.procedure == "RepeatedKFold" and self.n_repeats == 1:
-            return True, "RepeatedKFold with 1 repeat is equivalent to KFold"
         if self.procedure != "RepeatedKFold" and self.n_repeats != 1:
             return True, f"{self.procedure} does not require n_repeats"
         return False, None
@@ -63,11 +58,6 @@ class Objective(BaseObjective):
 
         if self.procedure == "train_test_split":
             self.cv_bool = False
-        elif self.procedure == "KFold":
-            self.cv_bool = True
-            self.cv = KFold(
-                n_splits=self.n_splits, shuffle=True
-            )
         elif self.procedure == "RepeatedKFold":
             self.cv_bool = True
             self.cv = RepeatedKFold(
