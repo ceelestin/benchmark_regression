@@ -11,57 +11,18 @@ solver:
         # random_state: [0, 42, 120]
 objective:
     - Regression:
-        procedure: ["train_test_split"]
-        study_size: [1122, 1259, 1412, 1585, 2154, 2610]
-    - Regression:
-        n_repeats: [1]
+        n_repeats: [10, 20]
         procedure: ["RepeatedKFold"]
-        study_size: [355, 398, 446, 501, 681, 825]
+        study_size: [36, 40, 45, 50, 68, 82]
     - Regression:
-        n_repeats: [2]
-        procedure: ["RepeatedKFold"]
-        study_size: [200, 224, 251, 282, 383, 464]
-    - Regression:
-        n_repeats: [3]
-        procedure: ["RepeatedKFold"]
+        n_splits: [15]
+        procedure: ["ShuffleSplit"]
         study_size: [112, 126, 141, 159, 216, 261]
     - Regression:
-        n_splits: [1]
+        n_splits: [20, 25, 50]
         procedure: ["ShuffleSplit"]
-        study_size: [1122, 1259, 1412, 1585, 2154, 2610]
+        study_size: [63, 71, 79, 89, 121, 147]
     - Regression:
-        n_splits: [2]
+        n_splits: [100]
         procedure: ["ShuffleSplit"]
-        study_size: [631, 708, 794, 892, 1211, 1468]
-    - Regression:
-        n_splits: [3]
-        procedure: ["ShuffleSplit"]
-        study_size: [631, 708, 794, 892, 1211, 1468]
-    - Regression:
-        n_splits: [4]
-        procedure: ["ShuffleSplit"]
-        study_size: [355, 398, 446, 501, 681, 825]
-    - Regression:
-        n_splits: [5]
-        procedure: ["ShuffleSplit"]
-        study_size: [355, 398, 446, 501, 681, 825]
-    - Regression:
-        n_splits: [6]
-        procedure: ["ShuffleSplit"]
-        study_size: [355, 398, 446, 501, 681, 825]
-    - Regression:
-        n_splits: [7]
-        procedure: ["ShuffleSplit"]
-        study_size: [200, 224, 251, 282, 383, 464]
-    - Regression:
-        n_splits: [8]
-        procedure: ["ShuffleSplit"]
-        study_size: [200, 224, 251, 282, 383, 464]
-    - Regression:
-        n_splits: [9]
-        procedure: ["ShuffleSplit"]
-        study_size: [200, 224, 251, 282, 383, 464]
-    - Regression:
-        n_splits: [10]
-        procedure: ["ShuffleSplit"]
-        study_size: [200, 224, 251, 282, 383, 464]
+        study_size: [36, 40, 45, 50, 68, 82]

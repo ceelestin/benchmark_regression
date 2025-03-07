@@ -11,57 +11,10 @@ solver:
         # random_state: [0, 42, 120]
 objective:
     - Regression:
-        procedure: ["train_test_split"]
-        study_size: [1122, 1259, 1412, 1585, 2154, 2610]
-    - Regression:
-        n_repeats: [1]
-        procedure: ["RepeatedKFold"]
-        study_size: [355, 398, 446, 501, 681, 825]
-    - Regression:
-        n_repeats: [2]
-        procedure: ["RepeatedKFold"]
-        study_size: [200, 224, 251, 282, 383, 464]
-    - Regression:
-        n_repeats: [3]
+        n_repeats: [4]
         procedure: ["RepeatedKFold"]
         study_size: [112, 126, 141, 159, 216, 261]
     - Regression:
-        n_splits: [1]
-        procedure: ["ShuffleSplit"]
-        study_size: [1122, 1259, 1412, 1585, 2154, 2610]
-    - Regression:
-        n_splits: [2]
-        procedure: ["ShuffleSplit"]
-        study_size: [631, 708, 794, 892, 1211, 1468]
-    - Regression:
-        n_splits: [3]
-        procedure: ["ShuffleSplit"]
-        study_size: [631, 708, 794, 892, 1211, 1468]
-    - Regression:
-        n_splits: [4]
-        procedure: ["ShuffleSplit"]
-        study_size: [355, 398, 446, 501, 681, 825]
-    - Regression:
-        n_splits: [5]
-        procedure: ["ShuffleSplit"]
-        study_size: [355, 398, 446, 501, 681, 825]
-    - Regression:
-        n_splits: [6]
-        procedure: ["ShuffleSplit"]
-        study_size: [355, 398, 446, 501, 681, 825]
-    - Regression:
-        n_splits: [7]
-        procedure: ["ShuffleSplit"]
-        study_size: [200, 224, 251, 282, 383, 464]
-    - Regression:
-        n_splits: [8]
-        procedure: ["ShuffleSplit"]
-        study_size: [200, 224, 251, 282, 383, 464]
-    - Regression:
-        n_splits: [9]
-        procedure: ["ShuffleSplit"]
-        study_size: [200, 224, 251, 282, 383, 464]
-    - Regression:
-        n_splits: [10]
-        procedure: ["ShuffleSplit"]
-        study_size: [200, 224, 251, 282, 383, 464]
+        n_repeats: [5]
+        procedure: ["RepeatedKFold"]
+        study_size: [63, 71, 79, 89, 121, 147]
