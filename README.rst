@@ -28,15 +28,17 @@ This benchmark can be run using the following commands:
 
 .. code-block::
 
-   $ pip install -U benchopt
+   $ pip install git+https://benchopt/benchopt/
    $ git clone https://github.com/ceelestin/benchmark_regression
+   $ benchopt install
    $ benchopt run benchmark_regression
 
-Apart from the problem, options can be passed to ``benchopt run``, to restrict the benchmarks to some solvers or datasets, e.g.:
+To parallelize the code on several CPU-cores, specify the number after the -j option, e.g. 256.
+To run only 10 seeds of the code, run the config_learning_short config. To run the full 1,000 seeds, run the config_learning_full config.
 
 .. code-block::
 
-	$ benchopt run benchmark_regression -s solver1 -d dataset2 --max-runs 10 --n-repetitions 10
+	$ benchopt run benchmark_regression --no-timeout -j 256 --config config_learning_full.yml
 
 
 Use ``benchopt run -h`` for more details about these options, or visit https://benchopt.github.io/api.html.
