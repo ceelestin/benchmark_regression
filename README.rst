@@ -25,7 +25,7 @@ This benchmark can be run using the following commands:
 
    $ pip install git+https://benchopt/benchopt/
    $ git clone https://github.com/ceelestin/benchmark_regression
-   $ benchopt install
+   $ benchopt install benchmark_regression
    $ benchopt run benchmark_regression --no-timeout -j 256 --config config_learning_full.yml
 
 To parallelize the code on several CPU-cores, specify the number of cores after the -j option, e.g. 256.
