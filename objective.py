@@ -25,11 +25,9 @@ class Objective(BaseObjective):
     # All parameters 'p' defined here are available as 'self.p'.
     # This means the OLS objective will have a parameter `self.whiten_y`.
     parameters = {
-        "n_repeats": [1, 2, 3],
-        "n_splits": list(range(1, 11)),
+        "n_repeats": [1, 2, 3, 4, 5, 10, 20],
+        "n_splits": list(range(1, 11), 15, 20, 25, 50, 100),
         "procedure": ["train_test_split", "RepeatedKFold", "ShuffleSplit"],
-        # "study_size": [10, 25, 50, 100, 250, 375, 500, 750, 1000, 3000, 5000,
-        #               7500, 10000],
         "study_size": [10, 18, 32, 56, 100, 178, 316, 562, 1000, 1778, 3162,
                        5623, 10000],
         "test_size": [0.20],
