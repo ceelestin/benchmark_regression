@@ -25,7 +25,7 @@ To run only 10 seeds of the code, run the config_learning_short config. To run t
 Afterwards, modify the file_name variable in learning_ranking.py by the name of the parquet output by the benchmark, and then run the learning_ranking.py file to obtain several plots describing the results of the benchmark.
 
 
-Use ``benchopt run -h`` for more details about these options, or visit https://benchopt.github.io/api.html.
+Use ``benchopt run -h`` for more details about these options, or visit https://benchopt.github.io/
 
 .. |Build Status| image:: https://github.com/ceelestin/benchmark_regression/workflows/Tests/badge.svg
    :target: https://github.com/ceelestin/benchmark_regression/actions
