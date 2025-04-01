@@ -26,14 +26,12 @@ This benchmark can be run using the following commands:
    $ pip install git+https://benchopt/benchopt/
    $ git clone https://github.com/ceelestin/benchmark_regression
    $ benchopt install
-   $ benchopt run benchmark_regression
+   $ benchopt run benchmark_regression --no-timeout -j 256 --config config_learning_full.yml
 
-To parallelize the code on several CPU-cores, specify the number after the -j option, e.g. 256.
+To parallelize the code on several CPU-cores, specify the number of cores after the -j option, e.g. 256.
 To run only 10 seeds of the code, run the config_learning_short config. To run the full 1,000 seeds, run the config_learning_full config.
 
-.. code-block::
-
-	$ benchopt run benchmark_regression --no-timeout -j 256 --config config_learning_full.yml
+Afterwards, modify the file_name variable in learning_ranking.py by the name of the parquet output by the benchmark, and then run the learning_ranking.py file to obtain several plots describing the results of the benchmark.
 
 
 Use ``benchopt run -h`` for more details about these options, or visit https://benchopt.github.io/api.html.
