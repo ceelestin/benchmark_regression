@@ -30,7 +30,7 @@ def process_parquet(df):
 
 # List of your parquet file paths
 file_paths = [
-    file_name,
+    f'outputs/{file_name}',
 ]
 
 # %%
