@@ -14,7 +14,7 @@ This benchmark can be run using the following commands:
 
 .. code-block::
 
-   $ pip install git+https://benchopt/benchopt/
+   $ pip install git+https://github.com/benchopt/benchopt/
    $ git clone https://github.com/ceelestin/benchmark_regression
    $ benchopt install benchmark_regression
    $ benchopt run benchmark_regression --no-timeout -j 256 --config config_learning_full.yml
