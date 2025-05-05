@@ -1,0 +1,68 @@
+dataset:
+    - Simbayes:
+        seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        n_samples: [110000]
+        noise: [0]
+solver:
+    - Ridge:
+        alpha: [760, 854, 1613]
+objective:
+    - Regression:
+        n_repeats: [1, 2, 3, 4, 5, 10, 20]
+        procedure: ["RepeatedKFold"]
+    - Regression:
+        n_splits: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 50, 100]
+        procedure: ["ShuffleSplit"]
+    - Regression:
+        procedure: ["train_test_split"]
+    - Regression:
+        n_repeats: [1]
+        procedure: ["RepeatedKFold"]
+        study_size: [355, 398, 446, 501, 681, 825]
+    - Regression:
+        n_repeats: [2]
+        procedure: ["RepeatedKFold"]
+        study_size: [200, 224, 251, 282, 383, 464]
+    - Regression:
+        n_repeats: [3, 4]
+        procedure: ["RepeatedKFold"]
+        study_size: [112, 126, 141, 159, 216, 261]
+    - Regression:
+        n_repeats: [5]
+        procedure: ["RepeatedKFold"]
+        study_size: [63, 71, 79, 89, 121, 147]
+    - Regression:
+        n_repeats: [10, 20]
+        procedure: ["RepeatedKFold"]
+        study_size: [36, 40, 45, 50, 68, 82]
+    - Regression:
+        n_splits: [1]
+        procedure: ["ShuffleSplit"]
+        study_size: [1122, 1259, 1412, 1585, 2154, 2610]
+    - Regression:
+        n_splits: [2, 3]
+        procedure: ["ShuffleSplit"]
+        study_size: [631, 708, 794, 891, 1211, 1468]
+    - Regression:
+        n_splits: [4, 5, 6]
+        procedure: ["ShuffleSplit"]
+        study_size: [355, 398, 446, 501, 681, 825]
+    - Regression:
+        n_splits: [7, 8, 9, 10]
+        procedure: ["ShuffleSplit"]
+        study_size: [200, 224, 251, 282, 383, 464]
+    - Regression:
+        n_splits: [15]
+        procedure: ["ShuffleSplit"]
+        study_size: [112, 126, 141, 159, 216, 261]
+    - Regression:
+        n_splits: [20, 25, 50]
+        procedure: ["ShuffleSplit"]
+        study_size: [63, 71, 79, 89, 121, 147]
+    - Regression:
+        n_splits: [100]
+        procedure: ["ShuffleSplit"]
+        study_size: [36, 40, 45, 50, 68, 82]
+    - Regression:
+        procedure: ["train_test_split"]
+        study_size: [1122, 1259, 1412, 1585, 2154, 2610]
