@@ -49,6 +49,85 @@ data = pd.concat(processed_dataframes)
 del processed_dataframes  # Remove intermediate list
 gc.collect()
 
+# %%
+def merge_duplicate_rows(df):
+    """Merges duplicate rows in a DataFrame based on specific criteria."""
+    s_df = df.groupby(['objective_name', 'solver_name', 'data_name']).agg(
+        time_count=('time', 'count'),
+        idx_rep_list=('idx_rep', lambda x: list(x))  # Keep as list of tuples for now
+    ).reset_index()
+    s_df = s_df[s_df['time_count'] == 2]
+
+    rows_to_add = []
+    indices_to_drop = []
+
+    for _, row_s in s_df.iterrows():
+        objective_name = row_s['objective_name']
+        solver_name = row_s['solver_name']
+        data_name = row_s['data_name']
+
+        group_mask = (
+            (df['objective_name'] == objective_name) &
+            (df['solver_name'] == solver_name) &
+            (df['data_name'] == data_name)
+        )
+        rows_to_merge = df[group_mask]
+
+        if len(rows_to_merge) == 2:
+            indices_to_drop.extend(rows_to_merge.index.tolist())
+
+            len_idx_rep_row1 = len(rows_to_merge['idx_rep'].iloc[0])
+            len_idx_rep_row2 = len(rows_to_merge['idx_rep'].iloc[1])
+            current_total_weight = len_idx_rep_row1 + len_idx_rep_row2
+
+            new_aggregated_row_data = {
+                'objective_name': objective_name,
+                'solver_name': solver_name,
+                'data_name': data_name,
+            }
+
+            cols_to_average = ['objective_score_test', 'objective_score_train',
+                               'objective_score_val', 'objective_score_bench', 'objective_value']
+            for col_name in cols_to_average:
+                value_row1 = rows_to_merge[col_name].iloc[0]
+                value_row2 = rows_to_merge[col_name].iloc[1]
+
+                if current_total_weight > 0:
+                    numerator = (value_row1 * len_idx_rep_row1) + (value_row2 * len_idx_rep_row2)
+                    new_aggregated_row_data[col_name] = numerator / current_total_weight
+                else:
+                    new_aggregated_row_data[col_name] = (value_row1 + value_row2) / 2.0 if pd.notna(value_row1) and pd.notna(value_row2) else np.nan
+
+            new_aggregated_row_data['time'] = rows_to_merge['time'].sum()
+
+            combined_idx_rep_list = []
+            for individual_idx_rep_tuple in rows_to_merge['idx_rep']:
+                combined_idx_rep_list.extend(list(individual_idx_rep_tuple))
+            new_aggregated_row_data['idx_rep'] = tuple(combined_idx_rep_list)
+
+            rows_to_add.append(new_aggregated_row_data)
+
+    if indices_to_drop:
+        df = df.drop(index=indices_to_drop)
+    if rows_to_add:
+        new_rows_df = pd.DataFrame(rows_to_add)
+        df = pd.concat([df, new_rows_df], ignore_index=True)
+    return df
+
+# %%
+# Process data
+print("Original data shape:", data.shape)
+s_ridge_check = data.groupby(['objective_name', 'solver_name', 'data_name']).size().reset_index(name='counts')
+print("Groups with 2 rows in data before merge:", s_ridge_check[s_ridge_check['counts'] == 2].shape[0])
+
+data = merge_duplicate_rows(data)
+
+print("New data shape:", data.shape)
+s_ridge_check_after = data.groupby(['objective_name', 'solver_name', 'data_name']).size().reset_index(name='counts')
+print("Groups with 2 rows in data after merge:", s_ridge_check_after[s_ridge_check_after['counts'] == 2].shape[0])
+print("Groups with >2 rows in data after merge:", s_ridge_check_after[s_ridge_check_after['counts'] > 2].shape[0])
+
+# %%
 # Now do the string extractions
 data[['n_repeats', 'n_splits', 'procedure', 'study_size', 'test_size', 'val_size']] = data['objective_name'].str.extract(r'n_repeats=(.*),n_splits=(.*),procedure=(.*),study_size=(.*),test_size=(.*),val_size=(.*)')
 data[['dataset_n_features', 'dataset_n_samples', 'dataset_noise', 'seed']] = data['data_name'].str.extract(r'n_features=(.*),n_samples=(.*),noise=(.*),seed=(.*)')
