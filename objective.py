@@ -119,13 +119,10 @@ class Objective(BaseObjective):
                 self.X, self.y, test_size=100000, random_state=0
             )
 
-        if self.study_size != 10000:
-            self.X_hidden, self.X_study, self.y_hidden, self.y_study = \
-                train_test_split(
-                    self.X_study, self.y_study, test_size=self.study_size
-                )
-        else:
-            self.X_hidden, self.y_hidden = None, None
+        self.X_hidden, self.X_study, self.y_hidden, self.y_study = \
+            train_test_split(
+                self.X_study, self.y_study, test_size=self.study_size
+            )
 
         if self.cv_bool:
             self.X_train, self.X_test, self.y_train, self.y_test = \
