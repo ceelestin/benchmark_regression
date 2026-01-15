@@ -36,7 +36,7 @@ class Objective(BaseObjective):
 
     # Minimal version of benchopt required to run this benchmark.
     # Bump it up if the benchmark depends on a new feature of benchopt.
-    min_benchopt_version = "1.5"
+    min_benchopt_version = "0.1"
 
     def skip(self, **data):
         if self.procedure == "train_test_split" and self.n_splits != 1:
