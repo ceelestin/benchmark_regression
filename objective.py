@@ -146,6 +146,8 @@ class Objective(BaseObjective):
             y_val=self.y_val,
             X_bench=self.X_bench,
             y_bench=self.y_bench,
+            X_hidden=self.X_hidden,
+            y_hidden=self.y_hidden,
             categorical_indicator=self.categorical_indicator,
             beta=self.beta
         )
