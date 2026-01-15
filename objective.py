@@ -79,6 +79,19 @@ class Objective(BaseObjective):
         score_val = model.score(self.X_val, self.y_val)
         score_bench = model.score(self.X_bench, self.y_bench)
 
+        hidden_scores = []
+        if not self.cv_bool and getattr(self, "X_hidden", None) is not None:
+            n_hidden = len(self.X_hidden)
+            test_len = len(self.X_test)
+            if test_len > 0:
+                n_chunks = min(n_hidden // test_len, 200)
+                for i in range(n_chunks):
+                    start = i * test_len
+                    end = (i + 1) * test_len
+                    X_chunk = self.X_hidden[start:end]
+                    y_chunk = self.y_hidden[start:end]
+                    hidden_scores.append(model.score(X_chunk, y_chunk))
+
         # This method can return many metrics in a dictionary. One of these
         # metrics needs to be `value` for convergence detection purposes.
         return dict(
@@ -86,6 +99,7 @@ class Objective(BaseObjective):
             score_train=score_train,
             score_val=score_val,
             score_bench=score_bench,
+            hidden_scores=hidden_scores,
             value=1 - score_test,
         )
 
@@ -106,9 +120,12 @@ class Objective(BaseObjective):
             )
 
         if self.study_size != 10000:
-            _, self.X_study, _, self.y_study = train_test_split(
-                self.X_study, self.y_study, test_size=self.study_size
+            self.X_hidden, self.X_study, self.y_hidden, self.y_study = \
+                train_test_split(
+                    self.X_study, self.y_study, test_size=self.study_size
                 )
+        else:
+            self.X_hidden, self.y_hidden = None, None
 
         if self.cv_bool:
             self.X_train, self.X_test, self.y_train, self.y_test = \
