@@ -31,7 +31,6 @@ class Objective(BaseObjective):
         "study_size": [10, 18, 32, 56, 100, 178, 316, 562, 1000, 1778, 3162,
                        5623, 10000],
         "test_size": [0.20],
-        "val_size": [0.20],
     }
 
     # Minimal version of benchopt required to run this benchmark.
@@ -76,7 +75,6 @@ class Objective(BaseObjective):
         # solvers' result. This is customizable for each benchmark.
         score_train = model.score(self.X_train, self.y_train)
         score_test = model.score(self.X_test, self.y_test)
-        score_val = model.score(self.X_val, self.y_val)
         score_bench = model.score(self.X_bench, self.y_bench)
 
         hidden_scores = []
@@ -97,7 +95,6 @@ class Objective(BaseObjective):
         return dict(
             score_test=score_test,
             score_train=score_train,
-            score_val=score_val,
             score_bench=score_bench,
             hidden_scores=hidden_scores,
             value=1 - score_test,
@@ -133,17 +130,9 @@ class Objective(BaseObjective):
                     self.X_study, self.y_study, test_size=self.test_size
                 )
 
-        self.X_train, self.X_val, self.y_train, self.y_val = \
-            train_test_split(
-                self.X_train, self.y_train,
-                test_size=self.val_size/(1-self.test_size)
-                )
-
         return dict(
             X_train=self.X_train,
             y_train=self.y_train,
-            X_val=self.X_val,
-            y_val=self.y_val,
             X_bench=self.X_bench,
             y_bench=self.y_bench,
             X_hidden=self.X_hidden,
