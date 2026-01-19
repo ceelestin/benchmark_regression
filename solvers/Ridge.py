@@ -24,8 +24,8 @@ class Solver(BaseSolver):
     sampling_strategy = "run_once"
 
     def set_objective(
-        self, X_train, y_train, X_val, y_val, X_bench, y_bench,
-        categorical_indicator, beta
+        self, X_train, y_train, X_bench, y_bench,
+        X_hidden, y_hidden, categorical_indicator, beta
     ):
         # Define the information received by each solver from the objective.
         # The arguments of this function are the results of the
@@ -33,8 +33,8 @@ class Solver(BaseSolver):
         # passing the objective to the solver.
         # It is customizable for each benchmark.
         self.X_train, self.y_train = X_train, y_train
-        self.X_val, self.y_val = X_val, y_val
         self.X_bench, self.y_bench = X_bench, y_bench
+        self.X_hidden, self.y_hidden = X_hidden, y_hidden
         self.cat_ind = categorical_indicator
         self.beta = beta
 
