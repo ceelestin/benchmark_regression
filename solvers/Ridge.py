@@ -25,7 +25,7 @@ class Solver(BaseSolver):
 
     def set_objective(
         self, X_train, y_train, X_bench, y_bench,
-        X_hidden, y_hidden, categorical_indicator, beta
+        X_outer, y_outer, categorical_indicator, beta
     ):
         # Define the information received by each solver from the objective.
         # The arguments of this function are the results of the
@@ -34,7 +34,7 @@ class Solver(BaseSolver):
         # It is customizable for each benchmark.
         self.X_train, self.y_train = X_train, y_train
         self.X_bench, self.y_bench = X_bench, y_bench
-        self.X_hidden, self.y_hidden = X_hidden, y_hidden
+        self.X_outer, self.y_outer = X_outer, y_outer
         self.cat_ind = categorical_indicator
         self.beta = beta
 
