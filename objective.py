@@ -133,7 +133,7 @@ class Objective(BaseObjective):
     # cross-fold/redundancy column of B.  ``-j >= 2`` gives each run its own
     # pickled copy and is unaffected.
     _RUN_STATE_ATTRS = (
-        "_eval_count", "_cv", "_study_row_index",
+        "_eval_count", "_cv", "_study_row_index", "_oof_pair_cache",
         "study_first_train_mask", "study_first_test_mask",
         "study_train_masks_by_fold", "study_test_masks_by_fold",
         "study_predictions_by_fold", "study_errors_by_fold",
@@ -214,25 +214,62 @@ class Objective(BaseObjective):
             resid[k] = centered
         return resid
 
-    def _oof_intersection_icc(self, q_stack, test_mask_stack):
-        covs = []
-        vars_ = []
-        intersection_sizes = []
+    @staticmethod
+    def _oof_pair_stats(q_stack, test_mask_stack, k, ell):
+        # Covariance / mean variance of two folds' quantities on the samples
+        # that are out-of-fold (in the test part) for BOTH folds.
+        mask = test_mask_stack[k] & test_mask_stack[ell]
+        n_intersection = int(np.sum(mask))
+        if n_intersection < 2:
+            return None
+        pair_cov = np.cov(q_stack[k, mask], q_stack[ell, mask])
+        cov = float(pair_cov[0, 1])
+        var = float(0.5 * (pair_cov[0, 0] + pair_cov[1, 1]))
+        if not np.isfinite(cov) or not np.isfinite(var):
+            return None
+        return cov, var, n_intersection
+
+    def _oof_intersection_icc(self, q_stack, test_mask_stack, cache_key=None):
+        """Mean pairwise OOF-intersection covariance / variance / ICC.
+
+        The statistic is a plain mean over all fold pairs (k < ell), so it can
+        be accumulated incrementally: fold rows never change once appended,
+        hence with ``cache_key`` only the pairs involving folds not seen yet
+        are computed and the per-pair values are kept on ``self``.  This turns
+        the O(K^3) per-run cost of recomputing every pair at every fold into
+        O(K^2) while giving the same mean (up to floating-point summation
+        order).  Without ``cache_key`` the full recomputation is done.
+        """
         n_folds = q_stack.shape[0]
-        for k in range(n_folds):
-            for ell in range(k + 1, n_folds):
-                mask = test_mask_stack[k] & test_mask_stack[ell]
-                n_intersection = int(np.sum(mask))
-                if n_intersection < 2:
-                    continue
-                pair_cov = np.cov(q_stack[k, mask], q_stack[ell, mask])
-                cov = float(pair_cov[0, 1])
-                var = float(0.5 * (pair_cov[0, 0] + pair_cov[1, 1]))
-                if not np.isfinite(cov) or not np.isfinite(var):
-                    continue
-                covs.append(cov)
-                vars_.append(var)
-                intersection_sizes.append(n_intersection)
+        if cache_key is None:
+            covs, vars_, intersection_sizes = [], [], []
+            for k in range(n_folds):
+                for ell in range(k + 1, n_folds):
+                    stats = self._oof_pair_stats(q_stack, test_mask_stack, k, ell)
+                    if stats is None:
+                        continue
+                    covs.append(stats[0])
+                    vars_.append(stats[1])
+                    intersection_sizes.append(stats[2])
+        else:
+            if not hasattr(self, "_oof_pair_cache"):
+                self._oof_pair_cache = {}
+            cache = self._oof_pair_cache.get(cache_key)
+            if cache is None or cache["n_folds"] > n_folds:
+                cache = {"n_folds": 0, "covs": [], "vars": [], "sizes": []}
+                self._oof_pair_cache[cache_key] = cache
+            for ell in range(cache["n_folds"], n_folds):
+                for k in range(ell):
+                    stats = self._oof_pair_stats(q_stack, test_mask_stack, k, ell)
+                    if stats is None:
+                        continue
+                    cache["covs"].append(stats[0])
+                    cache["vars"].append(stats[1])
+                    cache["sizes"].append(stats[2])
+            cache["n_folds"] = n_folds
+            covs, vars_, intersection_sizes = (
+                cache["covs"], cache["vars"], cache["sizes"]
+            )
 
         if not covs:
             return None, None, None, None, None
@@ -752,6 +789,7 @@ class Objective(BaseObjective):
             ) = self._oof_intersection_icc(
                 q_study_prediction_stack,
                 test_mask_stack,
+                cache_key="prediction",
             )
             study_gain_proxy_prediction_all_oof_intersection = (
                 self._icc_gain_from_rho(
@@ -768,6 +806,7 @@ class Objective(BaseObjective):
             ) = self._oof_intersection_icc(
                 q_study_error_stack,
                 test_mask_stack,
+                cache_key="error",
             )
             study_gain_proxy_error_all_oof_intersection = (
                 self._icc_gain_from_rho(
@@ -784,6 +823,7 @@ class Objective(BaseObjective):
             ) = self._oof_intersection_icc(
                 q_study_squared_stack,
                 test_mask_stack,
+                cache_key="squared_error",
             )
             study_gain_proxy_squared_error_all_oof_intersection = (
                 self._icc_gain_from_rho(
