@@ -15,8 +15,9 @@
 #   with G_K the exact configuration-level test sample gains (bootstrap over the 50 seeds).
 #   Also reported, not claimed: the saturation ratio G20/G5 (83% of derivation runs were still
 #   gaining >= 25% from K=5 to 20, so no stop-at-5 rule is claimed).
-#   Secondary, dimensionless variant: S_3 / study_target_var (new column) with its own x to be
-#   derived on the derivation set only after this run is launched, then validated here.
+#   Secondary, dimensionless variant S_3 / study_target_var (new column; the derivation set
+#   predates it): PRE-REGISTERED SPLIT — its threshold x_dimless is derived on the sim_linear
+#   family of THIS holdout only, then validated on sim_interactions and sim_nonlinear.
 #
 # Derivation numbers for the record: on the derivation set, x* for S_3 (tol 5%) = 0.032 at n=50
 # (the only size with G200>=20 cases), 0.026/0.038/0.039 for DecisionTree/KNeighbors/Ridge,
