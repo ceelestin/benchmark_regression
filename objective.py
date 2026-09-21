@@ -124,6 +124,32 @@ class Objective(BaseObjective):
         self.categorical_indicator = categorical_indicator
         self.beta = beta
 
+    # Per-run bookkeeping that must not leak from one solver run to the next.
+    # benchopt <= 1.9.0 reuses a single Objective instance for every solver
+    # of a dataset under ``-j 1`` (and calls ``set_dataset`` once per
+    # repetition, so it cannot be used as a per-run hook): without a reset the
+    # fold counter and the cumulative per-fold stores of solver A continue
+    # into solver B, which shifts ``split_index`` and corrupts every
+    # cross-fold/redundancy column of B.  ``-j >= 2`` gives each run its own
+    # pickled copy and is unaffected.
+    _RUN_STATE_ATTRS = (
+        "_eval_count", "_cv", "_study_row_index",
+        "study_first_train_mask", "study_first_test_mask",
+        "study_train_masks_by_fold", "study_test_masks_by_fold",
+        "study_predictions_by_fold", "study_errors_by_fold",
+        "study_squared_errors_by_fold",
+        "bench_predictions_by_fold", "bench_errors_by_fold",
+        "bench_squared_errors_by_fold",
+        "y_pred_study1", "y_pred_bench1", "y_error_study1", "y_error_bench1",
+        "y_var_study1", "y_var_bench1",
+        "y_var_squared_study1", "y_var_squared_bench1",
+    )
+
+    def _reset_run_state(self):
+        for attr in self._RUN_STATE_ATTRS:
+            if hasattr(self, attr):
+                delattr(self, attr)
+
     def _study_subset_mask(self, X_subset):
         X_study = np.asarray(self.X_study)
         X_subset = np.asarray(X_subset)
@@ -966,6 +992,11 @@ class Objective(BaseObjective):
         # for `Solver.set_objective`. This defines the
         # benchmark's API for passing the objective to the solver.
         # It is customizable for each benchmark.
+        # A run is exactly ``n_splits`` repetitions (benchopt derives
+        # ``n_repetitions`` from ``cv.get_n_splits()``): once the previous run
+        # has consumed them all, the next call starts a new solver run.
+        if self.cv_bool and getattr(self, "_eval_count", 0) >= self.n_splits:
+            self._reset_run_state()
         self.X_study, self.X_bench, self.y_study, self.y_bench = \
             train_test_split(
                 self.X, self.y, test_size=100000, random_state=0

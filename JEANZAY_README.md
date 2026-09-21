@@ -11,6 +11,8 @@ Files in this kit:
 - `make_chunks.py`  — split configs into per-seed chunk configs + a manifest
 - `submit_ranking.slurm` — the cpu_p1 job-array script (edit 3 marked lines)
 - `merge_chunks.py` — recombine chunk parquets into one file per base config
+- `check_run_integrity.py` — assert every run's `split_index` starts at 1 and follows `idx_rep`
+  (guards against the benchopt<=1.9.0 `-j 1` cross-solver leak fixed in `Objective._reset_run_state`)
 
 ---
 
@@ -42,7 +44,7 @@ module load python/3.11.5        # (adjust to what `module avail` shows)
 python -m venv $WORK/venvs/benchcv
 source $WORK/venvs/benchcv/bin/activate
 pip install --upgrade pip
-pip install benchopt scikit-learn numpy scipy pandas pyarrow
+pip install -r requirements-jeanzay.txt   # pins benchopt==1.9.0: >=1.9.1 nulls all cross-fold columns (see the file)
 ```
 
 Copy this benchmark repo to `$WORK` **from your laptop** (rsync preserves your
@@ -108,7 +110,7 @@ task is approaching 19 h, re-run `make_chunks.py` with more `--chunks`.
 ```bash
 ls -la outputs/ranking_1000seeds_part1__c00.parquet
 python -c "import pyarrow.parquet as pq; \
-  print(pq.ParquetFile('outputs/ranking_1000seeds_part1__c00.parquet').metadata.num_rows, 'rows')"
+  print(pq.ParquetFile('outputs/ranking_1000seeds_part1__c00.parquet').metadata.num_rows, 'rows')"python check_run_integrity.py outputs/ranking_1000seeds_part1__c00.parquet   # must print OK
 ```
 
 ---
@@ -135,6 +137,7 @@ python merge_chunks.py \
   --in-dir  "$SCRATCH/ranking_outputs" \
   --out-dir "$SCRATCH/ranking_merged"
 # -> ranking_1000seeds_part1.parquet, _part2.parquet, _part3.parquet
+python check_run_integrity.py "$SCRATCH"/ranking_merged/*.parquet   # all OK before bringing home
 ```
 
 Then from your laptop:

@@ -1,0 +1,14 @@
+# Environment for the cpu_p1 runs. benchopt MUST be pinned to 1.9.0 (== the objective's
+# min_benchopt_version). From 1.9.1, _generate_runs.py hands every CV repetition a
+# shallow copy of the Objective (objective_rep = copy.copy(objective)) and get_split
+# rebuilds the CV generator per repetition, so the cross-fold accumulators built in
+# evaluate_result never see a second fold: all study_*/redundancy columns come out null
+# with any -j (verified on 1.9.1 and 1.10.0, 2026-09-21). Under 1.9.0 (and 1.8.1) a
+# solver's repetitions stay on one instance and -j parallelises over
+# dataset x objective x solver, so -j 40 per node is safe.
+benchopt==1.9.0
+scikit-learn
+numpy
+scipy
+pandas
+pyarrow
