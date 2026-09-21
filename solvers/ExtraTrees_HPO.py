@@ -12,13 +12,13 @@ with safe_import_context() as import_ctx:
 class Solver(BaseSolver):
 
     # Name to select the solver in the CLI and to display the results.
-    name = 'ExtraTrees_noHPO'
+    name = 'ExtraTrees_HPO'
     # List of parameters for the solver. The benchmark will consider
     # the cross product for each key in the dictionary.
     # All parameters 'p' defined here are available as 'self.p'.
     parameters = {
-        # "n_estimators": [2, 20, 200],
-        "n_estimators": [100],
+        "n_estimators": [2],
+        "max_depth": [2]
     }
 
     # Force solver to run only once if you don't want to record training steps
@@ -39,7 +39,8 @@ class Solver(BaseSolver):
         self.cat_ind = categorical_indicator
         self.beta = beta
 
-        self.model = ExtraTreesRegressor(n_estimators=self.n_estimators)
+        self.model = ExtraTreesRegressor(n_estimators=self.n_estimators, 
+                                         max_depth=self.max_depth)
 
     def run(self, n_iter):
         # This is the function that is called to fit the model.
