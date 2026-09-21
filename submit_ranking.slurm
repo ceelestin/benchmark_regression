@@ -11,16 +11,16 @@
 #   2. --array range : 0-(Ntasks-1); make_chunks.py prints Ntasks
 #   3. the `source`  : activate your env (venv or conda)
 # ============================================================================
-#SBATCH --job-name=rankcv
+#SBATCH --job-name=thr_holdout
 #SBATCH --partition=cpu_p1
 #SBATCH --qos=qos_cpu-t3                 # <= 20 h walltime (default CPU QoS)
-#SBATCH --account=XXX@cpu                # <<< EDIT: your-project@cpu
+#SBATCH --account=sth@cpu                # <<< EDIT: your-project@cpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=40               # a full cpu_p1 node
 #SBATCH --hint=nomultithread
 #SBATCH --time=19:30:00                  # under the 20 h qos_cpu-t3 cap
-#SBATCH --array=0-119%48                 # <<< EDIT: 0-(Ntasks-1) ; % = max nodes at once
+#SBATCH --array=0-29%30                 # <<< EDIT: 0-(Ntasks-1) ; % = max nodes at once
 #SBATCH --output=logs/rank_%A_%a.out
 #SBATCH --error=logs/rank_%A_%a.err
 
