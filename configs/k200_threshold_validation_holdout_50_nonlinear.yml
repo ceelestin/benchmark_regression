@@ -1,0 +1,70 @@
+# K=200 PROSPECTIVE VALIDATION of an ABSOLUTE early-stopping threshold on the
+# study-only redundancy score. PRE-REGISTERED 2026-09-21 before launch; do not edit.
+#
+# Derivation set: testredundancy_benchopt_run_2026-05-04 (216 configs, seeds 1000-1049,
+# sizes 50/300/2000, noise 0.1/0.7/1.5, 8 solvers). This holdout stresses generalisation:
+# NEW seeds 2000-2049, train sizes OUTSIDE both previous grids (75/750/5000), SHIFTED
+# noise (0.3/1.0/2.5), same 3 families, the 8 solvers + GradientBoosting.
+# One file per dataset family because make_chunks.py rewrites only the first seed list.
+#
+# PRE-REGISTERED RULE (single run, first k=3 splits, i.e. the idx_rep=2 row):
+#   S_3 = study_prediction_cov_all_oof_intersection * study_squared_error_rho_all_oof_intersection
+#         (= omega-hat without the mean-intersection-size factor; size-free, units of y^2)
+#   If S_3 > x = 0.03  =>  "no large further gain expected".
+#   Pre-registered checks: P(G20 >= 10 | S_3 > 0.03) <= 0.05 and P(G200 >= 20 | S_3 > 0.03) <= 0.05,
+#   with G_K the exact configuration-level test sample gains (bootstrap over the 50 seeds).
+#   Also reported, not claimed: the saturation ratio G20/G5 (83% of derivation runs were still
+#   gaining >= 25% from K=5 to 20, so no stop-at-5 rule is claimed).
+#   Secondary, dimensionless variant: S_3 / study_target_var (new column) with its own x to be
+#   derived on the derivation set only after this run is launched, then validated here.
+#
+# Derivation numbers for the record: on the derivation set, x* for S_3 (tol 5%) = 0.032 at n=50
+# (the only size with G200>=20 cases), 0.026/0.038/0.039 for DecisionTree/KNeighbors/Ridge,
+# 0.0053-0.0068 pooled by noise level; rho_e alone admits no threshold; rho_g*rho_e is unstable.
+#
+# Expected size: 3 noise * 50 seeds * 3 sizes * 9 solvers * 200 splits = 810,000 rows per family.
+
+
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["ShuffleSplit"]
+      train_size: [75, 750, 5000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_nonlinear:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [0.3, 1.0, 2.5]
+      seed: [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035, 2036, 2037, 2038, 2039, 2040, 2041, 2042, 2043, 2044, 2045, 2046, 2047, 2048, 2049]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1613]
+  - ExtraTrees_noHPO:
+      n_estimators: [200]
+  - RandomForest:
+      n_estimators: [200]
+      max_depth: [100]
+  - DecisionTree:
+      max_depth: [100]
+      min_samples_leaf: [1]
+  - HistGradientBoosting:
+      max_iter: [100]
+      learning_rate: [0.1]
+      max_leaf_nodes: [31]
+      max_depth: [20]
+  - KNeighbors:
+      n_neighbors: [20]
+      weights: ["uniform"]
+  - SVR:
+      C: [10.0]
+      epsilon: [0.1]
+      gamma: ["scale"]
+  - MLP:
+      hidden_layer_sizes: [[32]]
+  - GradientBoosting:
+      n_estimators: [200]
