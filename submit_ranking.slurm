@@ -52,9 +52,9 @@ fi
 echo "[$(date '+%F %T')] task ${SLURM_ARRAY_TASK_ID} | ${CFG} | node ${SLURMD_NODENAME}"
 
 # benchopt runs solvers in the *current* env; `outputs/` is symlinked to
-# $SCRATCH (see JEANZAY_README.md), so `-o $NAME` lands the parquet there.
+# $SCRATCH (see JEANZAY_README.md), so `--output $NAME` lands the parquet there (benchopt >= 1.10: `-o` is the objective filter).
 benchopt run . --config "$CFG" \
     --no-plot --no-cache --no-timeout \
-    -j 40 -o "$NAME"
+    -j 40 --output "$NAME"
 
 echo "[$(date '+%F %T')] done -> outputs/${NAME}.parquet"
