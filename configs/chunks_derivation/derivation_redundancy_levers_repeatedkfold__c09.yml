@@ -1,0 +1,51 @@
+# DERIVATION experiment for the study-only redundancy score (NOT pre-registered;
+# exploratory, 2026-09-22). RepeatedKFold 5x40: zero test overlap within a repeat, isolates the cross-repeat term.
+#
+# Design: decompose the redundancy <-> test-sample-gain relation into its levers and
+# move them one at a time on sim_linear:
+#   * train size (learner variance, finite-population effects),
+#   * target noise (irreducible per-sample error, the SAMPLE-driven component),
+#   * fold-to-fold predictor variability, controlled directly with two Ridge wrappers:
+#       - RidgeNoisyPred: per-sample prediction noise, fresh per fold (drives the
+#         per-sample error correlation across folds towards 0),
+#       - RidgeNoisyCoef: coefficient perturbation per fit (fold-specific smooth bias,
+#         correlated errors across samples within a fold),
+#     plus two real unstable learners (DecisionTree, ExtraTrees_noHPO) and plain Ridge,
+#   * CV scheme (this file: RepeatedKFold, fixed_split=False).
+# Seeds 3000-3029 are disjoint from the derivation set (1000-1049) and from the
+# pre-registered holdout (2000-2049). One file per scheme because make_chunks.py
+# rewrites only the first seed list.
+# Ground truth per configuration: G_K from the bench-set scores across seeds;
+# study-only candidates: the *_oof_intersection, *_full, *_resid_train_membership
+# ICCs and the new study_oof_anova_* sample-/fold-driven variance components.
+
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["RepeatedKFold"]
+      train_size: [50, 100, 300, 1000, 3000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [0.1, 0.5, 1.5]
+      seed: [3027, 3028, 3029]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1.0]
+  - RidgeNoisyPred:
+      alpha: [1.0]
+      pred_noise: [0.1, 0.3, 1.0, 3.0]
+  - RidgeNoisyCoef:
+      alpha: [1.0]
+      coef_noise: [0.1, 0.3, 1.0]
+  - DecisionTree:
+      max_depth: [100]
+      min_samples_leaf: [1]
+  - ExtraTrees_noHPO:
+      n_estimators: [200]
