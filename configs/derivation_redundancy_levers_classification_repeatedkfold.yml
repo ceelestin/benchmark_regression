@@ -1,0 +1,43 @@
+# DERIVATION experiment, CLASSIFICATION analog (NOT pre-registered; exploratory, 2026-09-22).
+# RepeatedKFold 5x40.
+#
+# Same design as derivation_redundancy_levers_*.yml on sim_classification (binary target,
+# predictions = P(y=1|x); the objective derives Brier = squared error, 0-1 error and NLL and
+# their redundancy statistics, matching the PCam columns). Levers:
+#   * train size, * label noise via logit_scale (Bayes error ~0.40 / 0.31 / 0.15),
+#   * fold-to-fold predictor variability: LogRegNoisyLogit (per-sample logit noise, fresh per
+#     fold), LogRegNoisyCoef (per-fit coefficient perturbation), plus DecisionTreeClf and
+#     ExtraTreesClf (real unstable learners) and plain LogReg,
+#   * CV scheme (this file: RepeatedKFold, fixed_split=False).
+# Seeds 3000-3029 (disjoint from the derivation set 1000-1049 and the holdout 2000-2049).
+
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["RepeatedKFold"]
+      train_size: [50, 100, 300, 1000, 3000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_classification:
+      n_samples: [150000]
+      n_features: [20]
+      logit_scale: [0.5, 1.0, 3.0]
+      seed: [3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009, 3010, 3011, 3012, 3013, 3014, 3015, 3016, 3017, 3018, 3019, 3020, 3021, 3022, 3023, 3024, 3025, 3026, 3027, 3028, 3029]
+      fixed: [False]
+
+solver:
+  - LogReg:
+      C: [1.0]
+  - LogRegNoisyLogit:
+      C: [1.0]
+      logit_noise: [0.5, 1.0, 2.0, 4.0]
+  - LogRegNoisyCoef:
+      C: [1.0]
+      coef_noise: [0.1, 0.3, 1.0]
+  - DecisionTreeClf:
+      max_depth: [100]
+      min_samples_leaf: [1]
+  - ExtraTreesClf:
+      n_estimators: [200]

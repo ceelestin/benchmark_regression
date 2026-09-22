@@ -123,6 +123,13 @@ class Objective(BaseObjective):
 
         self.categorical_indicator = categorical_indicator
         self.beta = beta
+        # Binary target in {0, 1} (e.g. sim_classification): predictions are then
+        # read as P(y=1|x); the squared error is the Brier score and the 0-1
+        # error / negative log-likelihood are derived as well.
+        y_unique = np.unique(np.asarray(y))
+        self._is_classification = bool(
+            len(y_unique) <= 2 and np.all(np.isin(y_unique, [0.0, 1.0]))
+        )
 
     # Per-run bookkeeping that must not leak from one solver run to the next.
     # benchopt <= 1.9.0 reuses a single Objective instance for every solver
@@ -135,6 +142,7 @@ class Objective(BaseObjective):
     _RUN_STATE_ATTRS = (
         "_eval_count", "_cv", "_study_row_index", "_oof_pair_cache",
         "_stack_icc_cache", "_oof_anova",
+        "study_error01_by_fold", "study_nll_by_fold",
         "study_first_train_mask", "study_first_test_mask",
         "study_train_masks_by_fold", "study_test_masks_by_fold",
         "study_predictions_by_fold", "study_errors_by_fold",
@@ -467,6 +475,18 @@ class Objective(BaseObjective):
             metrics["spearman"] = float(spearmanr(y_true, y_pred).statistic)
             metrics["pearson"] = float(pearsonr(y_true, y_pred).statistic)
 
+        # Binary classification (predictions = P(y=1|x)): accuracy at threshold
+        # 0.5 and the negated mean negative log-likelihood (higher is better).
+        if getattr(self, "_is_classification", False):
+            p = np.clip(y_pred, 1e-6, 1 - 1e-6)
+            metrics["accuracy"] = float(np.mean((p > 0.5) == (y_true > 0.5)))
+            metrics["neg_nll"] = float(np.mean(
+                y_true * np.log(p) + (1 - y_true) * np.log(1 - p)
+            ))
+        else:
+            metrics["accuracy"] = np.nan
+            metrics["neg_nll"] = np.nan
+
         return metrics
 
     def evaluate_result(self, model):
@@ -522,6 +542,17 @@ class Objective(BaseObjective):
                 study_squared_error = study_error_current ** 2 / y_var_study
             else:
                 study_squared_error = np.zeros_like(self.y_study, dtype=float)
+
+            # Classification: per-sample 0-1 error and negative log-likelihood
+            # (predictions are probabilities of class 1).
+            bench_error01 = bench_nll = study_error01 = study_nll = None
+            if getattr(self, "_is_classification", False):
+                pb = np.clip(np.asarray(y_pred_bench_current, dtype=float), 1e-6, 1 - 1e-6)
+                ps = np.clip(np.asarray(y_pred_study_current, dtype=float), 1e-6, 1 - 1e-6)
+                bench_error01 = ((pb > 0.5) != (self.y_bench > 0.5)).astype(float)
+                study_error01 = ((ps > 0.5) != (self.y_study > 0.5)).astype(float)
+                bench_nll = -(self.y_bench * np.log(pb) + (1 - self.y_bench) * np.log(1 - pb))
+                study_nll = -(self.y_study * np.log(ps) + (1 - self.y_study) * np.log(1 - ps))
 
             current_train_mask = self._study_subset_mask(self.X_train)
             current_test_mask = self._study_subset_mask(self.X_test)
@@ -604,14 +635,22 @@ class Objective(BaseObjective):
                 self._icc_from_stack_incremental(
                     f"study_{key}_resid_train_membership", [resid_row]
                 )
-            self._oof_anova_update(
-                {
-                    "prediction": y_pred_study_current,
-                    "error": study_error_current,
-                    "squared_error": study_squared_error,
-                },
-                current_test_mask,
-            )
+            anova_quantities = {
+                "prediction": y_pred_study_current,
+                "error": study_error_current,
+                "squared_error": study_squared_error,
+            }
+            if study_error01 is not None:
+                self._icc_from_stack_incremental("bench_error01", [bench_error01])
+                self._icc_from_stack_incremental("bench_nll", [bench_nll])
+                if self._eval_count == 1:
+                    self.study_error01_by_fold = []
+                    self.study_nll_by_fold = []
+                self.study_error01_by_fold.append(study_error01)
+                self.study_nll_by_fold.append(study_nll)
+                anova_quantities["error01"] = study_error01
+                anova_quantities["nll"] = study_nll
+            self._oof_anova_update(anova_quantities, current_test_mask)
 
         if self._eval_count == 1:
             self.y_pred_bench1 = y_pred_bench
@@ -643,6 +682,8 @@ class Objective(BaseObjective):
         outer_scores = []
         outer_neg_mse = []
         outer_neg_mae = []
+        outer_accuracy = []
+        outer_neg_nll = []
         outer_r2_cum = []
         outer_neg_median_ae_cum = []
         outer_spearman_cum = []
@@ -669,6 +710,8 @@ class Objective(BaseObjective):
                     outer_scores.append(chunk_metrics["r2"])
                     outer_neg_mse.append(chunk_metrics["neg_mse"])
                     outer_neg_mae.append(chunk_metrics["neg_mae"])
+                    outer_accuracy.append(chunk_metrics["accuracy"])
+                    outer_neg_nll.append(chunk_metrics["neg_nll"])
 
                     pooled_true[filled:filled + test_len] = y_true_chunk
                     pooled_pred[filled:filled + test_len] = y_pred_chunk
@@ -864,6 +907,27 @@ class Objective(BaseObjective):
                 n_splits=n_splits,
             )
 
+        # Classification-only cross-fold statistics (None for regression).
+        bench_error01_cov_all = bench_error01_var_all = bench_error01_rho_all = None
+        bench_nll_cov_all = bench_nll_var_all = bench_nll_rho_all = None
+        study_error01_cov_all_oof_intersection = None
+        study_error01_var_all_oof_intersection = None
+        study_error01_rho_all_oof_intersection = None
+        study_nll_cov_all_oof_intersection = None
+        study_nll_var_all_oof_intersection = None
+        study_nll_rho_all_oof_intersection = None
+        if self.cv_bool and self._stack_icc_n_folds("bench_error01") >= 2:
+            (
+                bench_error01_cov_all,
+                bench_error01_var_all,
+                bench_error01_rho_all,
+            ) = self._icc_from_stack_incremental("bench_error01", [])
+            (
+                bench_nll_cov_all,
+                bench_nll_var_all,
+                bench_nll_rho_all,
+            ) = self._icc_from_stack_incremental("bench_nll", [])
+
         if (
             self.cv_bool
             and hasattr(self, "study_predictions_by_fold")
@@ -1003,13 +1067,34 @@ class Objective(BaseObjective):
             study_oof_intersection_mean_size_all = (
                 squared_oof_mean_size or error_oof_mean_size or pred_oof_mean_size
             )
+            if len(getattr(self, "study_error01_by_fold", [])) >= 2:
+                (
+                    study_error01_cov_all_oof_intersection,
+                    study_error01_var_all_oof_intersection,
+                    study_error01_rho_all_oof_intersection,
+                    _, _,
+                ) = self._oof_intersection_icc(
+                    np.vstack(self.study_error01_by_fold),
+                    test_mask_stack,
+                    cache_key="error01",
+                )
+                (
+                    study_nll_cov_all_oof_intersection,
+                    study_nll_var_all_oof_intersection,
+                    study_nll_rho_all_oof_intersection,
+                    _, _,
+                ) = self._oof_intersection_icc(
+                    np.vstack(self.study_nll_by_fold),
+                    test_mask_stack,
+                    cache_key="nll",
+                )
 
         # Per-sample OOF variance decomposition (sample-driven vs fold-driven
         # components of the out-of-fold prediction / error / squared error),
         # cumulative over the folds seen so far.
         oof_anova = {
             key: {"sample_var": None, "fold_var": None, "icc": None}
-            for key in ("prediction", "error", "squared_error")
+            for key in ("prediction", "error", "squared_error", "error01", "nll")
         }
         oof_anova_n_seen_twice = None
         oof_anova_mean_count = None
@@ -1019,7 +1104,8 @@ class Objective(BaseObjective):
                 oof_anova_n_seen_twice = summary["n_samples_seen_twice"]
                 oof_anova_mean_count = summary["mean_oof_count"]
                 for key in oof_anova:
-                    oof_anova[key] = summary[key]
+                    if key in summary:
+                        oof_anova[key] = summary[key]
 
         # This method can return many metrics in a dictionary. One of these
         # metrics needs to be `value` for convergence detection purposes.
@@ -1044,6 +1130,14 @@ class Objective(BaseObjective):
             neg_mae_train=metrics_train["neg_mae"],
             neg_mae_test=metrics_test["neg_mae"],
             neg_mae_bench=metrics_bench["neg_mae"],
+            # Classification only (NaN for regression): accuracy at 0.5 and
+            # negated mean negative log-likelihood.
+            accuracy_train=metrics_train["accuracy"],
+            accuracy_test=metrics_test["accuracy"],
+            accuracy_bench=metrics_bench["accuracy"],
+            neg_nll_train=metrics_train["neg_nll"],
+            neg_nll_test=metrics_test["neg_nll"],
+            neg_nll_bench=metrics_bench["neg_nll"],
             neg_median_ae_train=metrics_train["neg_median_ae"],
             neg_median_ae_test=metrics_test["neg_median_ae"],
             neg_median_ae_bench=metrics_bench["neg_median_ae"],
@@ -1057,6 +1151,8 @@ class Objective(BaseObjective):
             outer_scores=outer_scores,
             outer_neg_mse=outer_neg_mse,
             outer_neg_mae=outer_neg_mae,
+            outer_accuracy=outer_accuracy,
+            outer_neg_nll=outer_neg_nll,
             # Cumulative pooled: element k already IS the metric on test+chunks 0..k,
             # so use these directly -- do NOT feed them through the combination.
             outer_r2_cum=outer_r2_cum,
@@ -1213,6 +1309,31 @@ class Objective(BaseObjective):
             ),
             study_oof_anova_n_samples_seen_twice=oof_anova_n_seen_twice,
             study_oof_anova_mean_oof_count=oof_anova_mean_count,
+            # Classification only (None for regression).
+            bench_error01_cov_all=bench_error01_cov_all,
+            bench_error01_var_all=bench_error01_var_all,
+            bench_error01_rho_all=bench_error01_rho_all,
+            bench_nll_cov_all=bench_nll_cov_all,
+            bench_nll_var_all=bench_nll_var_all,
+            bench_nll_rho_all=bench_nll_rho_all,
+            study_error01_cov_all_oof_intersection=(
+                study_error01_cov_all_oof_intersection
+            ),
+            study_error01_var_all_oof_intersection=(
+                study_error01_var_all_oof_intersection
+            ),
+            study_error01_rho_all_oof_intersection=(
+                study_error01_rho_all_oof_intersection
+            ),
+            study_nll_cov_all_oof_intersection=study_nll_cov_all_oof_intersection,
+            study_nll_var_all_oof_intersection=study_nll_var_all_oof_intersection,
+            study_nll_rho_all_oof_intersection=study_nll_rho_all_oof_intersection,
+            study_oof_anova_error01_sample_var=oof_anova["error01"]["sample_var"],
+            study_oof_anova_error01_fold_var=oof_anova["error01"]["fold_var"],
+            study_oof_anova_error01_icc=oof_anova["error01"]["icc"],
+            study_oof_anova_nll_sample_var=oof_anova["nll"]["sample_var"],
+            study_oof_anova_nll_fold_var=oof_anova["nll"]["fold_var"],
+            study_oof_anova_nll_icc=oof_anova["nll"]["icc"],
             study_covariance=study_covariance,
             study_target_var=study_target_var,
             study_error_cov=study_error_cov,

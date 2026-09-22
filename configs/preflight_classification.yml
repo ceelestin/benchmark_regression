@@ -1,0 +1,32 @@
+# PRE-FLIGHT for the classification derivation configs (login node): one seed, one size,
+# K=10, LogReg + the two noisy wrappers + DecisionTreeClf. Checks the solvers load, the
+# classification columns (accuracy/neg_nll, error01/nll OOF statistics) populate and
+# check_run_integrity passes.
+objective:
+  - Regression:
+      n_splits: [10]
+      procedure: ["ShuffleSplit"]
+      train_size: [100]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_classification:
+      n_samples: [150000]
+      n_features: [20]
+      logit_scale: [1.0]
+      seed: [3000]
+      fixed: [False]
+
+solver:
+  - LogReg:
+      C: [1.0]
+  - LogRegNoisyLogit:
+      C: [1.0]
+      logit_noise: [2.0]
+  - LogRegNoisyCoef:
+      C: [1.0]
+      coef_noise: [0.3]
+  - DecisionTreeClf:
+      max_depth: [100]
+      min_samples_leaf: [1]

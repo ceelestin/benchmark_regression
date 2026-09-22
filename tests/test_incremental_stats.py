@@ -117,7 +117,35 @@ def test_noisy_estimators(seed=2):
     return noise.std() / np.std(y)
 
 
+def test_classification_estimators(seed=3):
+    from sklearn.linear_model import LogisticRegression
+    from benchmark_utils.classification_estimators import (
+        NoisyCoefClassifier, NoisyLogitRegressor, ProbaRegressor,
+    )
+    rng = np.random.default_rng(seed)
+    X = rng.normal(size=(300, 5))
+    y = (rng.random(300) < 1 / (1 + np.exp(-(X @ rng.normal(size=5))))).astype(float)
+    base = ProbaRegressor(LogisticRegression(max_iter=1000)).fit(X, y)
+    p = base.predict(X)
+    assert p.min() >= 0 and p.max() <= 1 and 0.4 < p.mean() < 0.6
+    for est in (NoisyLogitRegressor(LogisticRegression(max_iter=1000), 0.0),
+                NoisyCoefClassifier(LogisticRegression(max_iter=1000), 0.0)):
+        assert np.allclose(est.fit(X, y).predict(X), p)
+    noisy = NoisyLogitRegressor(LogisticRegression(max_iter=1000), 2.0).fit(X, y)
+    q = noisy.predict(X)
+    assert np.allclose(q[10:60], noisy.predict(X[10:60]))       # per-sample determinism
+    assert q.min() >= 0 and q.max() <= 1 and np.std(q - p) > 0.1
+    # objective classification branch on a tiny synthetic run of the helpers
+    obj = _objective()
+    obj._oof_anova_update({"error01": (q > 0.5) != (y > 0.5)}, rng.random(300) < 0.5)
+    obj._oof_anova_update({"error01": (p > 0.5) != (y > 0.5)}, rng.random(300) < 0.5)
+    s = obj._oof_anova_summary()
+    assert "error01" in s and s["error01"]["fold_var"] is not None
+    return float(np.std(q - p))
+
+
 if __name__ == "__main__":
+    print("classification estimators OK; logit-noise prob shift std", test_classification_estimators())
     print("incremental ICC vs full: max rel err", test_incremental_icc_matches_full())
     print("oof anova vs direct:", test_oof_anova_matches_direct())
     print("noisy estimators OK; pred-noise std ratio", test_noisy_estimators())
