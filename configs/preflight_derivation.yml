@@ -1,0 +1,31 @@
+# PRE-FLIGHT for the derivation configs (login node, minutes): one seed, one size, one
+# noise, K=10, the two noisy wrappers + Ridge + DecisionTree. Checks the new solvers
+# load, the incremental statistics populate, and check_run_integrity passes.
+objective:
+  - Regression:
+      n_splits: [10]
+      procedure: ["ShuffleSplit"]
+      train_size: [100]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [0.5]
+      seed: [3000]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1.0]
+  - RidgeNoisyPred:
+      alpha: [1.0]
+      pred_noise: [1.0]
+  - RidgeNoisyCoef:
+      alpha: [1.0]
+      coef_noise: [0.3]
+  - DecisionTree:
+      max_depth: [100]
+      min_samples_leaf: [1]

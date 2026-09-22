@@ -134,6 +134,7 @@ class Objective(BaseObjective):
     # pickled copy and is unaffected.
     _RUN_STATE_ATTRS = (
         "_eval_count", "_cv", "_study_row_index", "_oof_pair_cache",
+        "_stack_icc_cache", "_oof_anova",
         "study_first_train_mask", "study_first_test_mask",
         "study_train_masks_by_fold", "study_test_masks_by_fold",
         "study_predictions_by_fold", "study_errors_by_fold",
@@ -194,6 +195,141 @@ class Objective(BaseObjective):
 
     def _squared_error_icc_from_stack(self, q_stack):
         return self._icc_from_stack(q_stack)
+
+    def _icc_from_stack_incremental(self, cache_key, new_rows):
+        """Same statistic as ``_icc_from_stack(np.vstack(all_rows))`` --
+        mean off-diagonal covariance, mean variance (ddof=1), their ratio --
+        accumulated one fold at a time.
+
+        ``new_rows`` are the fold rows appended since the previous call for
+        this ``cache_key`` (usually one).  Rows never change once appended, so
+        the covariances of a new fold with every earlier fold are computed
+        once (a matrix-vector product on the stored centered rows) instead of
+        recomputing the full k x k covariance matrix at every fold.  This
+        turns the O(K^3 n) per-run cost of the ``np.cov`` recomputation into
+        O(K^2 n).  Non-finite covariances/variances are dropped from the means
+        exactly as in ``_icc_from_stack``.
+        """
+        if not hasattr(self, "_stack_icc_cache"):
+            self._stack_icc_cache = {}
+        cache = self._stack_icc_cache.get(cache_key)
+        if cache is None:
+            cache = {"n_folds": 0, "centered": None, "vars": [], "covs": []}
+            self._stack_icc_cache[cache_key] = cache
+        for row in new_rows:
+            row = np.asarray(row, dtype=float).ravel()
+            n = row.size
+            centered = row - np.mean(row)
+            denom = n - 1 if n > 1 else np.nan
+            var = float(centered @ centered / denom)
+            k = cache["n_folds"]
+            if cache["centered"] is None:
+                capacity = max(int(getattr(self, "n_splits", 0) or 0), 8)
+                cache["centered"] = np.empty((capacity, n), dtype=float)
+            elif k >= cache["centered"].shape[0]:
+                grown = np.empty(
+                    (2 * cache["centered"].shape[0], n), dtype=float
+                )
+                grown[:k] = cache["centered"][:k]
+                cache["centered"] = grown
+            if k > 0:
+                covs = cache["centered"][:k] @ centered / denom
+                cache["covs"].extend(float(c) for c in covs)
+            cache["centered"][k] = centered
+            cache["vars"].append(var)
+            cache["n_folds"] = k + 1
+
+        if cache["n_folds"] < 2:
+            return None, None, None
+        covs = np.asarray(cache["covs"], dtype=float)
+        vars_ = np.asarray(cache["vars"], dtype=float)
+        finite_covs = covs[np.isfinite(covs)]
+        finite_vars = vars_[np.isfinite(vars_)]
+        if finite_covs.size == 0 or finite_vars.size == 0:
+            return None, None, None
+        cov_mean = float(np.mean(finite_covs))
+        var_mean = float(np.mean(finite_vars))
+        rho = cov_mean / var_mean if var_mean > 0 else 0.0
+        return cov_mean, var_mean, rho
+
+    def _stack_icc_n_folds(self, cache_key):
+        cache = getattr(self, "_stack_icc_cache", {}).get(cache_key)
+        return int(cache["n_folds"]) if cache is not None else 0
+
+    def _oof_anova_update(self, quantities, test_mask):
+        """Accumulate per-sample running sums of out-of-fold quantities.
+
+        For every study sample the fold-wise OOF values (prediction, error,
+        squared error) form an unbalanced one-way layout: sample i is observed
+        on the folds where it is in the test part.  Running sums of the
+        values and of their squares give, at any fold, the classical
+        decomposition of the OOF error into a SAMPLE-driven part (variance
+        across samples of the per-sample mean OOF value: noise + shared bias,
+        identical in every fold) and a FOLD-driven part (mean across samples
+        of the per-sample variance of the OOF value across folds: training-set
+        variability of the learner).  O(N_study) per fold.
+        """
+        if not hasattr(self, "_oof_anova"):
+            n_study = len(test_mask)
+            self._oof_anova = {
+                "count": np.zeros(n_study, dtype=float),
+                "sums": {
+                    key: np.zeros(n_study, dtype=float) for key in quantities
+                },
+                "sumsq": {
+                    key: np.zeros(n_study, dtype=float) for key in quantities
+                },
+            }
+        acc = self._oof_anova
+        mask = np.asarray(test_mask, dtype=bool)
+        acc["count"][mask] += 1.0
+        for key, values in quantities.items():
+            v = np.asarray(values, dtype=float)[mask]
+            acc["sums"][key][mask] += v
+            acc["sumsq"][key][mask] += v * v
+
+    def _oof_anova_summary(self):
+        """Sample- and fold-driven variance components of the OOF quantities.
+
+        Uses the samples observed OOF at least twice.  Returns a dict keyed by
+        quantity with ``sample_var`` (variance across samples of the per-sample
+        mean), ``fold_var`` (mean across samples of the unbiased per-sample
+        variance across folds) and ``icc`` = sample_var / (sample_var +
+        fold_var), plus coverage statistics.
+        """
+        acc = getattr(self, "_oof_anova", None)
+        if acc is None:
+            return None
+        count = acc["count"]
+        seen = count >= 2
+        out = {
+            "n_samples_seen_twice": int(np.sum(seen)),
+            "mean_oof_count": float(np.mean(count)) if count.size else None,
+        }
+        if np.sum(seen) < 2:
+            for key in acc["sums"]:
+                out[key] = {"sample_var": None, "fold_var": None, "icc": None}
+            return out
+        c = count[seen]
+        for key in acc["sums"]:
+            s = acc["sums"][key][seen]
+            ss = acc["sumsq"][key][seen]
+            means = s / c
+            # unbiased per-sample variance across the folds where i is OOF
+            within = (ss - c * means ** 2) / (c - 1)
+            within = np.clip(within, 0.0, None)
+            fold_var = float(np.mean(within))
+            # variance across samples of the per-sample mean; the means carry
+            # fold noise of order fold_var / c, removed for an unbiased
+            # between-sample component (clipped at 0).
+            sample_var = float(np.var(means, ddof=1) - np.mean(within / c))
+            sample_var = max(sample_var, 0.0)
+            total = sample_var + fold_var
+            icc = sample_var / total if total > 0 else None
+            out[key] = {
+                "sample_var": sample_var, "fold_var": fold_var, "icc": icc,
+            }
+        return out
 
     def _icc_gain_from_rho(self, rho, n_splits=None):
         if rho is None:
@@ -435,14 +571,47 @@ class Objective(BaseObjective):
                 self.study_first_test_mask,
             )
 
-            self.bench_predictions_by_fold.append(y_pred_bench_current)
-            self.bench_errors_by_fold.append(bench_error_current)
-            self.bench_squared_errors_by_fold.append(bench_squared_error)
+            # Bench rows (100k samples) are folded straight into the
+            # incremental ICC caches: no per-fold copy of the bench stack is
+            # kept and no k x k covariance matrix is recomputed per fold.
+            self._icc_from_stack_incremental(
+                "bench_prediction", [y_pred_bench_current]
+            )
+            self._icc_from_stack_incremental(
+                "bench_error", [bench_error_current]
+            )
+            self._icc_from_stack_incremental(
+                "bench_squared_error", [bench_squared_error]
+            )
+            # Study rows are kept (small: N_study samples) for the pairwise
+            # OOF-intersection statistics, and also fed to the incremental
+            # caches for the "full" and "resid_train_membership" ICCs.
             self.study_predictions_by_fold.append(y_pred_study_current)
             self.study_errors_by_fold.append(study_error_current)
             self.study_squared_errors_by_fold.append(study_squared_error)
             self.study_train_masks_by_fold.append(current_train_mask)
             self.study_test_masks_by_fold.append(current_test_mask)
+            for key, row in (
+                ("prediction", y_pred_study_current),
+                ("error", study_error_current),
+                ("squared_error", study_squared_error),
+            ):
+                self._icc_from_stack_incremental(f"study_{key}_full", [row])
+                resid_row = self._residualize_by_train_membership(
+                    np.asarray(row, dtype=float)[None, :],
+                    current_train_mask[None, :],
+                )[0]
+                self._icc_from_stack_incremental(
+                    f"study_{key}_resid_train_membership", [resid_row]
+                )
+            self._oof_anova_update(
+                {
+                    "prediction": y_pred_study_current,
+                    "error": study_error_current,
+                    "squared_error": study_squared_error,
+                },
+                current_test_mask,
+            )
 
         if self._eval_count == 1:
             self.y_pred_bench1 = y_pred_bench
@@ -650,15 +819,16 @@ class Objective(BaseObjective):
 
         if (
             self.cv_bool
-            and hasattr(self, "bench_predictions_by_fold")
-            and len(self.bench_predictions_by_fold) >= 2
+            and self._stack_icc_n_folds("bench_prediction") >= 2
         ):
-            n_splits = int(getattr(self, "n_splits", len(self.bench_predictions_by_fold)))
+            n_splits = int(getattr(
+                self, "n_splits", self._stack_icc_n_folds("bench_prediction")
+            ))
             (
                 bench_prediction_cov_all,
                 bench_prediction_var_all,
                 bench_prediction_rho_all,
-            ) = self._icc_from_stack(np.vstack(self.bench_predictions_by_fold))
+            ) = self._icc_from_stack_incremental("bench_prediction", [])
             bench_gain_proxy_prediction_all = self._icc_gain_from_rho(
                 bench_prediction_rho_all,
                 n_splits=n_splits,
@@ -668,7 +838,7 @@ class Objective(BaseObjective):
                 bench_error_cov_all,
                 bench_error_var_all,
                 bench_error_rho_all,
-            ) = self._icc_from_stack(np.vstack(self.bench_errors_by_fold))
+            ) = self._icc_from_stack_incremental("bench_error", [])
             bench_gain_proxy_error_all = self._icc_gain_from_rho(
                 bench_error_rho_all,
                 n_splits=n_splits,
@@ -678,7 +848,7 @@ class Objective(BaseObjective):
                 bench_squared_error_cov_all,
                 bench_squared_error_var_all,
                 bench_squared_error_rho_all,
-            ) = self._icc_from_stack(np.vstack(self.bench_squared_errors_by_fold))
+            ) = self._icc_from_stack_incremental("bench_squared_error", [])
 
             n_bench = len(self.X_bench)
             n_test = len(self.X_test)
@@ -702,7 +872,6 @@ class Objective(BaseObjective):
             q_study_prediction_stack = np.vstack(self.study_predictions_by_fold)
             q_study_error_stack = np.vstack(self.study_errors_by_fold)
             q_study_squared_stack = np.vstack(self.study_squared_errors_by_fold)
-            train_mask_stack = np.vstack(self.study_train_masks_by_fold)
             test_mask_stack = np.vstack(self.study_test_masks_by_fold)
             n_splits = int(getattr(self, "n_splits", q_study_squared_stack.shape[0]))
 
@@ -710,7 +879,7 @@ class Objective(BaseObjective):
                 study_prediction_cov_all_full,
                 study_prediction_var_all_full,
                 study_prediction_rho_all_full,
-            ) = self._icc_from_stack(q_study_prediction_stack)
+            ) = self._icc_from_stack_incremental("study_prediction_full", [])
             study_gain_proxy_prediction_all_full = self._icc_gain_from_rho(
                 study_prediction_rho_all_full,
                 n_splits=n_splits,
@@ -719,7 +888,7 @@ class Objective(BaseObjective):
                 study_error_cov_all_full,
                 study_error_var_all_full,
                 study_error_rho_all_full,
-            ) = self._icc_from_stack(q_study_error_stack)
+            ) = self._icc_from_stack_incremental("study_error_full", [])
             study_gain_proxy_error_all_full = self._icc_gain_from_rho(
                 study_error_rho_all_full,
                 n_splits=n_splits,
@@ -728,29 +897,22 @@ class Objective(BaseObjective):
                 study_squared_error_cov_all_full,
                 study_squared_error_var_all_full,
                 study_squared_error_rho_all_full,
-            ) = self._icc_from_stack(q_study_squared_stack)
+            ) = self._icc_from_stack_incremental("study_squared_error_full", [])
             study_gain_proxy_squared_error_all_full = self._icc_gain_from_rho(
                 study_squared_error_rho_all_full,
                 n_splits=n_splits,
             )
 
-            q_study_prediction_resid = self._residualize_by_train_membership(
-                q_study_prediction_stack,
-                train_mask_stack,
-            )
-            q_study_error_resid = self._residualize_by_train_membership(
-                q_study_error_stack,
-                train_mask_stack,
-            )
-            q_study_squared_resid = self._residualize_by_train_membership(
-                q_study_squared_stack,
-                train_mask_stack,
-            )
+            # Residualized-by-train-membership ICCs: rows were residualized
+            # and cached when appended (a row's residualization depends only
+            # on its own fold's train mask).
             (
                 study_prediction_cov_all_resid_train_membership,
                 study_prediction_var_all_resid_train_membership,
                 study_prediction_rho_all_resid_train_membership,
-            ) = self._icc_from_stack(q_study_prediction_resid)
+            ) = self._icc_from_stack_incremental(
+                "study_prediction_resid_train_membership", []
+            )
             study_gain_proxy_prediction_all_resid_train_membership = (
                 self._icc_gain_from_rho(
                     study_prediction_rho_all_resid_train_membership,
@@ -761,7 +923,9 @@ class Objective(BaseObjective):
                 study_error_cov_all_resid_train_membership,
                 study_error_var_all_resid_train_membership,
                 study_error_rho_all_resid_train_membership,
-            ) = self._icc_from_stack(q_study_error_resid)
+            ) = self._icc_from_stack_incremental(
+                "study_error_resid_train_membership", []
+            )
             study_gain_proxy_error_all_resid_train_membership = (
                 self._icc_gain_from_rho(
                     study_error_rho_all_resid_train_membership,
@@ -772,7 +936,9 @@ class Objective(BaseObjective):
                 study_squared_error_cov_all_resid_train_membership,
                 study_squared_error_var_all_resid_train_membership,
                 study_squared_error_rho_all_resid_train_membership,
-            ) = self._icc_from_stack(q_study_squared_resid)
+            ) = self._icc_from_stack_incremental(
+                "study_squared_error_resid_train_membership", []
+            )
             study_gain_proxy_squared_error_all_resid_train_membership = (
                 self._icc_gain_from_rho(
                     study_squared_error_rho_all_resid_train_membership,
@@ -837,6 +1003,23 @@ class Objective(BaseObjective):
             study_oof_intersection_mean_size_all = (
                 squared_oof_mean_size or error_oof_mean_size or pred_oof_mean_size
             )
+
+        # Per-sample OOF variance decomposition (sample-driven vs fold-driven
+        # components of the out-of-fold prediction / error / squared error),
+        # cumulative over the folds seen so far.
+        oof_anova = {
+            key: {"sample_var": None, "fold_var": None, "icc": None}
+            for key in ("prediction", "error", "squared_error")
+        }
+        oof_anova_n_seen_twice = None
+        oof_anova_mean_count = None
+        if self.cv_bool and self._eval_count >= 2:
+            summary = self._oof_anova_summary()
+            if summary is not None:
+                oof_anova_n_seen_twice = summary["n_samples_seen_twice"]
+                oof_anova_mean_count = summary["mean_oof_count"]
+                for key in oof_anova:
+                    oof_anova[key] = summary[key]
 
         # This method can return many metrics in a dictionary. One of these
         # metrics needs to be `value` for convergence detection purposes.
@@ -1007,6 +1190,29 @@ class Objective(BaseObjective):
             study_oof_intersection_mean_size_all=(
                 study_oof_intersection_mean_size_all
             ),
+            # Sample-driven vs fold-driven variance components of the OOF
+            # quantities (cumulative over folds); icc = sample/(sample+fold).
+            study_oof_anova_prediction_sample_var=(
+                oof_anova["prediction"]["sample_var"]
+            ),
+            study_oof_anova_prediction_fold_var=(
+                oof_anova["prediction"]["fold_var"]
+            ),
+            study_oof_anova_prediction_icc=oof_anova["prediction"]["icc"],
+            study_oof_anova_error_sample_var=oof_anova["error"]["sample_var"],
+            study_oof_anova_error_fold_var=oof_anova["error"]["fold_var"],
+            study_oof_anova_error_icc=oof_anova["error"]["icc"],
+            study_oof_anova_squared_error_sample_var=(
+                oof_anova["squared_error"]["sample_var"]
+            ),
+            study_oof_anova_squared_error_fold_var=(
+                oof_anova["squared_error"]["fold_var"]
+            ),
+            study_oof_anova_squared_error_icc=(
+                oof_anova["squared_error"]["icc"]
+            ),
+            study_oof_anova_n_samples_seen_twice=oof_anova_n_seen_twice,
+            study_oof_anova_mean_oof_count=oof_anova_mean_count,
             study_covariance=study_covariance,
             study_target_var=study_target_var,
             study_error_cov=study_error_cov,
