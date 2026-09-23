@@ -74,3 +74,45 @@ bound formulation above.
 The S_3 = cov x rho rule of configs/k200_threshold_validation_holdout_50_*.yml (job 101294)
 keeps its own pre-registration and is reported separately. On the derivation grids S
 ranked the gains at Spearman -0.84 (regression) and -0.66 (classification), rho at -0.89.
+
+---
+
+## OUTCOME on PCam (added 2026-09-23, after the analysis; the text above is unchanged)
+
+Analysis: benchmark_pcam `analysis/pcam_gain_analysis.py` (commit d669bb3), outputs
+`analysis/out_calibration/`. 16 configurations (4 models x 4 train sizes), 25 seeds, K = 20.
+
+Deviation forced by the data: the 391 job-9433 parquets predate the cumulative rho columns,
+so the study-only statistic is only available as the K = 20 value (`*_rho_all_oof_intersection`);
+the rule was read at k = 20 with the pre-registered threshold. The 9 resubmit cells have the
+k = 3 value; it was not used.
+
+| loss (matched rho) | stop rate | C1: P(G_20 >= 10 \| stop) | C2: P(pred >= obs) | median log(pred/obs) | Spearman(rho_20, G_20) |
+|--------------------|-----------|---------------------------|--------------------|----------------------|------------------------|
+| accuracy (0-1)     | 0.81      | **0.385 (13 stopped, 5 large)** -- FAIL | **0.38** -- FAIL | -0.02 | -0.40 |
+| NLL                | 0.62      | 0.40 -- FAIL              | 0.50 -- FAIL       | -0.01                | -0.13                  |
+| Brier              | 0.69      | 0.27 -- FAIL              | 0.56 -- FAIL       | +0.08                | +0.03                  |
+
+Both pre-registered checks fail on all three losses. Reading:
+* Prediction level is unbiased on PCam (median log(pred/obs) ~ 0) and the prediction lies
+  inside the 90% bootstrap CI of the observed G_20 for 15/16 configurations. But those CIs
+  are wide (median log-width 1.09, i.e. a factor 3 at 25 seeds), the PCam gains cluster
+  around the threshold (G_20 median 9.5, range 4-18) and the predictions cluster at 7-9, so
+  C1 is not a sharp test at this noise level.
+* Power check (simulated classification grid subsampled to PCam's shape -- 16
+  configurations with rho_20 in [-0.05, 0.50], 25 seeds, K = 20, 300 draws): Spearman
+  median -0.61 (5-95% -0.83..-0.32; PCam's -0.40 is at the 10th percentile), C1 <= 0.05 in
+  87% of draws and C1 >= 0.385 in 1%. PCam's C1 = 0.385 is therefore unlikely under the
+  simulated relationship: on PCam, cells with rho_20 > 0.26 reach G_20 >= 10 more often than
+  the closed form allows, i.e. the deviation is in the ANTI-conservative direction (observed
+  gains above the "bound"), the opposite of the train/test coupling seen in simulation.
+* Candidate causes, not yet tested: (i) the OOF-intersection rho of a binary loss on very
+  small intersections (5-40 samples; m = 25 at n = 100) is a noisy and possibly upward-biased
+  ICC estimate -> f under-estimated -> G under-predicted; (ii) deep-net training stochasticity
+  and 30-epoch early stopping on tiny validation sets make the fold-driven component larger
+  than the per-sample OOF statistic reflects; (iii) the exact gain itself is noisy at 25 seeds.
+
+Conclusion: the rule as pre-registered is NOT validated on PCam. Next steps proposed: emit the
+cumulative rho and the OOF-ANOVA ICC in the PCam objective, rerun the calibration set with
+100 seeds on the two most informative sizes, and re-test the rule at k = 3 with C1 evaluated
+against bootstrap-corrected gains.
