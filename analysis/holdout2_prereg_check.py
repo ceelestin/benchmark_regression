@@ -29,7 +29,7 @@ def check(c, rho, icc, label):
     large20, large200 = c["G_paper_20"] >= 10, c["G_paper_200"] >= 20
     print(f"power: base rate P(G_20>=10) = {large20.mean():.2f} ({int(large20.sum())}/{len(c)}), P(G_200>=20) = {large200.mean():.2f}"
           f" -> {'informative' if large20.mean() >= 0.25 else 'UNDER-POWERED (< 0.25)'}")
-    for k in (3, 5, 20):
+    for k in (3, 20):   # candidates.csv carries k = 3, 20, 200
         r = c[f"{rho}_{k}"]
         stop = r > RHO_STAR
         pred = G(1 - c[f"{rho}_3"], 20)
