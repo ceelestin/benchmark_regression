@@ -84,11 +84,15 @@ def load(pattern, loss):
                                       "idx_rep", "objective_split_index", "objective_split_test_size",
                                       "time", "solver_name", "p_obj_train_size", "p_obj_procedure",
                                       "p_obj_fixed_split", "p_dataset_noise", "p_dataset_logit_scale"}
+    import pyarrow.parquet as pq
     frames = []
     for f in files:
-        d = pd.read_parquet(f)
-        cols = [c for c in d.columns if c in base]
-        frames.append(d[cols])
+        # read only the needed columns: a full chunk parquet (146 columns x ~40k
+        # rows, list columns included) expands to GBs in pandas and hits the
+        # login-node memory cap.
+        names = pq.read_schema(f).names
+        cols = [c for c in names if c in base]
+        frames.append(pd.read_parquet(f, columns=cols))
     df = pd.concat(frames, ignore_index=True)
     if "p_dataset_noise" not in df and "p_dataset_logit_scale" in df:
         df["p_dataset_noise"] = df["p_dataset_logit_scale"]      # classification: noise lever
