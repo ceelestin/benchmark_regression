@@ -1,0 +1,40 @@
+# PRE-REGISTERED HOLDOUT 2 for the study-only f-rule (analysis/PREREGISTRATION_f_rule_holdout2.md),
+# written 2026-09-23 BEFORE launch; do not edit. Regression family sim_nonlinear (MSE loss; matched rho: squared error).
+# Design goal: a validation set where large test-sample gains (G_20 >= 10) actually occur, so
+# the safety check has power: real unstable learners (single trees, 2-5-tree ensembles, 1-NN,
+# a small MLP) at train sizes 300/1000/3000 (the derivation grids showed single trees reach
+# G_20 12-17 at n >= 1000), one stable control per family. NEW seeds 4000-4049.
+# K = 200 ShuffleSplit, test_size 0.2. One file per family (make_chunks.py rewrites the first
+# seed list only).
+
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["ShuffleSplit"]
+      train_size: [300, 1000, 3000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_nonlinear:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [0.3, 1.0]
+      seed: [4020, 4021, 4022, 4023, 4024]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1.0]
+  - DecisionTree:
+      max_depth: [20]
+  - ExtraTrees_noHPO:
+      n_estimators: [2, 5]
+  - RandomForest:
+      n_estimators: [2, 5]
+      max_depth: [100]
+  - KNeighbors:
+      n_neighbors: [1, 5]
+      weights: ["uniform"]
+  - MLP:
+      hidden_layer_sizes: [[32]]
