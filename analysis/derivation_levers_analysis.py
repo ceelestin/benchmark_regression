@@ -66,7 +66,8 @@ CAND_COLS = {
 }
 # dataset_name embeds the seed: key on the family + dataset parameters instead.
 CONFIG_KEYS = ["family", "p_dataset_noise", "p_obj_train_size",
-               "p_obj_procedure", "p_obj_fixed_split", "solver_name"]
+               "p_obj_procedure", "p_obj_fixed_split", "p_obj_train_source",
+               "solver_name"]
 LOSS_COLS = {  # loss -> (test col, bench col, outer per-chunk list col)
     "neg_mse": ("objective_neg_mse_test", "objective_neg_mse_bench", "objective_outer_neg_mse"),
     "neg_nll": ("objective_neg_nll_test", "objective_neg_nll_bench", "objective_outer_neg_nll"),
@@ -96,6 +97,9 @@ def load(pattern, loss):
     df = pd.concat(frames, ignore_index=True)
     if "p_dataset_noise" not in df and "p_dataset_logit_scale" in df:
         df["p_dataset_noise"] = df["p_dataset_logit_scale"]      # classification: noise lever
+    if "p_obj_train_source" not in df:
+        df["p_obj_train_source"] = "study"                        # runs predating the option
+    df["p_obj_train_source"] = df["p_obj_train_source"].fillna("study")
     df["family"] = df["dataset_name"].str.extract(r"^(\w+)\[")[0]
     df["solver"] = df["solver_name"].str.replace(r"\[.*$", "", regex=True)
     df["lever"] = df["solver_name"].str.extract(
