@@ -84,7 +84,8 @@ def load(pattern, loss):
     base = set(CAND_COLS.values()) | {q_col, b_col, o_col, "dataset_name", "p_dataset_seed",
                                       "idx_rep", "objective_split_index", "objective_split_test_size",
                                       "time", "solver_name", "p_obj_train_size", "p_obj_procedure",
-                                      "p_obj_fixed_split", "p_dataset_noise", "p_dataset_logit_scale"}
+                                      "p_obj_fixed_split", "p_obj_train_source", "p_dataset_noise",
+                                      "p_dataset_logit_scale"} | set(CONFIG_KEYS)
     import pyarrow.parquet as pq
     frames = []
     for f in files:
