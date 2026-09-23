@@ -41,3 +41,42 @@ and the S_3 > 0.03 rule of the first holdout.
 
 benchmark_regression/analysis/derivation_levers_analysis.py --loss neg_mse (regression
 families) and --loss accuracy (sim_classification), then analysis/holdout2_prereg_check.py.
+
+---
+
+## OUTCOME (added 2026-09-23 after the analysis; text above unchanged)
+
+Job 121758: 40/40 tasks in 100 min, integrity OK on all parquets. Analyses
+analysis/out_holdout2_mse (162 regression configurations) and analysis/out_holdout2_acc
+(24 classification configurations), 50 seeds each; checks by analysis/holdout2_prereg_check.py.
+
+| group | base rate G_20>=10 | stop rate (k=3) | C1 P(G20>=10 \| stop) | C1' P(G200>=20 \| stop) | C2 P(pred>=obs) | median log(pred/obs) | Spearman(rho_3, G_20) |
+|---|---|---|---|---|---|---|---|
+| regression, MSE | 0.18 (under-powered per pre-reg) | 0.78 | 0.056 (7/126) FAIL | 0.040 PASS | 0.50 FAIL | +0.00 | -0.75 |
+| classification, 0-1 | 0.54 (informative) | 0.42 | 0.200 (2/10) FAIL | 0.200 FAIL | 0.46 FAIL | -0.02 | -0.72 |
+
+By regression family: sim_linear C1 = 0.028 (base rate 0.24), sim_interactions 0.071 (0.22),
+sim_nonlinear 0.062 (0.07). Reported: median G20/G5 = 1.79 (regression), 2.62 (classification).
+Comparisons at k=3: ANOVA-ICC form C1 = 0.055 / 0.111; S_3 > 0.03 stops 100% of regression
+configurations (C1 = 0.179) and 25% of classification ones (C1 = 0.000); Spearman(S_3, G_20)
+= -0.32 / -0.43 versus -0.75 / -0.72 for rho_3.
+
+Reading. (1) The design goal was only met for classification: single trees reached G_20 of
+8.5/10.4/14.0 at 300/1000/3000 in regression (12-17 were expected from the derivation grids),
+so the regression base rate stayed at 0.18. (2) The closed form is UNBIASED in level at 50
+seeds (median log ratio 0.00 / -0.02) but it is NOT an upper bound: C2 sits at 0.50 / 0.46. The
+train/test-coupling argument for conservativeness does not carry over to these learners; the
+prediction scatters symmetrically around the truth. (3) Consequently a stop threshold placed
+exactly at the target (predicted G_20 < 10) lets configurations whose true gain is just above
+10 through at roughly the noise rate: the stopped-but-large cases are 2- and 5-tree
+RandomForest / ExtraTrees with rho_3 in 0.26-0.51 and observed G_20 in 10.5-18.7. (4) Ranking
+is confirmed on real learners at 50 seeds: rho_3 -0.75 / -0.72, three times S_3.
+
+Exploratory, NOT pre-registered: with the same statistic, a stricter threshold rho_3 > 0.35
+(predicted G_20 < 8.6) gives C1 = 0.018 (regression) and 0.000 (classification) at stop rates
+0.68 and 0.25; rho_3 > 0.50 gives 0.011 / 0.000 at 0.57 / 0.25. A safety margin of ~15% on
+the predicted gain is what the 50-seed scatter requires.
+
+Verdict: the pre-registered rule fails C1 (marginally in regression, clearly in classification)
+and fails C2 in both; the study-only statistic ranks gains well and predicts their level
+without bias, but it is not conservative, and a validated rule needs an explicit margin.
