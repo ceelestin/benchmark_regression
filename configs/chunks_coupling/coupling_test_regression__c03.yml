@@ -1,0 +1,31 @@
+# COUPLING TEST (step 1 of the threshold plan, 2026-09-23; exploratory). Regression arm (Ridge + DecisionTree).
+# Hypothesis: the excess variance floor of the K-split estimate (observed/closed-form
+# 1.7-2.1x at n=50-100, ~1x at n=3000; stronger in classification) is a train/test coupling
+# across folds: a study sample is a training point for some folds and a test point for
+# others. train_source=outer trains every fold on a fresh draw from a pool disjoint from the
+# study (test folds unchanged), which removes that coupling; train_source=study is the
+# paired control. ShuffleSplit, K=200, sizes 50-1000, seeds 3000-3029, one stable learner.
+
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["ShuffleSplit"]
+      train_size: [50, 100, 300, 1000]
+      test_size: [0.2]
+      fixed_split: [False]
+      train_source: ["study", "outer"]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [0.1, 0.5, 1.5]
+      seed: [3018, 3019, 3020, 3021, 3022, 3023]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1.0]
+  - DecisionTree:
+      max_depth: [100]
+      min_samples_leaf: [1]

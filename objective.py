@@ -70,6 +70,14 @@ class Objective(BaseObjective):
         "train_size": [10, 30, 100, 300, 1000, 3000, 10000],
         "test_size": [0.20],
         "fixed_split": [True, False],
+        # "study" (default): the usual CV, each fold trains on the study part
+        # not in its test fold. "outer": the test fold is still a CV split of
+        # the study, but the training set of every fold is a fresh draw of the
+        # same size from a pool disjoint from the study (the first half of the
+        # outer set; the second half keeps serving the outer chunks). No study
+        # sample is then ever a training point for one fold and a test point
+        # for another: diagnostic for the train/test coupling across folds.
+        "train_source": ["study"],
     }
 
     # Minimal version of benchopt required to run this benchmark.
@@ -1375,10 +1383,27 @@ class Objective(BaseObjective):
             train_test_split(
                 self.X_study, self.y_study, test_size=n_study, random_state=0
             )
+        train_source = getattr(self, "train_source", "study")
+        if train_source == "outer":
+            half = len(self.X_outer) // 2
+            self.X_train_pool, self.y_train_pool = (
+                self.X_outer[:half], self.y_outer[:half]
+            )
+            self.X_outer, self.y_outer = self.X_outer[half:], self.y_outer[half:]
 
         if self.cv_bool:
             self.X_train, self.X_test, self.y_train, self.y_test = \
                 self.get_split(self.X_study, self.y_study)
+            if train_source == "outer":
+                # Same training size as the study-based fold, drawn fresh from
+                # the disjoint pool on every fold (independent of the study).
+                rng = np.random.default_rng()
+                idx = rng.choice(
+                    len(self.X_train_pool), size=len(self.X_train), replace=False
+                )
+                self.X_train, self.y_train = (
+                    self.X_train_pool[idx], self.y_train_pool[idx]
+                )
         else:
             self.X_train, self.X_test, self.y_train, self.y_test = \
                 train_test_split(

@@ -1,0 +1,19 @@
+# PRE-FLIGHT for the coupling test: one seed, n=100, K=10, both train_source arms, LogReg.
+objective:
+  - Regression:
+      n_splits: [10]
+      procedure: ["ShuffleSplit"]
+      train_size: [100]
+      test_size: [0.2]
+      fixed_split: [False]
+      train_source: ["study", "outer"]
+dataset:
+  - sim_classification:
+      n_samples: [150000]
+      n_features: [20]
+      logit_scale: [1.0]
+      seed: [3000]
+      fixed: [False]
+solver:
+  - LogReg:
+      C: [1.0]
