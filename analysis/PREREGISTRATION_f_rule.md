@@ -116,3 +116,37 @@ Conclusion: the rule as pre-registered is NOT validated on PCam. Next steps prop
 cumulative rho and the OOF-ANOVA ICC in the PCam objective, rerun the calibration set with
 100 seeds on the two most informative sizes, and re-test the rule at k = 3 with C1 evaluated
 against bootstrap-corrected gains.
+
+---
+
+## OUTCOME on PCam, 100-seed rerun (added 2026-09-24; text above unchanged)
+
+Jobs 121977 (800 tasks) + 138125 (1 resubmit): DenseNet121, MobileNetV2, WideResNet101_2,
+ViT-B/16 x train sizes 100 / 800 x seeds 0-99, K = 20, objective f09c162 (cumulative rho
+and OOF-ANOVA at every fold). 8 configurations; the rule is read at k = 3 as pre-registered.
+Analysis: benchmark_pcam analysis/pcam_gain_analysis.py --rho cum, outputs
+analysis/out_calibration_100seeds/.
+
+| loss (matched rho_cum(3)) | stop rate | C1 P(G_20 >= 10 \| stop) | C2 P(pred >= obs) | median log(pred/obs) | Spearman(rho_3, G_20), n=8 |
+|---------------------------|-----------|---------------------------|--------------------|----------------------|----------------------------|
+| accuracy (0-1), PRIMARY   | 0.75      | **0.167 (1/6) -- FAIL**    | 0.62 -- FAIL       | +0.06                | -0.50                      |
+| NLL, secondary            | 0.38      | 0.000 (0/3) -- PASS        | 0.62 -- FAIL (0.75 PASS with the ANOVA ICC) | +0.07 | -0.95         |
+| Brier, secondary          | 0.62      | 0.000 (0/5) -- PASS        | 0.50 -- FAIL       | +0.03                | -0.76                      |
+
+Gains (G_20^paper, 100 seeds): DenseNet 7.8 / 5.5, MobileNet 8.3 / 8.6, WideResNet 8.4 / 8.2,
+ViT 22.3 / 11.2 at sizes 100 / 800 (0-1 loss); the same cells with NLL: ViT 34.1 / 18.3,
+WideResNet 17.7 / 6.9.
+
+Reading. The primary check fails by one cell: ViT-B/16 at size 800 has rho_err01(3) = 0.39
+("redundant", predicted G_20 = 7.7) but a true G_20 of 11.2 (0-1) / 18.3 (NLL). Its NLL and
+Brier redundancies are 0.09 and 0.09, i.e. the probabilistic losses see the fold-driven
+variability that the thresholded 0-1 loss hides. With NLL or Brier as the matched loss the
+safety check passes on this set and the rank correlation reaches -0.95 / -0.76 at n = 8. The
+level is unbiased for all three losses (median log ratio 0.03-0.07). C2 fails at 0.50-0.62,
+as on holdout 2: the closed form is a point prediction, not an upper bound.
+
+Consequences for the rule (exploratory, for a future pre-registration): (i) use a
+probabilistic per-sample loss (NLL or Brier) for the redundancy statistic even when the
+reported metric is accuracy; (ii) keep the closed form as the level predictor; (iii) add an
+explicit safety margin (holdout 2: stop iff predicted G_20 < ~8.6, rho_3 > 0.35) instead of
+relying on a bound. Both PCam sets (25 and 100 seeds) and holdout 2 agree on these three points.
