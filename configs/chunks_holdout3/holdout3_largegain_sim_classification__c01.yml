@@ -1,0 +1,30 @@
+# PRE-REGISTERED HOLDOUT 3 (round 3, analysis/PREREGISTRATION_round3.md), written 2026-09-24
+# BEFORE launch; do not edit. Classification family (accuracy metric; statistic on NLL primary, Brier secondary).
+# Large-gain design v2: real unstable learners at train sizes 1000/3000/10000 where holdout 2
+# found G_20 >= 10 (single trees, 2- and 5-tree ensembles); one stable control. NEW seeds 5000-5049.
+# K = 200 ShuffleSplit, test_size 0.2. One file per family.
+
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000, 3000, 10000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_classification:
+      n_samples: [150000]
+      n_features: [20]
+      logit_scale: [1.0, 3.0]
+      seed: [5005, 5006, 5007, 5008, 5009]
+      fixed: [False]
+
+solver:
+  - LogReg:
+      C: [1.0]
+  - DecisionTreeClf:
+      max_depth: [100]
+      min_samples_leaf: [1]
+  - ExtraTreesClf:
+      n_estimators: [2, 5]
