@@ -72,3 +72,35 @@ benchmark_pcam analysis/pcam_gain_analysis.py --rho cum --loss {accuracy,nll,bri
 benchmark_regression analysis/derivation_levers_analysis.py (--loss neg_mse / accuracy), then
 analysis/round3_prereg_check.py on the candidates.csv files with rho* = 0.3488, target 10,
 predicted-gain stop level 8.6.
+
+---
+
+## OUTCOME, validation set A (PCam round 3) -- added 2026-09-24 after the analysis; text above unchanged
+
+Job 148283: 600/600 tasks, seeds 100-149, sizes 100/300/800, 4 models, K = 20, oracle subset
+60,000. Analysis: benchmark_pcam analysis/pcam_gain_analysis.py --rho cum, outputs
+analysis/out_round3/; checks: analysis/round3_prereg_check.py. 12 configurations, 50 seeds.
+
+| gain metric / statistic | base rate | stop rate | C1 P(G20>=10 \| stop) | C2' median log(pred/obs) | C3 P(G20>=10 \| continue) | Spearman(rho_3, G_20) |
+|---|---|---|---|---|---|---|
+| accuracy / NLL (PRIMARY) | 0.33 | 0.50 | **0.167 (1/6) FAIL** | **+0.27 FAIL** | 0.50 PASS | -0.73 |
+| accuracy / Brier | 0.33 | 0.67 | 0.125 (1/8) FAIL | +0.21 FAIL | 0.75 PASS | -0.71 |
+| **NLL / NLL** | 0.25 | 0.50 | **0.000 (0/6) PASS** | **+0.12 PASS** | 0.50 PASS | -0.49 |
+| accuracy / 0-1 (reference) | 0.33 | 0.75 | 0.111 (1/9) FAIL | +0.21 FAIL | 1.00 | -0.62 |
+
+The single stopped-but-large cell under every accuracy row is DenseNet121 at size 800:
+G_20(accuracy) = 10.7 with rho_3 of 0.46-0.51 on all three losses (predicted 6.4-7.0).
+
+Reading. (1) When the statistic and the gain use the SAME probabilistic loss (NLL/NLL), all
+three pre-registered checks pass on PCam: no unsafe stop, calibrated level (+0.12), and half
+of the continued cells gain. (2) When the gain is measured on ACCURACY while the statistic uses
+NLL or Brier, the closed form under-predicts the accuracy gain by ~25-30% (C2' fails) and one
+cell just above the target is stopped: the mismatch between the loss of the statistic and the
+metric of the gain is not free. (3) The 0-1 statistic is not a fix: it under-predicts as well
+(+0.21) and, in round 2, hid ViT's fold-driven variability. (4) Ranking with the probabilistic
+statistics is strong on 12 cells (-0.71 to -0.73 against the accuracy gain).
+
+Verdict on set A: the round-3 rule is validated for a probabilistic reported metric (NLL)
+and NOT validated for accuracy as the reported metric; the primary check fails by one cell
+whose gain (10.7) sits inside the noise band of the target at 50 seeds. Set B (holdout 3,
+job 147428) pending.
