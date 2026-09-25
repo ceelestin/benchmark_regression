@@ -104,3 +104,60 @@ Verdict on set A: the round-3 rule is validated for a probabilistic reported met
 and NOT validated for accuracy as the reported metric; the primary check fails by one cell
 whose gain (10.7) sits inside the noise band of the target at 50 seeds. Set B (holdout 3,
 job 147428) pending.
+
+Erratum to the set-A reading, added 2026-09-25: C2' is median log(pred/obs), so the +0.27 (NLL)
+and +0.21 (Brier) of the accuracy rows mean the closed form OVER-predicts the accuracy gain by
+~23-31% in the median, not "under-predicts" as written in Reading (2). The stopped DenseNet121
+size-800 cell is an individual under-prediction (predicted 6.4-7.0, observed 10.7). Numbers and
+verdict unchanged.
+
+---
+
+## OUTCOME, validation set B (holdout 3) -- added 2026-09-25 after the analysis; text above unchanged
+
+Job 147428: 40/40 tasks COMPLETED (7-10 min each, after ~36 h pending); check_run_integrity OK
+on all 40 chunk parquets (6,600 runs, 0 contaminated); merged to one parquet per family.
+Analyses analysis/derivation_levers_analysis.py --loss neg_mse (sim_linear, sim_interactions,
+sim_nonlinear; analysis/out_holdout3_mse, 108 configurations) and --loss accuracy
+(sim_classification; analysis/out_holdout3_acc, 24 configurations), 50 seeds each; checks by
+analysis/round3_prereg_check.py --k200.
+
+| group / statistic | base rate | stop rate | C1 P(G20>=10 \| stop) | C1' P(G200>=20 \| stop) | C2' median log(pred/obs) | C3 P(G20>=10 \| continue) | Spearman(rho_3, G_20) |
+|---|---|---|---|---|---|---|---|
+| regression, squared error (PRIMARY) | 0.28 | 0.51 | **0.091 (5/55) FAIL** | 0.000 PASS | +0.070 PASS | **0.47 FAIL** | -0.60 |
+| classification, NLL (PRIMARY) | 0.58 | 0.25 | **0.000 (0/6) PASS** | 0.000 PASS | **+0.265 FAIL** | 0.78 PASS | -0.60 |
+| classification, Brier (secondary) | 0.58 | 0.25 | 0.000 (0/6) PASS | 0.000 PASS | +0.111 PASS | 0.78 PASS | -0.46 |
+| classification, 0-1 (reference) | 0.58 | 0.25 | 0.000 (0/6) | 0.000 | +0.019 | 0.78 | -0.65 |
+
+Readings at k = 20 are identical to k = 3 up to one configuration. Reported: median G_20/G_5 =
+1.88 (regression), 2.16 (classification).
+
+The five stopped-but-large regression configurations are all 2- or 5-tree RandomForest /
+ExtraTrees at train size 3000 or 10000: sim_linear RF 10000 noise 0.3 (G_20 12.6, rho_3 0.47),
+sim_linear ET 3000 noise 1.0 (11.0, 0.46), sim_nonlinear RF 10000 noise 0.3 (16.0, 0.54),
+sim_nonlinear ET 10000 noise 1.0 (16.0, 0.55), sim_nonlinear RF 10000 noise 1.0 (11.2, 0.57).
+The two 16.0 values sit at the 16-chunk ceiling of G_paper_20, so their gain is at least 16.
+
+Exploratory, NOT pre-registered:
+* Calibration drifts with train size in regression. Median log(pred/obs) is +0.31 / +0.07 /
+  -0.29 at sizes 1000 / 3000 / 10000, so the pooled C2' pass hides a trend. Median rho_3 of the
+  small ensembles hardly moves with size (RF 0.42 / 0.39 / 0.39) while their G_20 grows
+  (6.1 / 8.7 / 13.3). The unsafe stops are where the closed form under-predicts.
+* By regression family, C1 = 0.000 (sim_interactions, 0/18), 0.111 (sim_linear, 2/18), 0.158
+  (sim_nonlinear, 3/19).
+* With the variance-ratio gain G_err_20 instead of G_paper_20, regression C1 = 0.036 (2/55); the
+  stopped-but-large cells have G_err_20 of 5.8-12.9.
+* In classification the NLL statistic over-predicts at every size (+0.30 / +0.18 / +0.29),
+  strongest for ExtraTreesClf (+0.33). Over-prediction is the conservative direction for the
+  stop decision; the Brier statistic is calibrated (+0.11).
+
+Verdict on set B: the round-3 rule is NOT validated for regression: it fails C1 (0.091) and
+narrowly C3 (0.47), with the failures concentrated on small tree ensembles at large train size.
+For classification it passes the safety checks C1 and C1' and usefulness C3, and fails only the
+calibration check C2' with the primary NLL statistic, in the conservative direction; with the
+Brier statistic it passes all four checks.
+
+Across both round-3 sets: no unsafe stop in classification when the statistic is probabilistic
+(PCam with an NLL gain; holdout 3 with an accuracy gain); unsafe stops remain where the gain
+grows with train size faster than the study-only statistic registers it (small ensembles in
+regression here, DenseNet121 at size 800 on PCam with an accuracy gain).
