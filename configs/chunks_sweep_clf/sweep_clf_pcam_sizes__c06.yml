@@ -1,0 +1,33 @@
+# CLASSIFICATION SWEEP at PCam-like train sizes (2026-09-26; exploratory, NOT pre-registered).
+# Purpose: firm up the simulated gain / redundancy relation where PCam lives (classification,
+# train sizes 100-800) and test whether the level offset below K/(1+(K-1)x) seen in the simulated
+# reference comes from LogReg + noise levers or from classification in general
+# (analysis/PREREGISTRATION_pcam_consistency.md, OUTCOME). Prediction-noise lever on LogReg
+# (logit noise, fresh per fold; 0 = plain LogReg); single trees and 2-/5-tree ExtraTrees as
+# naturally unstable learners (their 0/1 probabilities make a logit-noise lever ineffective).
+# K = 20 is enough: the gain is read at K = 20 and redundancy at k <= 5. NEW seeds 6000-6049.
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [100, 300, 800]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_classification:
+      n_samples: [150000]
+      n_features: [20]
+      logit_scale: [1.0, 3.0]
+      seed: [6030, 6031, 6032, 6033, 6034]
+      fixed: [False]
+
+solver:
+  - LogRegNoisyLogit:
+      C: [1.0]
+      logit_noise: [0.0, 0.25, 0.5, 1.0, 2.0, 4.0]
+  - DecisionTreeClf:
+      max_depth: [100]
+      min_samples_leaf: [1]
+  - ExtraTreesClf:
+      n_estimators: [2, 5]

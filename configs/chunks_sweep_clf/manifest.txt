@@ -1,0 +1,10 @@
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c00.yml
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c01.yml
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c02.yml
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c03.yml
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c04.yml
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c05.yml
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c06.yml
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c07.yml
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c08.yml
+configs/chunks_sweep_clf/sweep_clf_pcam_sizes__c09.yml
