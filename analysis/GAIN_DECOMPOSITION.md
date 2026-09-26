@@ -36,8 +36,10 @@ variance. After both, the single-split variance matches s2 / n_test (median rati
 1. **The study-only statistic is not the bottleneck.** E, F and H are within +-0.02 on every set:
    the OOF-intersection correlation read at k = 3 recovers the population between-fold correlation.
 2. **The closed form's one structural gap is train/test coupling across folds (term C).** A sample
-   tested in one fold is a training point of the other folds' models. The coupling test confirms
-   it: with folds trained on fresh outer data the median of C is +0.01 (K = 20) / +0.10 (K = 200),
+   tested in one fold is a training point of the other folds' models. This is intrinsic to
+   cross-validation and part of the estimand we study, not a defect: the closed form is what is
+   incomplete, since it only credits redundancy through test samples shared between folds. The
+   coupling test (a diagnostic, not a target) confirms that C is this effect: with folds trained on fresh outer data the median of C is +0.01 (K = 20) / +0.10 (K = 200),
    against -0.35 / -0.47 with study-trained folds. C carries 44-64% of the spread of the gap across
    configurations when statistic and gain use the same loss.
 3. **Coupling depends on train size, learner and task, not on the data family per se.** It usually
@@ -66,8 +68,9 @@ the three sim_nonlinear ensembles at 10000 are coupling reversal (C = +0.49 to +
 
 ## Open questions / next steps
 
-* A study-only handle on coupling: split the pairwise covariance of per-sample losses by membership
-  (sample tested in fold k and trained on in fold l vs. tested in both). The objective already
+* Extend the closed form with a coupling term, and find a study-only estimate of it: split the
+  pairwise covariance of per-sample losses by membership (sample tested in fold k and trained on in
+  fold l vs. tested in both). The objective already
   computes a `rho_resid_train_membership` statistic worth checking against C.
 * Theory of C: a stability argument (influence of one training point on another fold's test loss)
   should give its 1/n scaling and learner dependence; the sign reversal needs its own explanation.
