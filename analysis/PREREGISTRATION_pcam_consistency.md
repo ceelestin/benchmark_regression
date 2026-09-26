@@ -49,3 +49,31 @@ benchmark_regression analysis/pcam_consistency_check.py (to be written after thi
 committed): PCam per-seed statistics read from the parquets, gains from benchmark_pcam
 analysis/out_calibration_100seeds (seeds 0-99 only) and analysis/out_round3 (gains_accuracy.csv,
 gains_nll.csv), simulated reference from analysis/out_omega/.
+
+---
+
+## OUTCOME (added 2026-09-26 after running analysis/pcam_consistency_check.py; text above unchanged)
+
+20 PCam configurations (8 from the 100-seed set, 12 from round 3); simulated reference: 132
+sim_classification configurations with train size 100-1000. Outputs analysis/out_pcam_consistency/.
+
+| reading | A1 coverage (>= 0.70) | A2 median log offset (\|.\| <= 0.2) | A3 Spearman (<= -0.5) |
+|---|---|---|---|
+| accuracy gain, k = 5 (PRIMARY) | 0.65 (13/20) FAIL | +0.30 FAIL | -0.80 PASS |
+| accuracy gain, k = 3 | 0.45 FAIL | +0.26 FAIL | -0.88 PASS |
+| NLL gain, k = 5 | 0.55 FAIL | +0.27 FAIL | -0.92 PASS |
+| NLL gain, k = 3 | 0.55 FAIL | +0.29 FAIL | -0.94 PASS |
+
+By PCam set (primary): 100-seed set coverage 0.50, offset +0.39; round 3 coverage 0.75, offset +0.21;
+Spearman -0.86 / -0.92.
+
+Verdict: the ranking carries over to PCam (A3 passes on every reading), but PCam gains sit about 30 %
+above the simulated classification band at the same redundancy, so the simulated relation as
+pre-registered is NOT consistent with PCam in level (A1, A2 fail).
+
+Exploratory, NOT pre-registered: PCam follows the ideal curve K / (1 + (K - 1) x) closely (median
+log(G / curve) -0.02 to +0.04; 80-85 % of configurations within +-25 % of it). The simulated
+reference sits 0.30 below that curve, and the offset depends on the simulated set: derivation grid
+-0.34 and coupling test -0.36 (dominated by LogReg with noise levers at small train sizes), holdout 3
+-0.16, holdout 2 0.00 (natural unstable learners at 300-1000). The composition of the simulated
+reference, not the redundancy statistic, drives the level mismatch.
