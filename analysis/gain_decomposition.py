@@ -21,11 +21,12 @@ pairwise correlation of per-sample losses between fold models on the bench set (
                                    exchangeable with the test fold T_1 but far less noisy)
 Closed form: G_cf(rho) = 1 / (1/K + (1 - 1/K) t rho)  [= 1/((1-f)(t+(1-t)/K)+f/K), f = 1-rho].
 
+G_paper is the paper gain with V1(alpha) averaged exactly over the order of the outer chunks
+(derivation_levers_analysis.v1_alpha_curve); G_paper_fixed pools them in one fixed order (the analyses
+before 2026-09-26), fixed_order_noise = log(G_paper_fixed / G_paper) is reported beside the sum.
 log(G_paper / G_cf(rho_study at k=3, median over seeds)) = sum of
-  A0 chunk_order : log(G_paper / G_paper_avg)        G_paper pools the outer chunks in ONE fixed order;
-                                                     G_paper_avg averages V1(alpha) over random orders
-  A oracle_floor : log(G_paper_avg / G_paper_avg*)   finite bench set (V1(alpha) floor s2/n_b)
-  B ceiling      : log(G_paper_avg* / G_true)        chunk ceiling, alpha interpolation, departure from 1/alpha
+  A oracle_floor : log(G_paper / G_paper*)          finite bench set (V1(alpha) floor s2/n_b)
+  B ceiling      : log(G_paper* / G_true)            chunk ceiling, alpha interpolation, departure from 1/alpha
   C model        : log(G_true / G_cf(rho_b))         closed form vs truth with the POPULATION rho
                                                      (train/test coupling across folds, misspecification)
   D loss_mismatch: log(G_cf(rho_b gain loss) / G_cf(rho_b stat loss))   0 when matched
@@ -45,7 +46,7 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from derivation_levers_analysis import CONFIG_KEYS, _paper_gain  # noqa: E402
+from derivation_levers_analysis import CONFIG_KEYS, _paper_gain, v1_alpha_curve  # noqa: E402
 
 N_BENCH = 100_000
 # loss -> (test col, bench col, outer list col, per-sample loss name in bench/study stats)
@@ -95,11 +96,10 @@ def G_cf(rho, K, t):
     return 1.0 / (1.0 / K + (1.0 - 1.0 / K) * t * rho)
 
 
-def decompose(df, loss, stat, n_perm=100):
+def decompose(df, loss, stat):
     gname = GAIN_LOSS[loss][3]
     _, gr, _ = cols_for(gname)
     _, sr, ss = cols_for(stat)
-    rng = np.random.default_rng(0)
     rows = []
     for key, g in df.groupby(CONFIG_KEYS, dropna=False):
         cfg = dict(zip(CONFIG_KEYS, key))
@@ -134,13 +134,8 @@ def decompose(df, loss, stat, n_perm=100):
         # paper V1(alpha): test fold + first alpha-1 outer chunks (fixed order), as in the gain analysis
         pooled = np.concatenate([ref, (ref + np.cumsum(outer, axis=1)) / (np.arange(1, n_alpha)[None, :] + 1)], axis=1)
         v1_fixed = np.var(pooled - Bs[:, :1], axis=0, ddof=1)
-        # same estimand averaged over random orders of the outer chunks (the test fold stays first)
-        acc = np.zeros(n_alpha)
-        for _ in range(n_perm):
-            o = outer[:, rng.permutation(n_chunks)]
-            pl = np.concatenate([ref, (ref + np.cumsum(o, axis=1)) / (np.arange(1, n_alpha)[None, :] + 1)], axis=1)
-            acc += np.var(pl - Bs[:, :1], axis=0, ddof=1)
-        v1_avg = acc / n_perm
+        # same estimand averaged exactly over the order of the outer chunks (the test fold stays first)
+        v1_avg = v1_alpha_curve(E[:, 0], outer - Bs[:, :1])
         chunk_var = np.var(outer - Bs[:, :1], axis=0, ddof=1) - B1
         V_chunk = float(np.mean(chunk_var))
         V1 = np.var(E[:, 0], ddof=1)
@@ -162,16 +157,16 @@ def decompose(df, loss, stat, n_perm=100):
             VK = np.var(E[:, :K].mean(axis=1), ddof=1)
             BK = float(np.nanmean(s2K * (1 / K + (1 - 1 / K) * rbg))) / N_BENCH
             TK = VK - BK
-            G_paper, capped = _paper_gain(VK, v1_fixed)
-            G_avg, capped_avg = _paper_gain(VK, v1_avg)
+            G_fixed, capped = _paper_gain(VK, v1_fixed)
+            G_avg, capped_avg = _paper_gain(VK, v1_avg)            # the paper gain (order-averaged)
             G_avg_star, capped_star = (_paper_gain(TK, np.clip(v1_avg - B1, 1e-300, None))
                                        if TK > 0 else (np.nan, False))
             G_true = V_chunk / TK if TK > 0 else np.nan
             cf_bg, cf_bs = G_cf(rho_b_gain, K, t), G_cf(rho_b_stat, K, t)
             cf_sK, cf_s3w, cf_s3 = G_cf(rho_sK, K, t), G_cf(rho_s3_w, K, t), G_cf(rho_s3_med, K, t)
             rec = dict(cfg, K=K, n_seeds=n_seeds, n_te=n_te, n_alpha=n_alpha,
-                       G_paper=G_paper, G_paper_capped=capped, G_paper_avg=G_avg, G_paper_avg_capped=capped_avg,
-                       G_paper_avg_star=G_avg_star, G_paper_avg_star_capped=capped_star,
+                       G_paper=G_avg, G_paper_capped=capped_avg, G_paper_fixed=G_fixed, G_paper_fixed_capped=capped,
+                       G_paper_star=G_avg_star, G_paper_star_capped=capped_star,
                        G_err=V1 / VK, G_true=G_true, G_true_T1=T1 / TK if TK > 0 else np.nan,
                        G_cf_rho_b=cf_bg, G_cf_rho_s3=cf_s3,
                        rho_b_gain=rho_b_gain, rho_b_stat=rho_b_stat, rho_sK=rho_sK,
@@ -180,7 +175,7 @@ def decompose(df, loss, stat, n_perm=100):
                        T1_over_theory=T1 / (s2_1 / n_te), chunk_over_theory=V_chunk / (s2_1 / n_te),
                        test_over_chunk=T1 / V_chunk, v1_alpha_slope=slope,
                        C_obs=(TK / V_chunk - 1 / K) / (1 - 1 / K), C_cf=t * rho_b_gain)
-            rec["A0_chunk_order"] = np.log(G_paper / G_avg)
+            rec["fixed_order_noise"] = np.log(G_fixed / G_avg)   # reported, not part of the sum
             rec["A_oracle_floor"] = np.log(G_avg / G_avg_star)
             rec["B_ceiling"] = np.log(G_avg_star / G_true)
             rec["C_model"] = np.log(G_true / cf_bg)
@@ -188,14 +183,14 @@ def decompose(df, loss, stat, n_perm=100):
             rec["E_study_vs_pop"] = np.log(cf_bs / cf_sK)
             rec["F_early_read"] = np.log(cf_sK / cf_s3w)
             rec["H_seed_aggregation"] = np.log(cf_s3w / cf_s3)
-            rec["total"] = np.log(G_paper / cf_s3)
+            rec["total"] = np.log(G_avg / cf_s3)
             rows.append(rec)
     out = pd.DataFrame(rows)
     out["solver"] = out["solver_name"].str.replace(r"\[.*$", "", regex=True)
     return out
 
 
-TERMS = ["A0_chunk_order", "A_oracle_floor", "B_ceiling", "C_model", "D_loss_mismatch", "E_study_vs_pop",
+TERMS = ["A_oracle_floor", "B_ceiling", "C_model", "D_loss_mismatch", "E_study_vs_pop",
          "F_early_read", "H_seed_aggregation", "total"]
 
 
@@ -213,9 +208,11 @@ def report(d, K):
     print("\nsanity: T1 / (s2/n_te) median", round(float(d["T1_over_theory"].median()), 3),
           "| test/chunk", round(float(d["test_over_chunk"].median()), 3),
           "| chunk / (s2/n_te) median", round(float(d["chunk_over_theory"].median()), 3),
-          "| capped: G_paper", int(d["G_paper_capped"].sum()), "G_paper_avg", int(d["G_paper_avg_capped"].sum()),
-          "G_paper_avg_star", int(d["G_paper_avg_star_capped"].sum()))
-    print("medians of gains:", d[["G_paper", "G_paper_avg", "G_paper_avg_star", "G_true", "G_err", "G_cf_rho_b", "G_cf_rho_s3"]].median().round(2).to_dict())
+          "| capped: G_paper", int(d["G_paper_capped"].sum()), "G_paper_fixed", int(d["G_paper_fixed_capped"].sum()),
+          "G_paper_star", int(d["G_paper_star_capped"].sum()))
+    print("fixed-order noise log(G_paper_fixed / G_paper): median", round(float(d["fixed_order_noise"].median()), 3),
+          "sd", round(float(d["fixed_order_noise"].std()), 3))
+    print("medians of gains:", d[["G_paper", "G_paper_fixed", "G_paper_star", "G_true", "G_err", "G_cf_rho_b", "G_cf_rho_s3"]].median().round(2).to_dict())
 
 
 def main():

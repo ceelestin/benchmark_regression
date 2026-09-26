@@ -150,3 +150,7 @@ probabilistic per-sample loss (NLL or Brier) for the redundancy statistic even w
 reported metric is accuracy; (ii) keep the closed form as the level predictor; (iii) add an
 explicit safety margin (holdout 2: stop iff predicted G_20 < ~8.6, rho_3 > 0.35) instead of
 relying on a bound. Both PCam sets (25 and 100 seeds) and holdout 2 agree on these three points.
+
+---
+
+Post-hoc note (2026-09-26): these checks were re-evaluated with the order-averaged paper gain, outside the pre-registration; see analysis/ADDENDUM_order_averaged_gain.md. The text above is unchanged.

@@ -13,7 +13,7 @@ import re
 import numpy as np
 import pandas as pd
 
-TERMS = ["A0_chunk_order", "A_oracle_floor", "B_ceiling", "C_model", "D_loss_mismatch",
+TERMS = ["A_oracle_floor", "B_ceiling", "C_model", "D_loss_mismatch",
          "E_study_vs_pop", "F_early_read", "H_seed_aggregation", "total"]
 
 

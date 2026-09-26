@@ -13,11 +13,12 @@ With t the test fraction and rho a between-fold correlation of per-sample losses
 G_cf(rho) = 1 / (1/K + (1 - 1/K) t rho)  [= 1/((1-f)(t+(1-t)/K)+f/K), f = 1 - rho].
 Using the oracle quantities the objective already records (every fold model is also scored on the
 100k benchmark set, and the first-split model on up to 200 fresh outer chunks), the gap between the
-observed paper gain and the study-only prediction splits EXACTLY (sum checked to 1e-15) into:
+observed paper gain and the study-only prediction splits EXACTLY (sum checked to 1e-15) into the
+terms below. The paper gain here is the order-averaged one (see finding 4); its difference from the
+former fixed-order value is reported beside the sum as `fixed_order_noise`.
 
 | term | what it isolates |
 |---|---|
-| A0 chunk order | the paper gain pools the outer chunks in one fixed order; vs. V1(alpha) averaged over random orders |
 | A oracle floor | the benchmark score's own sampling error, s2 / 100,000 |
 | B ceiling | chunk ceiling (16 chunks at train size 10000), alpha interpolation |
 | C model | oracle gain vs. closed form with the POPULATION correlation rho_b (benchmark set) |
@@ -40,8 +41,9 @@ variance. After both, the single-split variance matches s2 / n_test (median rati
    cross-validation and part of the estimand we study, not a defect: the closed form is what is
    incomplete, since it only credits redundancy through test samples shared between folds. The
    coupling test (a diagnostic, not a target) confirms that C is this effect: with folds trained on fresh outer data the median of C is +0.01 (K = 20) / +0.10 (K = 200),
-   against -0.35 / -0.47 with study-trained folds. C carries 44-64% of the spread of the gap across
-   configurations when statistic and gain use the same loss.
+   against -0.35 / -0.47 with study-trained folds. C carries 67-94% of the spread of the gap across
+   configurations when statistic and gain use the same loss (44-64% before the chunk-order noise
+   was removed from the gain).
 3. **Coupling depends on train size, learner and task, not on the data family per se.** It usually
    adds between-fold covariance (gain below the closed form): -0.4 to -0.6 at train sizes 50-300 in
    classification and for single trees, fading towards 0 by 1000-3000 in regression. It can reverse:
@@ -49,22 +51,26 @@ variance. After both, the single-split variance matches s2 / n_test (median rati
    included (bootstrap 90% CI of C excludes 0 for 8 of 12 configurations). Not explained yet.
    Noise-injection levers leave C near 0 in regression; in classification they weaken it (median -0.08
    to -0.38 by lever, against -0.41 without a lever).
-4. **About a third of the spread is measurement noise in the paper gain as implemented (term A0).**
-   The fixed chunk order makes V1(alpha) swing between 0.5 and 1.2 times its expectation at 50
-   seeds, and the chunks are the same samples for every learner of a given size, so the error is
-   shared across configurations and looks like a size effect (A0 median -0.19 at size 1000, -0.10 at
-   3000 on holdout 3). Averaging V1(alpha) over chunk orders is the same estimand and removes it.
+4. **The paper gain as first implemented carried measurement noise, now removed.** It pooled the
+   outer chunks in one fixed order, which made V1(alpha) swing between 0.5 and 1.2 times its
+   expectation at 50 seeds; the chunks are the same samples for every learner of a given size, so
+   the error was shared across configurations and looked like a size effect (log G_20 sd 0.19-0.20
+   per configuration, median -0.19 / -0.09 / 0.00 at sizes 1000 / 3000 / 10000 on holdout 3). Since
+   2026-09-26 every analysis averages V1(alpha) exactly over the order of the chunks (same estimand);
+   the effect on the pre-registered checks is in analysis/ADDENDUM_order_averaged_gain.md.
 5. **The finite benchmark set and the chunk ceiling matter only at large train size** (A up to
    +0.08 and a hard cap at 16 at size 10000, where 37,500 outer samples make 15 chunks).
 6. **Reporting accuracy while measuring redundancy on NLL or Brier costs a loss-mismatch term D**
-   (27-35% of the spread on holdouts 2-3). With NLL its median is -0.08: 0-1 errors are more
+   (29-49% of the spread on holdouts 2-3). With NLL its median is -0.08: 0-1 errors are more
    correlated across folds than NLL, so the NLL-based closed form over-predicts the accuracy gain.
    With Brier the median is +0.01 to +0.02, the bias is gone but the scatter remains. This is the likely
-   mechanism of the PCam C2' over-prediction (+0.27), not testable there yet (see below).
+   mechanism of the PCam C2' over-prediction (+0.20 with the order-averaged gain, +0.27 before), not
+   testable there yet (see below).
 
-The five unsafe stops of holdout 3 split in two: sim_linear RandomForest at 10000 and ExtraTrees at
-3000 are measurement (oracle gain 7.3 / 6.7 vs. closed form 7.2 / 6.9; A0 + A + B = +0.55 / +0.49);
-the three sim_nonlinear ensembles at 10000 are coupling reversal (C = +0.49 to +0.90).
+With the order-averaged gain, holdout 3 regression has four unsafe stops: sim_interactions
+ExtraTrees at 10000 (gain 10.6, oracle gain 7.9, closed form 7.0: benchmark floor and chunk ceiling)
+and three sim_nonlinear ensembles at 10000 where coupling raises the gain above the closed form
+(C = +0.49 to +0.90). The two sim_linear stops of the fixed-order analysis were chunk-order noise.
 
 ## Open questions / next steps
 
@@ -74,6 +80,7 @@ the three sim_nonlinear ensembles at 10000 are coupling reversal (C = +0.49 to +
   computes a `rho_resid_train_membership` statistic worth checking against C.
 * Theory of C: a stability argument (influence of one training point on another fold's test loss)
   should give its 1/n scaling and learner dependence; the sign reversal needs its own explanation.
-* Measurement: use the order-averaged gain (G_paper_avg) and a larger outer set at large train size.
+* Measurement: done for the chunk order (order-averaged gain everywhere); a larger outer set and
+  benchmark set would remove the floor and ceiling at large train size.
 * PCam: record the per-sample benchmark losses across folds (population rho_b) to decompose the real
-  data the same way; A0 and A are computable from the existing parquets.
+  data the same way; the benchmark-floor term is computable from the existing parquets.

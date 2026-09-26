@@ -161,3 +161,7 @@ Across both round-3 sets: no unsafe stop in classification when the statistic is
 (PCam with an NLL gain; holdout 3 with an accuracy gain); unsafe stops remain where the gain
 grows with train size faster than the study-only statistic registers it (small ensembles in
 regression here, DenseNet121 at size 800 on PCam with an accuracy gain).
+
+---
+
+Post-hoc note (2026-09-26): these checks were re-evaluated with the order-averaged paper gain, outside the pre-registration; see analysis/ADDENDUM_order_averaged_gain.md. The text above is unchanged.

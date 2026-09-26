@@ -80,3 +80,7 @@ the predicted gain is what the 50-seed scatter requires.
 Verdict: the pre-registered rule fails C1 (marginally in regression, clearly in classification)
 and fails C2 in both; the study-only statistic ranks gains well and predicts their level
 without bias, but it is not conservative, and a validated rule needs an explicit margin.
+
+---
+
+Post-hoc note (2026-09-26): these checks were re-evaluated with the order-averaged paper gain, outside the pre-registration; see analysis/ADDENDUM_order_averaged_gain.md. The text above is unchanged.

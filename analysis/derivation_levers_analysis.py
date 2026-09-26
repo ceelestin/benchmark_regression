@@ -22,6 +22,10 @@ model on 200 outer chunks of the test-fold size (``objective_outer_<loss>``):
   Delta_K = mean_k q_k - mean_k b_k. With V^delta_1(alpha) = Var_seeds(delta_HO(alpha))
   and V^delta_K = Var_seeds(Delta_K), N_equiv/n_te = min alpha with V^delta_1(alpha) <=
   V^delta_K (log-log interpolated between integer alphas; capped at the number of chunks).
+  V^delta_1(alpha) is AVERAGED OVER THE ORDER of the outer chunks (exact expectation over a uniformly
+  random choice of the alpha-1 chunks, from their covariance matrix across seeds): pooling them in one
+  fixed order, as before 2026-09-26, adds noise that is shared by every configuration using the same
+  chunks. The fixed-order value is kept as G_paper_fixed.
 * G_K^err = Var_s(q_1 - b_1) / Var_s(qbar_K - bbar_K): the same estimand under exact 1/N
   scaling of the single-split variance (used for the closed-form check).
 * G_K^raw = Var_s(q_1) / Var_s(qbar_K): the CV estimate itself, including the across-study
@@ -111,6 +115,26 @@ def load(pattern, loss):
     return df
 
 
+def v1_alpha_curve(x0, X):
+    """V^delta_1(alpha) for alpha = 1..n+1, averaged over the order of the chunks.
+
+    x0: (seeds,) single-split error of the first-split model on its test fold (q_1 - b_1);
+    X: (seeds, n) its errors on the n outer chunks (chunk score - b_1). The pooled error on alpha
+    test-fold-sized sets is (x0 + sum_{j in S} x_j) / alpha with |S| = alpha - 1; its variance
+    across seeds is a quadratic form, so its expectation over a uniformly random S is exact:
+    [C00 + 2 m c0 + m d + m (m - 1) o] / alpha^2, m = alpha - 1, with C the covariance matrix
+    (ddof=1) of [x0, X], c0 the mean of C0j, d the mean of Cjj, o the mean of Cjl (j != l)."""
+    Z = np.column_stack([x0, X])
+    C = np.cov(Z, rowvar=False, ddof=1)
+    n = X.shape[1]
+    C00, c0 = C[0, 0], C[0, 1:].mean()
+    Cc = C[1:, 1:]
+    d = np.trace(Cc) / n
+    o = (Cc.sum() - np.trace(Cc)) / (n * (n - 1)) if n > 1 else 0.0
+    m = np.arange(0, n + 1, dtype=float)
+    return (C00 + 2 * m * c0 + m * d + m * (m - 1) * o) / (m + 1) ** 2
+
+
 def _paper_gain(var_k, alpha_var):
     """Smallest alpha with V1(alpha) <= var_k, log-log interpolated; alpha_var[0] is alpha=1."""
     v = np.asarray(alpha_var, dtype=float)
@@ -145,21 +169,24 @@ def gains(df):
         n_alpha = outer.shape[1] + 1
         cum = np.cumsum(outer, axis=1)
         pooled = np.concatenate([Q[:, :1], (Q[:, :1] + cum) / (np.arange(1, n_alpha)[None, :] + 1)], axis=1)
-        delta_alpha_var = np.var(pooled - B[:, :1], axis=0, ddof=1)             # V^delta_1(alpha)
+        delta_alpha_var_fixed = np.var(pooled - B[:, :1], axis=0, ddof=1)       # one fixed chunk order
+        Xc = outer - B[:, :1]
+        delta_alpha_var = v1_alpha_curve(E[:, 0], Xc)                          # V^delta_1(alpha), order-averaged
         v1_raw, v1_err = np.var(Q[:, 0], ddof=1), np.var(E[:, 0], ddof=1)
         for K in [k for k in K_GRID if k <= K_avail]:
             mq, me = Q[:, :K].mean(axis=1), E[:, :K].mean(axis=1)
             g_raw, g_err = v1_raw / np.var(mq, ddof=1), v1_err / np.var(me, ddof=1)
             g_paper, capped = _paper_gain(np.var(me, ddof=1), delta_alpha_var)
+            g_paper_fixed, _ = _paper_gain(np.var(me, ddof=1), delta_alpha_var_fixed)
             bs_raw, bs_err, bs_paper = [], [], []
             for _ in range(200):
                 idx = rng.integers(0, n_seeds, n_seeds)
                 bs_raw.append(np.var(Q[idx, 0], ddof=1) / np.var(mq[idx], ddof=1))
                 bs_err.append(np.var(E[idx, 0], ddof=1) / np.var(me[idx], ddof=1))
                 bs_paper.append(_paper_gain(np.var(me[idx], ddof=1),
-                                            np.var(pooled[idx] - B[idx, :1], axis=0, ddof=1))[0])
+                                            v1_alpha_curve(E[idx, 0], Xc[idx]))[0])
             rows.append(dict(zip(CONFIG_KEYS, key), K=K, n_seeds=n_seeds, n_alpha=n_alpha,
-                             G_paper=g_paper, G_paper_capped=capped,
+                             G_paper=g_paper, G_paper_capped=capped, G_paper_fixed=g_paper_fixed,
                              G_paper_lo=np.percentile(bs_paper, 5), G_paper_hi=np.percentile(bs_paper, 95),
                              G_raw=g_raw, G_raw_lo=np.percentile(bs_raw, 5), G_raw_hi=np.percentile(bs_raw, 95),
                              G_err=g_err, G_err_lo=np.percentile(bs_err, 5), G_err_hi=np.percentile(bs_err, 95)))
@@ -187,7 +214,7 @@ def candidates(df, gains_df):
         for K in (5, 20, 200):
             r = gk[gk["K"] == K] if len(gk) else gk
             if len(r):
-                for name in ("G_paper", "G_raw", "G_err"):
+                for name in ("G_paper", "G_paper_fixed", "G_raw", "G_err"):
                     rec[f"{name}_{K}"] = float(r[name].iloc[0])
         for name in ("G_paper", "G_err"):
             if f"{name}_20" in rec and f"{name}_200" in rec:
