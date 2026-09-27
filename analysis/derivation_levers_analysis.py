@@ -69,7 +69,7 @@ CAND_COLS = {
     "sv_nll": "objective_study_oof_anova_nll_sample_var",
 }
 # dataset_name embeds the seed: key on the family + dataset parameters instead.
-CONFIG_KEYS = ["family", "p_dataset_noise", "p_obj_train_size",
+CONFIG_KEYS = ["family", "p_dataset_noise", "p_obj_train_size", "p_obj_test_size",
                "p_obj_procedure", "p_obj_fixed_split", "p_obj_train_source",
                "solver_name"]
 LOSS_COLS = {  # loss -> (test col, bench col, outer per-chunk list col)

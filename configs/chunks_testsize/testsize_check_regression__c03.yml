@@ -1,0 +1,25 @@
+# TEST-SIZE CHECK (2026-09-27; exploratory, NOT pre-registered; requested by CE). Does the factor
+# linking the loss correlation rho_e to the fold-error correlation (rho_delta ~ f * rho_e) follow the
+# test fraction t, as expected from the mean overlap of two random test folds (f = t)? Everything
+# else fixed; test fraction 0.1 / 0.2 / 0.3 / 0.5 at train sizes 300 and 1000 (train size fixed, so
+# the study size is train/(1-t)). Prediction-noise lever to spread rho_e. K = 20, new seeds 7000-7049.
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [300, 1000]
+      test_size: [0.1, 0.2, 0.3, 0.5]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [1.0]
+      seed: [7030, 7031, 7032, 7033, 7034, 7035, 7036, 7037, 7038, 7039]
+      fixed: [False]
+
+solver:
+  - RidgeNoisyPred:
+      alpha: [1.0]
+      pred_noise: [0.0, 0.3, 1.0, 3.0]

@@ -115,7 +115,7 @@ def decompose(df, loss, stat):
         Q, Bs = piv["q"].values, piv["b"].values
         E = Q - Bs
         n_seeds, K_avail = E.shape
-        t = 0.2                                              # all ShuffleSplit grids use t = 0.2
+        t = float(cfg["p_obj_test_size"])
         n_tr = int(cfg["p_obj_train_size"])
         n_te = round(n_tr * t / (1 - t))
         first = g[g["idx_rep"] == 0].set_index("p_dataset_seed").loc[seeds]
