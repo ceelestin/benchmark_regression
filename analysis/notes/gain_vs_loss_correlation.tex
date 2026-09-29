@@ -1,0 +1,155 @@
+% ============================================================================
+% Sample gain as a function of the study-only loss correlation
+% Draft fragment for PAPER.tex (notation of Sec. 3 and of the appendix
+% "Estimating inter-fold covariance in cross-validation"). Written 2026-09-29.
+% Needs amsmath. No new macros. Empirical numbers refer to benchmark_regression
+% analysis outputs (see the comment block at the end).
+% ============================================================================
+
+\subsection{From the fold-error correlation to a study-only statistic}
+\label{sec:gain-vs-loss-correlation}
+
+\paragraph{Setting.}
+A study set of $N$ observations is split $K$ times by MCCV: each split $a$ draws a test
+set $\mathcal{D}^{\text{te}}_a$ of size $n_{\text{te}}$ uniformly without replacement,
+independently across splits, and trains $g_a = F_\lambda(\mathcal{D}^{\text{tr}}_a,\xi_a)$
+on the remaining $n_{\text{tr}} = N - n_{\text{te}}$ observations. We write
+$t = n_{\text{te}}/N$ for the test fraction. For an observation $i$ held out by split $a$,
+let
+\begin{equation}
+  d_{a,i} = \ell\bigl(g_a(x_i), y_i\bigr) - \mathcal{R}^*(g_a)
+\end{equation}
+be its per-sample loss centred at the risk of the predictor that did not see it, so that
+$\mathbb{E}[d_{a,i} \mid g_a] = 0$, and let $\sigma^2_e = \mathbb{E}[d_{a,i}^2]$ be the
+per-sample loss variance.
+
+\paragraph{Step 1: the gain depends on the fold-error correlation only.}
+Neglecting the evaluation noise of the benchmark estimate (eq.~\eqref{eq:delta_variance_approx}),
+the benchmark-adjusted fold error is the test-set average of the centred losses,
+\begin{equation}
+  \delta_a = \frac{1}{n_{\text{te}}} \sum_{i \in \mathcal{D}^{\text{te}}_a} d_{a,i}.
+\end{equation}
+By eq.~\eqref{eq:delta_cvvar} and the local $1/m$ scaling of the single-split variance
+(eq.~\eqref{eq:sample-gain-def}), the sample gain has the intraclass-correlation form of
+eq.~\eqref{eq:sample-gain-icc}:
+\begin{equation}
+  G^{\text{test}}_K \approx \frac{K}{1 + (K-1)\,\rho_\delta},
+  \qquad
+  \rho_\delta = \frac{\tau^{\mathrm{te}}}{\sigma^{2,\mathrm{te}}}
+              = \operatorname{Corr}(\delta_a, \delta_b), \; a \neq b.
+  \label{eq:gain-rho-delta}
+\end{equation}
+This step is exact up to the $1/m$ scaling; everything the gain depends on is in $\rho_\delta$.
+
+\paragraph{Step 2: decomposing the fold-error covariance.}
+The single-split variance is $\sigma^{2,\mathrm{te}} = \sigma^2_e / n_{\text{te}}$: given
+$g_a$ the held-out observations are i.i.d.\ and the $d_{a,i}$ are centred, so cross terms
+within a split vanish. For two splits $a \neq b$, expanding the product of the two averages
+and separating the observations held out by both,
+$I_{ab} = \mathcal{D}^{\text{te}}_a \cap \mathcal{D}^{\text{te}}_b$, from the pairs of distinct
+observations,
+\begin{equation}
+  \tau^{\mathrm{te}}
+  = \frac{1}{n_{\text{te}}^2}
+    \Bigl(
+      \underbrace{\mathbb{E}\Bigl[\sum_{i \in I_{ab}} d_{a,i}\, d_{b,i}\Bigr]}_{\text{shared observations}}
+      +
+      \underbrace{\mathbb{E}\Bigl[\sum_{i \in \mathcal{D}^{\text{te}}_a}\;
+                  \sum_{j \in \mathcal{D}^{\text{te}}_b,\, j \neq i} d_{a,i}\, d_{b,j}\Bigr]}_{\text{train/test coupling}}
+    \Bigr).
+  \label{eq:tau-te-split}
+\end{equation}
+
+\emph{Shared observations.} Two independent uniform test sets share on average
+$\mathbb{E}|I_{ab}| = n_{\text{te}}^2 / N = t\, n_{\text{te}}$ observations. On each of them
+the two split predictors' losses covary by $\rho_e\,\sigma^2_e$, where
+\begin{equation}
+  \rho_e = \frac{\mathbb{E}[d_{a,i}\, d_{b,i} \mid i \in I_{ab}]}{\sigma^2_e}
+\end{equation}
+is the correlation of the per-sample losses of two split predictors on an observation that
+neither was trained on. The first term of~\eqref{eq:tau-te-split} is therefore
+$t\, n_{\text{te}}\, \rho_e\, \sigma^2_e / n_{\text{te}}^2$.
+
+\emph{Train/test coupling.} For $i \neq j$, $d_{a,i}$ and $d_{b,j}$ are not independent: $i$
+may belong to the training set of $g_b$, $j$ to that of $g_a$, and $g_a$, $g_b$ share most of
+their training data. This is intrinsic to cross-validation and is part of $\tau^{\mathrm{te}}$
+(Sec.~\ref{sec:sample_gain}). Writing $\gamma = \mathbb{E}[d_{a,i}\, d_{b,j}]$ for the average
+covariance of such a pair, the second term is approximately $\gamma$ (about $n_{\text{te}}^2$ pairs).
+
+Dividing by $\sigma^{2,\mathrm{te}} = \sigma^2_e / n_{\text{te}}$,
+\begin{equation}
+  \boxed{\;
+  \rho_\delta = t\,\rho_e + \kappa,
+  \qquad
+  \kappa = \frac{n_{\text{te}}\,\gamma}{\sigma^2_e}
+  \;}
+  \label{eq:rho-delta-decomp}
+\end{equation}
+The loss correlation $\rho_e$ measures how similarly two split predictors err on the same
+observation; the factor $t$ is the share of a test set made of observations that another split
+also tests; $\kappa$ is the coupling contribution, of either sign.
+
+\paragraph{Step 3: the reference curve and the study-only statistic.}
+Substituting~\eqref{eq:rho-delta-decomp} into~\eqref{eq:gain-rho-delta},
+\begin{equation}
+  G^{\text{test}}_K \approx \frac{K}{1 + (K-1)\,(t\,\rho_e + \kappa)}.
+  \label{eq:gain-full}
+\end{equation}
+With $\kappa = 0$ this is the reference curve $K/(1+(K-1)x)$ with $x = t\rho_e$. Two limits
+read directly: for $\rho_e \to 0$ (split predictors err independently) $G^{\text{test}}_K \to K$;
+for $\rho_e \to 1$ (all split predictors err alike) $G^{\text{test}}_K \to K/(1+(K-1)t)$, whose
+$K\to\infty$ limit $1/t = N/n_{\text{te}}$ says that CV then averages over the whole study set
+and no more.
+
+The study-only estimate of $x$ uses the loss-correlation factor of the redundancy score of
+Sec.~\ref{sec:study-only-redundancy-statistics}, computed on the per-sample loss of the metric
+whose gain is targeted, after the first $k$ splits of a single run:
+\begin{equation}
+  \widehat{x}_{k} = t\, \widehat\rho^{\mathrm{study}}_{e,k},
+  \qquad
+  \widehat\rho^{\mathrm{study}}_{e,k}
+  = \frac{\widehat C^{\mathrm{study}}_{e,k}}{\widehat V^{\mathrm{study}}_{e,k}}
+  \quad \text{(eq.~\eqref{eq:study-loss-correlation})}.
+  \label{eq:x-hat}
+\end{equation}
+The empirical overlap $\bar m^{\mathrm{study}}_k / n_{\text{te}}$ may replace $t$ (same expectation).
+
+\paragraph{Relation to the redundancy score.}
+Since $\mathbb{E}\,\bar m^{\mathrm{study}}_k = t\, n_{\text{te}}$,
+$\widehat\omega^{\mathrm{study}}_k = \widehat C^{\mathrm{study}}_{g,k}\,
+\widehat\rho^{\mathrm{study}}_{e,k}\, \bar m^{\mathrm{study}}_k
+\approx \widehat C^{\mathrm{study}}_{g,k}\, n_{\text{te}}\; \widehat{x}_k$.
+The score thus contains $\widehat{x}_k$, multiplied by the prediction covariance (which carries
+the squared units of the target and the signal strength) and by the test-set size (which grows
+with the study). Both factors vary across settings independently of the gain, which is why
+$\widehat{x}_k$, dimensionless and bounded by $t$, is the quantity on which an absolute
+early-stopping threshold can be placed.
+
+\paragraph{Assumptions and scope.}
+(a) The benchmark noise is negligible and the single-split variance scales as $1/m$
+(Sec.~\ref{sec:sample_gain}). (b) $\widehat\rho^{\mathrm{study}}_{e,k}$, computed on
+$I_{ab}$ with sample centring, estimates $\rho_e$; its bias is $O(1/|I_{ab}|)$, which requires
+held-out folds of a few observations (Sec.~\ref{sec:study-only-redundancy-statistics}).
+(c) The overlap $\mathbb{E}|I_{ab}| = t\,n_{\text{te}}$ holds for MCCV; for repeated $K$-fold,
+splits of the same repeat have disjoint test sets and the factor changes accordingly.
+(d) The reference curve omits $\kappa$.
+
+\paragraph{Empirical checks (simulated data).}
+(1) The study-only $\widehat\rho^{\mathrm{study}}_{e,k}$ matches the population $\rho_e$ of the
+same split predictors, measured on the benchmarking set, within $1\%$ across all simulated
+designs. (2) Varying the test fraction ($t = 0.1, 0.2, 0.3, 0.5$) with everything else fixed,
+the fitted factor $\rho_\delta / \rho_e$ is $0.10, 0.21, 0.32, 0.48$ (classification) and
+$0.14, 0.20, 0.36, 0.46$ (regression), with intercepts within $\pm 0.01$. (3) Regression
+configurations and the \texttt{PCam} networks lie on the reference curve (\texttt{PCam}:
+median $\log(G^{\text{test}}_{20}/\text{curve})$ between $-0.02$ and $+0.04$); simulated
+classifiers fall $10$--$50\%$ below it at training sizes $100$--$300$, i.e.\ $\kappa > 0$ there,
+and the gap closes by $n_{\text{tr}} \approx 800$.
+
+% ---------------------------------------------------------------------------
+% Sources for the numbers (benchmark_regression):
+%  (1) analysis/GAIN_DECOMPOSITION.md, term E (study vs population), all ShuffleSplit sets.
+%  (2) analysis/testsize_factor_check.py, analysis/out_decomp_testsize/factor_by_test_size.csv
+%      (job 240569, seeds 7000-7049, K = 20, train sizes 300 / 1000).
+%  (3) analysis/out_pcam_consistency/ (PCam, 20 configurations) and
+%      analysis/out_omega_sweep/ (classification sweep, job 231717, seeds 6000-6049).
+% ---------------------------------------------------------------------------
