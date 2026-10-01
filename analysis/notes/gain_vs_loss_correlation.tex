@@ -6,7 +6,7 @@
 \usepackage{booktabs}
 \usepackage[hidelinks]{hyperref}
 
-\title{Sample gain as a function of the study-only loss correlation}
+\title{Sample gain and the study-only redundancy}
 \author{Draft note for \emph{Crossing the Validation Crisis}}
 \date{29 September 2026}
 
@@ -14,11 +14,13 @@
 \maketitle
 
 \noindent
-This note derives the reference curve
-$G^{\text{test}}_K \approx K/(1+(K-1)x)$, with $x = t\,\rho_e$, used to relate the
-variance-equivalent test sample gain to a study-only statistic, and explains why this
-statistic, rather than the redundancy score $\widehat\omega^{\mathrm{study}}_k$, is the
-quantity on which an absolute early-stopping threshold can be placed. Notation follows the
+This note defines the redundancy $\omega = t\,\rho_e$ (test fraction times the loss correlation
+of two split predictors) and its study-only estimate $\widehat\omega^{\mathrm{study}}_k$, and
+derives the reference curve $G^{\text{test}}_K \approx K/(1+(K-1)\,\omega)$ that relates it to the
+variance-equivalent test sample gain. It replaces the former redundancy score
+$\widehat C^{\mathrm{study}}_{g,k}\,\widehat\rho^{\mathrm{study}}_{e,k}\,\bar m^{\mathrm{study}}_k$,
+and explains why an absolute early-stopping threshold can be placed on the redundancy but not on
+the former score. Notation follows the
 paper; results taken from it are restated so that this note reads on its own, with a pointer
 to where they appear (section numbers of the current draft, appendix titles in full).
 
@@ -137,20 +139,27 @@ The loss correlation $\rho_e$ measures how similarly two split predictors err on
 observation. The factor $t$ is the share of a test set made of observations that another split
 also tests. The coupling contribution $\kappa$ can have either sign.
 
-\section{Step 3: reference curve and study-only statistic}
+\section{Step 3: the redundancy and the reference curve}
 
 Substituting~\eqref{eq:rho-delta-decomp} into~\eqref{eq:gain-rho-delta},
 \begin{equation}
   G^{\text{test}}_K \approx \frac{K}{1 + (K-1)\,(t\,\rho_e + \kappa)}.
   \label{eq:gain-full}
 \end{equation}
-With $\kappa = 0$ this is the reference curve $K/(1+(K-1)x)$ with $x = t\,\rho_e$. Two limits
+We call
+\begin{equation}
+  \omega = t\,\rho_e
+  \label{eq:redundancy}
+\end{equation}
+the \emph{redundancy}: the part of the fold-error correlation carried by observations that two
+splits both test. With $\kappa = 0$, \eqref{eq:gain-full} is the reference curve
+$K/(1+(K-1)\,\omega)$. Two limits
 can be read directly. For $\rho_e \to 0$, split predictors err independently and
 $G^{\text{test}}_K \to K$. For $\rho_e \to 1$, all split predictors err alike and
 $G^{\text{test}}_K \to K/(1+(K-1)t)$, whose limit as $K\to\infty$ is
 $1/t = N/n_{\text{te}}$: cross-validation then averages over the whole study set and no more.
 
-\paragraph{Study-only estimate.}
+\paragraph{Study-only estimate of the redundancy.}
 After the first $k$ splits of a single run, let $I_{ab}$ be the observations held out by both
 splits $a<b$ and $e_{a,i} = \ell(g_a(x_i), y_i)$ the per-sample loss, computed with the loss of
 the metric whose gain is targeted. The pair-averaged loss covariance, loss variance and their
@@ -164,31 +173,37 @@ ratio are
   \widehat\rho^{\mathrm{study}}_{e,k} &= \widehat C^{\mathrm{study}}_{e,k} / \widehat V^{\mathrm{study}}_{e,k},
 \end{align}
 (these are the loss covariance, variance and correlation of the paper, Appendix~D.3,
-``Study-only redundancy for early-stopping cross-validation''), and the statistic is
+``Study-only redundancy for early-stopping cross-validation''), and the redundancy after $k$ splits is
 \begin{equation}
-  \widehat{x}_{k} = t\, \widehat\rho^{\mathrm{study}}_{e,k}.
-  \label{eq:x-hat}
+  \widehat\omega^{\mathrm{study}}_{k} = t\, \widehat\rho^{\mathrm{study}}_{e,k}.
+  \label{eq:omega-hat}
 \end{equation}
+It is dimensionless and lies between $-t$ and $t$. It can be read after $k = 3$ or $k = 5$ splits:
+configuration-level relations are the same, while the spread of a single run's reading roughly
+halves from $k = 3$ to $k = 5$.
 The empirical overlap $\bar m^{\mathrm{study}}_k / n_{\text{te}}$, with
 $\bar m^{\mathrm{study}}_k$ the mean of $|I_{ab}|$ over pairs, may replace $t$: it has the same
 expectation.
 
-\section{Relation to the redundancy score}
+\section{Relation to the former redundancy score}
 
-The redundancy score of the paper (Appendix~D.3, boxed equation; Section~5.1, paragraph
+The former redundancy score of the paper (Appendix~D.3, boxed equation; Section~5.1, paragraph
 ``Measuring how sample gains settle in'') is
-$\widehat\omega^{\mathrm{study}}_k = \widehat C^{\mathrm{study}}_{g,k}\,
+$\widehat s_k = \widehat C^{\mathrm{study}}_{g,k}\,
 \widehat\rho^{\mathrm{study}}_{e,k}\, \bar m^{\mathrm{study}}_k$, where
 $\widehat C^{\mathrm{study}}_{g,k}$ is the pair-averaged covariance of the two split
 predictions on $I_{ab}$. Since $\mathbb{E}\,\bar m^{\mathrm{study}}_k = t\, n_{\text{te}}$,
 \begin{equation}
-  \widehat\omega^{\mathrm{study}}_k \approx \widehat C^{\mathrm{study}}_{g,k}\; n_{\text{te}}\; \widehat{x}_k .
+  \widehat s_k \approx \widehat C^{\mathrm{study}}_{g,k}\; n_{\text{te}}\; \widehat\omega^{\mathrm{study}}_k .
 \end{equation}
-The score thus contains $\widehat{x}_k$, multiplied by the prediction covariance, which
+The former score thus contains the redundancy, multiplied by the prediction covariance, which
 carries the squared units of the target and the strength of the signal, and by the test-set
 size, which grows with the study. Both factors vary across settings independently of the gain.
-The statistic $\widehat{x}_k$ is dimensionless and bounded by $t$, which is why an absolute
-early-stopping threshold can be placed on it.
+The redundancy is dimensionless and bounded by $t$, which is why an absolute early-stopping
+threshold can be placed on it. On the prospective holdout of the paper (216 configurations,
+50 seeds) with gains on the mean squared error, the former score is not informative (correlation
+with $\log G^{\text{test}}_{20}$ of $+0.11$ after 3 splits), while the redundancy is
+($-0.60$ after 3 splits, $-0.67$ after 5).
 
 \section{Assumptions and scope}
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Draft 2D projection: sample gain G_20 vs study-only redundancy (analysis/out_omega/*.csv).
+"""Sample gain G_20 vs the redundancy omega_k = t * rho_e,k (analysis/out_omega/*.csv); left column: the former
+score C_g * rho_e * m_bar, kept for comparison only.
 
 Rows: regression (gain on MSE, redundancy on squared error) and classification (gain on
 accuracy, redundancy on 0-1 error). Columns: the paper's omega-hat at k = 3 (raw), and
@@ -77,10 +78,10 @@ def main():
     for r, (gl, title) in enumerate(rows):
         x = d[d.gain_loss == gl]
         panel(axes[r, 0], x, f"omega_mean_{k}", f"omega_q10_{k}", f"omega_q90_{k}",
-              f"paper redundancy score $\\hat\\omega^{{study}}_{k}$ (raw)", False)
+              f"former score $\\hat C_g\\,\\hat\\rho_{{e}}\\,\\bar m$ after {k} splits (no longer used)", False)
         axes[r, 0].set_xscale("symlog", linthresh=0.1)
         panel(axes[r, 1], x, "x_mean", "x_q10", "x_q90",
-              f"$t\\,\\hat\\rho_{{e,{k}}}$  (t = 0.2; loss-correlation factor of $\\hat\\omega$)", True)
+              f"redundancy $\\hat\\omega^{{study}}_{{{k}}} = t\\,\\hat\\rho_{{e,{k}}}$  (t = 0.2)", True)
         axes[r, 0].set_title(title, loc="left", color=INK, fontsize=10)
         for ax in axes[r]:
             ax.set_facecolor(SURFACE)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Classification: G_20 vs t * rho_e after k splits -- earlier simulated reference (grey), the
+"""Classification: G_20 vs the redundancy omega_k = t * rho_e after k splits -- earlier simulated reference (grey), the
 classification sweep at PCam-like sizes (circles, blue by train size) and PCam (diamonds).
 Point = configuration mean; horizontal whisker = 10-90 % of single runs; vertical = gain 90 % CI.
 Usage: python analysis/sweep_pcam_plot.py [--k 5]
@@ -40,7 +40,7 @@ def main():
         xs = np.linspace(-0.02, 0.21, 300)
         ax.plot(xs, 1 / (1 / K + (1 - 1 / K) * xs), color=INK, lw=1.5, ls="--", label="K / (1 + (K-1) x)", zorder=6)
         ax.set_yscale("log"); ax.set_xlim(-0.03, 0.22)
-        ax.set_xlabel(f"$t\\,\\hat\\rho_{{e,{k}}}$  (t = 0.2, loss correlation after {k} splits)", color=INK)
+        ax.set_xlabel(f"redundancy $\\hat\\omega^{{study}}_{{{k}}} = t\\,\\hat\\rho_{{e,{k}}}$  (t = 0.2, after {k} splits)", color=INK)
         ax.set_ylabel("sample gain $G^{test}_{20}$", color=INK)
         ax.set_title(f"Classification: {title}", loc="left", color=INK, fontsize=10)
         ax.grid(color=GRID, lw=0.6); ax.set_axisbelow(True); ax.set_facecolor(SURFACE)
