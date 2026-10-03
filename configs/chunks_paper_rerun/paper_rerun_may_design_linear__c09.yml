@@ -1,0 +1,47 @@
+# RERUN OF THE PAPER'S PROSPECTIVE REDUNDANCY HOLDOUT DESIGN (2026-10-03, CE's go).
+# Same design as benchopt_run_2026-05-04_12h45m52 (216 configurations: 3 families x 3 noise levels
+# x 3 training sizes x 8 solvers, K = 200, 150,000 samples, 20 features, test fraction 0.2), with the
+# current objective (records MSE and NLL scores, cumulative study-only statistics) and FRESH seeds
+# 8000-8049, never used before. Purpose: a clean prospective validation of the redundancy
+# omega_k = t * rho_e,k against MSE gains. One file per family (make_chunks rewrites one seed list).
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["ShuffleSplit"]
+      train_size: [50, 300, 2000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [0.1, 0.7, 1.5]
+      seed: [8045, 8046, 8047, 8048, 8049]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1613]
+  - ExtraTrees_noHPO:
+      n_estimators: [200]
+  - RandomForest:
+      n_estimators: [200]
+      max_depth: [100]
+  - DecisionTree:
+      max_depth: [100]
+      min_samples_leaf: [1]
+  - HistGradientBoosting:
+      max_iter: [100]
+      learning_rate: [0.1]
+      max_leaf_nodes: [31]
+      max_depth: [20]
+  - KNeighbors:
+      n_neighbors: [20]
+      weights: ["uniform"]
+  - SVR:
+      C: [10.0]
+      epsilon: [0.1]
+      gamma: ["scale"]
+  - MLP:
+      hidden_layer_sizes: [[32]]
