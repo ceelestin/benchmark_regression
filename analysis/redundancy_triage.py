@@ -30,11 +30,11 @@ MBAR = "objective_study_oof_intersection_mean_size_all"
 KS = (2, 3, 5)
 
 
-def load():
+def load(pattern=GLOB):
     import pyarrow.parquet as pq
     want = {CG, RHO, MBAR, "dataset_name", "p_dataset_seed", "idx_rep", "solver_name", *CONFIG_KEYS}
     fr = []
-    for f in sorted(glob.glob(GLOB)):
+    for f in sorted(glob.glob(pattern)):
         names = pq.read_schema(f).names
         d = pd.read_parquet(f, columns=[c for c in names if c in want])
         fr.append(d[d.idx_rep.isin([k - 1 for k in KS])])
@@ -84,9 +84,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--gains-dir", required=True)
     ap.add_argument("--solvers-exclude", nargs="*", default=[])
+    ap.add_argument("--glob", default=GLOB)
     ap.add_argument("--out-dir", default="analysis/out_redundancy_triage")
     a = ap.parse_args()
-    r = load()
+    r = load(a.glob)
     r = r[~r.solver.isin(a.solvers_exclude)]
     g = pd.read_csv(os.path.join(a.gains_dir, "gains.csv"))
     keys = [c for c in CONFIG_KEYS if c in g.columns]
