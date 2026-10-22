@@ -1,0 +1,31 @@
+# RERUN OF THE PAPER'S MAIN SIMULATED SAMPLE-GAIN EXPERIMENT ON MSE (2026-10-22, CE's request).
+# Same design as benchopt_run_2026-06-05_03h53m16 (Figure "Long-run simulated variance-equivalent test sample
+# gains", aggregated_test_gain_k_1000_sim_linear_fixedFalse_r2_full.pdf): linear process, d = 5, noise 0,
+# 150,000 samples, n_tr = 1000, K = 200 ShuffleSplit splits, test fraction 0.2, seeds 0-999, four solvers.
+# That run recorded only R^2; the current objective also records the MSE (and the study-only statistics),
+# so the figure can be redrawn on MSE gains. Same seeds: the R^2 gains should reproduce the published curves.
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0.0]
+      seed: [150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1613]
+  - GradientBoosting:
+      n_estimators: [200]
+  - ExtraTrees_noHPO:
+      n_estimators: [200]
+  - MLP:
+      hidden_layer_sizes: [[32]]
