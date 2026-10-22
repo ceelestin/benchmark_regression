@@ -20,7 +20,8 @@ import pyarrow.parquet as pq
 
 COLORS = {"Ridge": "#d62728", "MLP": "#2ca02c", "ExtraTrees": "#1f77b4", "GradientBoosting": "#ff7f0e",
           "MLP_GridSearch": "#8c564b", "MLP_RandomSearch": "#e377c2", "ExtraTrees_GridSearch": "#1f3fb4",
-          "ExtraTrees_RandomSearch": "#ff9f3f"}
+          "ExtraTrees_RandomSearch": "#ff9f3f", "Random features": "#9467bd"}
+DISPLAY = {"KernelApprox": "Random features"}
 COLS = ["solver_name", "p_dataset_seed", "idx_rep", "p_obj_train_size", "p_obj_fixed_split",
         "objective_neg_mse_test", "objective_neg_mse_bench", "objective_score_test", "objective_score_bench"]
 METRIC = {"mse": ("objective_neg_mse_test", "objective_neg_mse_bench"), "r2": ("objective_score_test", "objective_score_bench")}
@@ -28,7 +29,7 @@ METRIC = {"mse": ("objective_neg_mse_test", "objective_neg_mse_bench"), "r2": ("
 
 def short(name):
     s = name.split("[")[0].replace("_noHPO", "")
-    return s
+    return DISPLAY.get(s, s)
 
 
 def load(files, n_tr, metric="mse"):
