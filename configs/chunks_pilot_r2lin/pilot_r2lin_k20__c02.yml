@@ -1,0 +1,31 @@
+# PILOT: R^2-linearized redundancy (2026-10-22, CE's request).
+# Same design as the paper's main simulated gain figure (sim_linear d = 5, noise 0, n_tr = 1000,
+# test fraction 0.2, four solvers), K = 20 splits, seeds 0-199. The objective now records
+# study_r2lin_* : the OOF-intersection loss correlation of the per-sample linearization of R^2,
+# phi_i = e_i^2 / v - (MSE_fold / v^2) (y_i - ybar)^2. Question: does t * rho_r2lin predict the
+# R^2 gains (Ridge, MLP ~ 8 at K = 20) the way t * rho_mse predicts the MSE gains?
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0.0]
+      seed: [80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1613]
+  - GradientBoosting:
+      n_estimators: [200]
+  - ExtraTrees_noHPO:
+      n_estimators: [200]
+  - MLP:
+      hidden_layer_sizes: [[32]]

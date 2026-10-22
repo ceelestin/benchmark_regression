@@ -150,7 +150,7 @@ class Objective(BaseObjective):
     _RUN_STATE_ATTRS = (
         "_eval_count", "_cv", "_study_row_index", "_oof_pair_cache",
         "_stack_icc_cache", "_oof_anova",
-        "study_error01_by_fold", "study_nll_by_fold",
+        "study_error01_by_fold", "study_nll_by_fold", "study_r2lin_by_fold",
         "study_first_train_mask", "study_first_test_mask",
         "study_train_masks_by_fold", "study_test_masks_by_fold",
         "study_predictions_by_fold", "study_errors_by_fold",
@@ -550,6 +550,21 @@ class Objective(BaseObjective):
                 study_squared_error = study_error_current ** 2 / y_var_study
             else:
                 study_squared_error = np.zeros_like(self.y_study, dtype=float)
+            # Per-sample first-order (influence) term of R^2: a fold's R^2 error is, to first
+            # order, the test-fold average of -phi_i with
+            #   phi_i = e_i^2 / v - (MSE / v^2) (y_i - ybar)^2,
+            # v and ybar the target variance and mean of the study set, MSE the fold's test MSE
+            # (study-only quantities). Its OOF-intersection correlation is the R^2 analogue of
+            # the squared-error loss correlation (redundancy on the R^2 metric).
+            if y_var_study > 0:
+                fold_mse = -float(metrics_test["neg_mse"])
+                study_r2lin = (
+                    study_error_current ** 2 / y_var_study
+                    - fold_mse / y_var_study ** 2
+                    * (self.y_study - np.mean(self.y_study)) ** 2
+                )
+            else:
+                study_r2lin = np.zeros_like(self.y_study, dtype=float)
 
             # Classification: per-sample 0-1 error and negative log-likelihood
             # (predictions are probabilities of class 1).
@@ -574,6 +589,7 @@ class Objective(BaseObjective):
                 self.study_predictions_by_fold = []
                 self.study_errors_by_fold = []
                 self.study_squared_errors_by_fold = []
+                self.study_r2lin_by_fold = []
                 self.study_train_masks_by_fold = []
                 self.study_test_masks_by_fold = []
                 self.study_first_train_mask = current_train_mask.copy()
@@ -628,6 +644,7 @@ class Objective(BaseObjective):
             self.study_predictions_by_fold.append(y_pred_study_current)
             self.study_errors_by_fold.append(study_error_current)
             self.study_squared_errors_by_fold.append(study_squared_error)
+            self.study_r2lin_by_fold.append(study_r2lin)
             self.study_train_masks_by_fold.append(current_train_mask)
             self.study_test_masks_by_fold.append(current_test_mask)
             for key, row in (
@@ -924,6 +941,9 @@ class Objective(BaseObjective):
         study_nll_cov_all_oof_intersection = None
         study_nll_var_all_oof_intersection = None
         study_nll_rho_all_oof_intersection = None
+        study_r2lin_cov_all_oof_intersection = None
+        study_r2lin_var_all_oof_intersection = None
+        study_r2lin_rho_all_oof_intersection = None
         if self.cv_bool and self._stack_icc_n_folds("bench_error01") >= 2:
             (
                 bench_error01_cov_all,
@@ -1075,6 +1095,17 @@ class Objective(BaseObjective):
             study_oof_intersection_mean_size_all = (
                 squared_oof_mean_size or error_oof_mean_size or pred_oof_mean_size
             )
+            if len(getattr(self, "study_r2lin_by_fold", [])) >= 2:
+                (
+                    study_r2lin_cov_all_oof_intersection,
+                    study_r2lin_var_all_oof_intersection,
+                    study_r2lin_rho_all_oof_intersection,
+                    _, _,
+                ) = self._oof_intersection_icc(
+                    np.vstack(self.study_r2lin_by_fold),
+                    test_mask_stack,
+                    cache_key="r2lin",
+                )
             if len(getattr(self, "study_error01_by_fold", [])) >= 2:
                 (
                     study_error01_cov_all_oof_intersection,
@@ -1336,6 +1367,9 @@ class Objective(BaseObjective):
             study_nll_cov_all_oof_intersection=study_nll_cov_all_oof_intersection,
             study_nll_var_all_oof_intersection=study_nll_var_all_oof_intersection,
             study_nll_rho_all_oof_intersection=study_nll_rho_all_oof_intersection,
+            study_r2lin_cov_all_oof_intersection=study_r2lin_cov_all_oof_intersection,
+            study_r2lin_var_all_oof_intersection=study_r2lin_var_all_oof_intersection,
+            study_r2lin_rho_all_oof_intersection=study_r2lin_rho_all_oof_intersection,
             study_oof_anova_error01_sample_var=oof_anova["error01"]["sample_var"],
             study_oof_anova_error01_fold_var=oof_anova["error01"]["fold_var"],
             study_oof_anova_error01_icc=oof_anova["error01"]["icc"],
