@@ -38,7 +38,7 @@ def main():
     rows = []
     for s, g in d.groupby("solver_name"):
         t = float(g.p_obj_test_size.iloc[0])
-        r = {"solver": s.split("[")[0].replace("_noHPO", "")}
+        r = {"solver": s.replace("_noHPO", "").replace("hidden_layer_sizes=", "").replace("n_estimators=", "n=").replace(",min_samples_leaf=1", "").replace(",weights=uniform", "")}
         for m in SCORE:
             r[f"G{a.K}_{m}"], r["n_seeds"] = gain(g, m, a.K)
         for name, c in RHO.items():

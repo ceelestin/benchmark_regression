@@ -92,7 +92,7 @@ def main():
             meancorr = np.mean(m[iu[0]] * m[iu[1]]) / sig2
             rc = ("objective_study_r2lin_rho_all_oof_intersection" if metric == "r2"
                   else "objective_study_squared_error_rho_all_oof_intersection")
-            r = {"metric": metric, "solver": s.split("[")[0].replace("_noHPO", ""),
+            r = {"metric": metric, "solver": s.replace("_noHPO", "").replace("hidden_layer_sizes=", "").replace("n_estimators=", "n=").replace(",min_samples_leaf=1", "").replace(",weights=uniform", ""),
                  "lin_vs_exact_corr": np.corrcoef(D.ravel(), DX.ravel())[0, 1],
                  "lin_vs_exact_var": D.var() / DX.var(),
                  "omega5": t * gs.loc[gs.idx_rep == 4, rc].astype(float).mean()}
