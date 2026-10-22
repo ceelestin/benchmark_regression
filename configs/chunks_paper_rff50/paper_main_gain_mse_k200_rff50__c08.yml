@@ -1,0 +1,28 @@
+# RANDOM FOURIER FEATURES (50, gamma 0.1, Ridge alpha 1e-3) FOR THE PAPER'S SIMULATED GAIN FIGURES ON MSE (2026-10-22,
+# CE: second high-gain learner beside MLP [64, 64], 50 features rather than 100). Same design as
+# configs/paper_main_gain_mse_k200_mlp64x64.yml, whose header follows:
+# MLP [64, 64] FOR THE PAPER'S MAIN SIMULATED SAMPLE-GAIN FIGURE ON MSE (2026-10-22, CE: Ridge, GB, ExtraTrees and
+# MLP [64, 64]). Same design as configs/paper_main_gain_mse_k200.yml (job 1426287, whose Ridge / GB / ExtraTrees
+# runs are reused); only the MLP architecture changes ([32] -> [64, 64], MSE gain ~10.8 vs ~6.8 at K = 20).
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0.0]
+      seed: [800, 801, 802, 803, 804, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 819, 820, 821, 822, 823, 824, 825, 826, 827, 828, 829, 830, 831, 832, 833, 834, 835, 836, 837, 838, 839, 840, 841, 842, 843, 844, 845, 846, 847, 848, 849, 850, 851, 852, 853, 854, 855, 856, 857, 858, 859, 860, 861, 862, 863, 864, 865, 866, 867, 868, 869, 870, 871, 872, 873, 874, 875, 876, 877, 878, 879, 880, 881, 882, 883, 884, 885, 886, 887, 888, 889, 890, 891, 892, 893, 894, 895, 896, 897, 898, 899]
+      fixed: [False]
+
+solver:
+  - KernelApprox:
+      kind: ["rff"]
+      n_components: [50]
+      gamma: [0.1]
+      alpha: [0.001]

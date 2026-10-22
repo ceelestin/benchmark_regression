@@ -1,0 +1,28 @@
+# RANDOM FOURIER FEATURES (50, gamma 0.1, Ridge alpha 1e-3) FOR THE PAPER'S SIMULATED GAIN FIGURES ON MSE (2026-10-22,
+# CE: second high-gain learner beside MLP [64, 64], 50 features rather than 100). Same design as
+# configs/paper_ntr100_k20_resampled_mlp64x64.yml, whose header follows:
+# MLP [64, 64] FOR THE PAPER'S n_tr = 100 FIXED-vs-RESAMPLED-SPLIT GAIN FIGURE ON MSE (2026-10-22). Same design as the
+# July runs benchopt_run_2026-07-27_21h01m05 (configs/linear_1000_K20_new_unfixed.yml, with
+# dataset fixed = fixed_split = False as recorded in that parquet), whose Ridge / GB / ExtraTrees runs are reused.
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [100]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0]
+      seed: [700, 701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712, 713, 714, 715, 716, 717, 718, 719, 720, 721, 722, 723, 724, 725, 726, 727, 728, 729, 730, 731, 732, 733, 734, 735, 736, 737, 738, 739, 740, 741, 742, 743, 744, 745, 746, 747, 748, 749, 750, 751, 752, 753, 754, 755, 756, 757, 758, 759, 760, 761, 762, 763, 764, 765, 766, 767, 768, 769, 770, 771, 772, 773, 774, 775, 776, 777, 778, 779, 780, 781, 782, 783, 784, 785, 786, 787, 788, 789, 790, 791, 792, 793, 794, 795, 796, 797, 798, 799]
+      fixed: [False]
+
+solver:
+  - KernelApprox:
+      kind: ["rff"]
+      n_components: [50]
+      gamma: [0.1]
+      alpha: [0.001]
