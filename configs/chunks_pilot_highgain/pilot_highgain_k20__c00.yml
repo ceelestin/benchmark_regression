@@ -1,0 +1,33 @@
+# HIGH-GAIN LEARNERS ON THE MAIN DESIGN, MSE (2026-10-22, CE: switch to MSE and find learners with higher gains).
+# Same design as configs/pilot_persample_k20.yml (sim_linear d = 5, noise 0, n_tr = 1000, t = 0.2, K = 20,
+# seeds 0-199, store_per_sample on). Unstable learners (single deep trees, 2-20-tree ensembles, 1-NN) had MSE
+# gains of 6-12 at K = 20 on the earlier noisy simulations; this checks them on the paper's main design.
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+      store_per_sample: [True]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0.0]
+      seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
+      fixed: [False]
+
+solver:
+  - DecisionTree:
+      max_depth: [20, 100]
+      min_samples_leaf: [1]
+  - RandomForest:
+      n_estimators: [2, 5]
+      max_depth: [100]
+  - ExtraTrees_noHPO:
+      n_estimators: [2, 5, 20]
+  - KNeighbors:
+      n_neighbors: [1]
+      weights: ["uniform"]
