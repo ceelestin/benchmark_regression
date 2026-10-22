@@ -1,0 +1,32 @@
+# REALISTIC HIGH-GAIN LEARNERS ON THE MAIN DESIGN, MSE (2026-10-22, CE: single trees alone will not convince;
+# find other learners). Same design as configs/pilot_highgain_k20.yml (sim_linear d = 5, noise 0, n_tr = 1000,
+# t = 0.2, K = 20, seeds 0-199, store_per_sample on). Learners with fit-to-fit variability from random
+# initialisation / stochastic optimisation (MLPs, SGD), random features (RBF random Fourier features + Ridge),
+# and a data-sensitive local method (5-NN).
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+      store_per_sample: [True]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0.0]
+      seed: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]
+      fixed: [False]
+
+solver:
+  - MLP:
+      hidden_layer_sizes: [[100], [64, 64], [256, 256]]
+  - SGD:
+      alpha: [0.0001]
+  - RandomFeatures:
+      n_components: [100, 500]
+  - KNeighbors:
+      n_neighbors: [5]
+      weights: ["uniform"]
