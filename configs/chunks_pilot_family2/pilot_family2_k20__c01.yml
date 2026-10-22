@@ -1,0 +1,35 @@
+# SECOND HIGH-GAIN FAMILY ON THE MAIN DESIGN, MSE (2026-10-22, CE: before updating the paper, find a second
+# algorithm with big gains besides MLP [64, 64]). Same design as configs/pilot_realistic_k20.yml (sim_linear d = 5,
+# noise 0, n_tr = 1000, t = 0.2, K = 20, seeds 0-199, store_per_sample on). Realistic learners with fit-to-fit
+# randomness and little systematic error: weakly regularised kernel approximations (random Fourier features,
+# Nystroem), AdaBoost.R2 (random weighted resampling), HistGradientBoosting with early stopping (random
+# validation split).
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+      store_per_sample: [True]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0.0]
+      seed: [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]
+      fixed: [False]
+
+solver:
+  - KernelApprox:
+      kind: ["rff", "nystroem"]
+      n_components: [100, 300, 500]
+      gamma: [0.1]
+      alpha: [0.001]
+  - AdaBoost:
+      n_estimators: [50]
+      max_depth: [3, 10]
+  - HGB_EarlyStop:
+      max_iter: [1000]
+      learning_rate: [0.1]
