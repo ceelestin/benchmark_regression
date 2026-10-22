@@ -1,0 +1,27 @@
+# CONFIRMATION OF THE RANDOM-FOURIER-FEATURE GAIN ON NEW SEEDS (2026-10-22). configs/pilot_family2_k20.yml found
+# KernelApprox(rff, gamma 0.1, alpha 1e-3) with 100 components at MSE G_20 = 10.7 but 4.2 / 6.1 with 300 / 500.
+# Same design on fresh seeds 200-399, n_components 50 / 100 / 200 / 300, to confirm the 100-component result and
+# see the shape of the dependence before choosing it for the paper's figures.
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+      store_per_sample: [True]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0.0]
+      seed: [360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370, 371, 372, 373, 374, 375, 376, 377, 378, 379, 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399]
+      fixed: [False]
+
+solver:
+  - KernelApprox:
+      kind: ["rff"]
+      n_components: [50, 100, 200, 300]
+      gamma: [0.1]
+      alpha: [0.001]
