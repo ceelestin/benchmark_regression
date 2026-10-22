@@ -78,6 +78,12 @@ class Objective(BaseObjective):
         # sample is then ever a training point for one fold and a test point
         # for another: diagnostic for the train/test coupling across folds.
         "train_source": ["study"],
+        # True: every row also carries the per-sample study data of its split
+        # (signed prediction errors on the whole study set, train/test
+        # membership, and y_study on the first split), so that per-sample
+        # statistics (e.g. train/test coupling estimators) can be prototyped
+        # offline. Off by default: it grows the parquet by ~N_study values/row.
+        "store_per_sample": [False],
     }
 
     # Minimal version of benchopt required to run this benchmark.
@@ -1146,6 +1152,17 @@ class Objective(BaseObjective):
                     if key in summary:
                         oof_anova[key] = summary[key]
 
+        persample_error = np.array([], dtype=float)
+        persample_train_mask = np.array([], dtype=np.int8)
+        persample_test_mask = np.array([], dtype=np.int8)
+        persample_y_study = np.array([], dtype=float)
+        if getattr(self, "store_per_sample", False) and self.cv_bool:
+            persample_error = np.asarray(study_error_current, dtype=float)
+            persample_train_mask = current_train_mask.astype(np.int8)
+            persample_test_mask = current_test_mask.astype(np.int8)
+            if self._eval_count == 1:
+                persample_y_study = np.asarray(self.y_study, dtype=float)
+
         # This method can return many metrics in a dictionary. One of these
         # metrics needs to be `value` for convergence detection purposes.
         # Variance of the study-set target: lets the study-only redundancy score
@@ -1188,6 +1205,11 @@ class Objective(BaseObjective):
             pearson_bench=metrics_bench["pearson"],
             # Per-chunk (safe to combine with (base + k*mean_k)/(k+1)).
             outer_scores=outer_scores,
+            # Per-sample study data (store_per_sample=True only, else empty).
+            persample_error=persample_error,
+            persample_train_mask=persample_train_mask,
+            persample_test_mask=persample_test_mask,
+            persample_y_study=persample_y_study,
             outer_neg_mse=outer_neg_mse,
             outer_neg_mae=outer_neg_mae,
             outer_accuracy=outer_accuracy,

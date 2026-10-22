@@ -1,0 +1,30 @@
+# PILOT RERUN WITH PER-SAMPLE LOSSES (2026-10-22, go from CE). Identical to configs/pilot_r2lin_k20.yml
+# (same seeds 0-199, K = 20, four solvers) plus store_per_sample: every row carries the signed study
+# errors, train/test membership of its split, and y_study on the first split, so that study-only
+# estimators of the train/test coupling term kappa can be prototyped offline against the oracle kappa.
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+      store_per_sample: [True]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0.0]
+      seed: [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1613]
+  - GradientBoosting:
+      n_estimators: [200]
+  - ExtraTrees_noHPO:
+      n_estimators: [200]
+  - MLP:
+      hidden_layer_sizes: [[32]]
