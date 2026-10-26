@@ -20,8 +20,8 @@ import pyarrow.parquet as pq
 
 COLORS = {"Ridge": "#d62728", "MLP": "#2ca02c", "ExtraTrees": "#1f77b4", "GradientBoosting": "#ff7f0e",
           "MLP_GridSearch": "#8c564b", "MLP_RandomSearch": "#e377c2", "ExtraTrees_GridSearch": "#1f3fb4",
-          "ExtraTrees_RandomSearch": "#ff9f3f", "Random features": "#9467bd"}
-DISPLAY = {"KernelApprox": "Random features"}
+          "ExtraTrees_RandomSearch": "#ff9f3f", "RandomFeatures": "#9467bd"}
+DISPLAY = {"KernelApprox": "RandomFeatures"}
 COLS = ["solver_name", "p_dataset_seed", "idx_rep", "p_obj_train_size", "p_obj_fixed_split",
         "objective_neg_mse_test", "objective_neg_mse_bench", "objective_score_test", "objective_score_bench"]
 METRIC = {"mse": ("objective_neg_mse_test", "objective_neg_mse_bench"), "r2": ("objective_score_test", "objective_score_bench")}
@@ -88,7 +88,7 @@ def main():
     # direct labels at the right end, above their curve, pushed apart to a minimum vertical gap
     ys = sorted(finals.items(), key=lambda kv: kv[1][0])
     lo_y, hi_y = ax.get_ylim()
-    gap = 0.065 * (hi_y - lo_y)
+    gap = 0.075 * (hi_y - lo_y)
     placed = []
     for algo, (y, _) in ys:
         y_lab = y + 0.015 * (hi_y - lo_y)
@@ -96,7 +96,8 @@ def main():
             y_lab = placed[-1] + gap
         placed.append(y_lab)
         ax.annotate(algo, (a.kmax, y_lab), xytext=(-3, 0), textcoords="offset points", ha="right", va="bottom",
-                    fontsize=7.5, fontweight="bold", color=COLORS.get(algo, "black"))
+                    fontsize=7.5, fontweight="bold", color=COLORS.get(algo, "black"),
+                    bbox=dict(boxstyle="round,pad=0.12", fc="white", ec="none", alpha=0.75))
     if a.overlay_fixed:
         ax.plot([], [], color="0.3", ls="-", lw=2, label="Resampled split")
         ax.plot([], [], color="0.3", ls=":", lw=1.8, label="Fixed split")
