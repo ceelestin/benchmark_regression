@@ -68,6 +68,7 @@ def main():
     ap.add_argument("--exclude", nargs="*", default=[],
                     help="drop solvers whose full name contains any of these strings, e.g. 'hidden_layer_sizes=[32]'")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--ymax", type=float, default=None, help="common upper y limit (shared axes across panels)")
     ap.add_argument("--metric", default="mse", choices=list(METRIC))
     a = ap.parse_args()
     d = load(a.files, a.n_tr, a.metric)
@@ -89,6 +90,8 @@ def main():
             if not fixed:
                 finals[algo] = (gain[-1], n)
             print(f"{'fixed' if fixed else 'resampled'} {algo}: seeds {n}, G_{k[-1]} = {gain[-1]:.2f} [{lo[-1]:.2f}, {hi[-1]:.2f}]")
+    if a.ymax is not None:
+        ax.set_ylim(top=a.ymax)
     # direct labels at the right end, above their curve, pushed apart to a minimum vertical gap
     ys = sorted(finals.items(), key=lambda kv: kv[1][0])
     lo_y, hi_y = ax.get_ylim()
