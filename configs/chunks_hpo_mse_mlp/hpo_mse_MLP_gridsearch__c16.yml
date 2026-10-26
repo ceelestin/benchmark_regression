@@ -1,0 +1,21 @@
+# MSE RE-RUN OF THE MLP GRIDSEARCH HPO EXPERIMENT (2026-10-26, CE: re-launch the appendix experiments that used
+# R^2 so that they report MSE). Identical to configs/config_hpo_test_MLP_gridsearch.yml (runs of 2026-07-23, which
+# predate MSE recording); the solver is unchanged, so candidates are still selected by sklearn's default score.
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0]
+      seed: [800, 801, 802, 803, 804, 805, 806, 807, 808, 809, 810, 811, 812, 813, 814, 815, 816, 817, 818, 819, 820, 821, 822, 823, 824, 825, 826, 827, 828, 829, 830, 831, 832, 833, 834, 835, 836, 837, 838, 839, 840, 841, 842, 843, 844, 845, 846, 847, 848, 849]
+      fixed: [False]
+
+solver:
+  - MLP_GridSearch

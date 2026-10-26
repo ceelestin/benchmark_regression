@@ -1,0 +1,21 @@
+# MSE RE-RUN OF THE MLP RANDOMSEARCH HPO EXPERIMENT (2026-10-26, CE: re-launch the appendix experiments that used
+# R^2 so that they report MSE). Identical to configs/config_hpo_test_MLP_randomsearch.yml (runs of 2026-07-23, which
+# predate MSE recording); the solver is unchanged, so candidates are still selected by sklearn's default score.
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [1000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0]
+      seed: [900, 901, 902, 903, 904, 905, 906, 907, 908, 909, 910, 911, 912, 913, 914, 915, 916, 917, 918, 919, 920, 921, 922, 923, 924, 925, 926, 927, 928, 929, 930, 931, 932, 933, 934, 935, 936, 937, 938, 939, 940, 941, 942, 943, 944, 945, 946, 947, 948, 949]
+      fixed: [False]
+
+solver:
+  - MLP_RandomSearch
