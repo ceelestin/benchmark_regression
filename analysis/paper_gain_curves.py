@@ -46,14 +46,20 @@ def load(files, n_tr, metric="mse"):
     return d
 
 
-def curves(g, kmax, rng, n_boot=100):
+def v1(E, how):
+    # single-split variance: that of the first split (paper default), or averaged over the kmax splits (same
+    # estimand, less noisy when single-split errors are heavy-tailed)
+    return np.var(E[:, 0], ddof=1) if how == "first" else np.var(E, axis=0, ddof=1).mean()
+
+
+def curves(g, kmax, rng, n_boot=100, how="first"):
     E = g.pivot_table(index="p_dataset_seed", columns="idx_rep", values="delta").dropna(axis=0).values[:, :kmax]
     cm = np.cumsum(E, axis=1) / np.arange(1, E.shape[1] + 1)
-    gain = np.var(E[:, 0], ddof=1) / np.var(cm, axis=0, ddof=1)
+    gain = v1(E, how) / np.var(cm, axis=0, ddof=1)
     bs = []
     for _ in range(n_boot):
         i = rng.integers(0, len(E), len(E))
-        bs.append(np.var(E[i, 0], ddof=1) / np.var(cm[i], axis=0, ddof=1))
+        bs.append(v1(E[i], how) / np.var(cm[i], axis=0, ddof=1))
     lo, hi = np.percentile(bs, [2.5, 97.5], axis=0)
     return np.arange(1, E.shape[1] + 1), gain, lo, hi, len(E)
 
@@ -68,6 +74,9 @@ def main():
     ap.add_argument("--exclude", nargs="*", default=[],
                     help="drop solvers whose full name contains any of these strings, e.g. 'hidden_layer_sizes=[32]'")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--v1", default="first", choices=["first", "mean"],
+                    help="single-split variance from the first split (default) or averaged over the splits")
+    ap.add_argument("--legend", action="store_true", help="legend (ordered by final gain) instead of end labels")
     ap.add_argument("--ymax", type=float, default=None, help="common upper y limit (shared axes across panels)")
     ap.add_argument("--metric", default="mse", choices=list(METRIC))
     a = ap.parse_args()
@@ -83,9 +92,9 @@ def main():
     for fixed, ls in groups:
         sub = d[d.fixed == fixed] if a.overlay_fixed else d[~d.fixed]
         for algo, g in sub.groupby("algo"):
-            k, gain, lo, hi, n = curves(g, a.kmax, rng)
+            k, gain, lo, hi, n = curves(g, a.kmax, rng, how=a.v1)
             c = COLORS.get(algo, "black")
-            ax.plot(k, gain, color=c, lw=2 if not fixed else 1.8, ls=ls)
+            ax.plot(k, gain, color=c, lw=2 if not fixed else 1.8, ls=ls, label=algo if not fixed else None)
             ax.fill_between(k, lo, hi, color=c, alpha=0.2, lw=0)
             if not fixed:
                 finals[algo] = (gain[-1], n)
@@ -94,6 +103,12 @@ def main():
         ax.set_ylim(top=a.ymax)
     # direct labels at the right end, above their curve, pushed apart to a minimum vertical gap
     ys = sorted(finals.items(), key=lambda kv: kv[1][0])
+    if a.legend:
+        h, l = ax.get_legend_handles_labels()
+        order = sorted(range(len(l)), key=lambda i: -finals.get(l[i], (0,))[0])
+        ax.legend([h[i] for i in order], [l[i] for i in order], frameon=False, fontsize=6.5, loc="upper left",
+                  bbox_to_anchor=(0.0, 0.92), handlelength=1.5, labelspacing=0.3)
+        ys = []
     lo_y, hi_y = ax.get_ylim()
     gap = 0.075 * (hi_y - lo_y)
     placed = []
