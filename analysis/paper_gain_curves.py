@@ -24,7 +24,8 @@ COLORS = {"Ridge": "#d62728", "MLP": "#2ca02c", "ExtraTrees": "#1f77b4", "Gradie
 DISPLAY = {"KernelApprox": "RandomFeatures"}
 COLS = ["solver_name", "p_dataset_seed", "idx_rep", "p_obj_train_size", "p_obj_fixed_split",
         "objective_neg_mse_test", "objective_neg_mse_bench", "objective_score_test", "objective_score_bench"]
-METRIC = {"mse": ("objective_neg_mse_test", "objective_neg_mse_bench"), "r2": ("objective_score_test", "objective_score_bench")}
+METRIC = {"mse": ("objective_neg_mse_test", "objective_neg_mse_bench"), "r2": ("objective_score_test", "objective_score_bench"),
+          "logmse": ("objective_neg_mse_test", "objective_neg_mse_bench")}  # delta = log MSE_test - log MSE_bench
 
 
 def short(name):
@@ -36,7 +37,10 @@ def load(files, n_tr, metric="mse"):
     d = pd.concat([pq.read_table(f, columns=[c for c in COLS if c in pq.read_schema(f).names]).to_pandas() for f in files], ignore_index=True)
     d = d[d.p_obj_train_size == n_tr]
     q, b = METRIC[metric]
-    d["delta"] = d[q].astype(float) - d[b].astype(float)
+    if metric == "logmse":
+        d["delta"] = np.log(-d[q].astype(float)) - np.log(-d[b].astype(float))
+    else:
+        d["delta"] = d[q].astype(float) - d[b].astype(float)
     d["algo"] = d.solver_name.map(short)
     d["fixed"] = d.p_obj_fixed_split.astype(str) == "True"
     return d
@@ -102,7 +106,7 @@ def main():
         ax.plot([], [], color="0.3", ls="-", lw=2, label="Resampled split")
         ax.plot([], [], color="0.3", ls=":", lw=1.8, label="Fixed split")
         ax.legend(frameon=False, fontsize=7.5, loc="upper left", bbox_to_anchor=(0.0, 0.9))
-    ax.text(0.03, 0.97, f"$y = X\\beta$, $n_{{\\mathrm{{tr}}}} = {a.n_tr:,}$ (" + a.metric.upper().replace("R2", "$R^2$") + ")".replace(",", "{,}"), transform=ax.transAxes,
+    ax.text(0.03, 0.97, f"$y = X\\beta$, $n_{{\\mathrm{{tr}}}} = {a.n_tr:,}$ (" + {"mse": "MSE", "r2": "$R^2$", "logmse": "log MSE"}[a.metric] + ")".replace(",", "{,}"), transform=ax.transAxes,
             ha="left", va="top", fontsize=7.5, fontweight="bold")
     ax.set_xlabel("Number of Splits (K)", fontsize=9)
     ax.set_ylabel(r"Test Sample Gain ($G^{\mathrm{test}}_K$)", fontsize=9)
