@@ -1,5 +1,7 @@
 from benchopt import BaseObjective, safe_import_context
 
+import time
+
 # Protect the import with `safe_import_context()`. This allows:
 # - skipping import to speed up autocompletion in CLI.
 # - getting requirements info when all dependencies are not installed.
@@ -507,6 +509,10 @@ class Objective(BaseObjective):
         # The arguments of this function are the outputs of the
         # `Solver.get_result`. This defines the benchmark's API to pass
         # solvers' result. This is customizable for each benchmark.
+        # Wall time of this evaluation (test, benchmarking and outer sets and the
+        # study-only statistics), returned as `eval_time`; Benchopt's own `time`
+        # column only covers the fit.
+        _eval_t0 = time.perf_counter()
         # Predict once per split and derive every metric from those predictions.
         y_pred_train = model.predict(self.X_train)
         y_pred_test = model.predict(self.X_test)
@@ -1174,6 +1180,7 @@ class Objective(BaseObjective):
             else None
         )
         return dict(
+            eval_time=time.perf_counter() - _eval_t0,
             score_test=score_test,
             score_train=score_train,
             score_bench=score_bench,
