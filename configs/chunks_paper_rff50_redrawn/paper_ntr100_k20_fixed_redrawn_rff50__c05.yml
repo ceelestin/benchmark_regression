@@ -1,0 +1,25 @@
+# RANDOM FOURIER FEATURES (50) AT n_tr = 100 ON A FROZEN SPLIT WITH THE DATA REDRAWN AT EVERY SEED (2026-10-30, CE: switch
+# Figure J.1 to frozen-split runs whose data are redrawn, as the July runs benchopt_run_2026-07-27_21h00m32 used for
+# Ridge / GB / ExtraTrees / MLP [32]). Identical to configs/paper_ntr100_k20_fixed_rff50.yml except dataset fixed = False.
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [100]
+      test_size: [0.2]
+      fixed_split: [True]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0]
+      seed: [500, 501, 502, 503, 504, 505, 506, 507, 508, 509, 510, 511, 512, 513, 514, 515, 516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 530, 531, 532, 533, 534, 535, 536, 537, 538, 539, 540, 541, 542, 543, 544, 545, 546, 547, 548, 549, 550, 551, 552, 553, 554, 555, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565, 566, 567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599]
+      fixed: [False]
+
+solver:
+  - KernelApprox:
+      kind: ["rff"]
+      n_components: [50]
+      gamma: [0.1]
+      alpha: [0.001]
