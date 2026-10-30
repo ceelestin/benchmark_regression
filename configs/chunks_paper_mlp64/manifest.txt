@@ -1,0 +1,5 @@
+configs/chunks_paper_mlp64/paper_main_gain_mse_k20_mlp64__c00.yml
+configs/chunks_paper_mlp64/paper_main_gain_mse_k20_mlp64__c01.yml
+configs/chunks_paper_mlp64/paper_main_gain_mse_k20_mlp64__c02.yml
+configs/chunks_paper_mlp64/paper_main_gain_mse_k20_mlp64__c03.yml
+configs/chunks_paper_mlp64/paper_main_gain_mse_k20_mlp64__c04.yml
