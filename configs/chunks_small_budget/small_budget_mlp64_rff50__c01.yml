@@ -1,0 +1,28 @@
+# SMALL-BUDGET SWEEP WITH THE MAIN-TEXT LEARNERS (2026-10-30, CE: Figure M.1 with the learners of the main text).
+# Same design as the July sweeps (configs/linear_1000_half{1,2}_K20_smalldata{,2}.yml: sim_linear d = 5, noise 0,
+# K = 20, seeds 0-999, n_tr 5-100), whose Ridge and ExtraTrees runs are reused; adds MLP (64, 64) and RandomFeatures
+# (random Fourier features, 50 components, gamma 0.1, Ridge alpha 1e-3).
+objective:
+  - Regression:
+      n_splits: [20]
+      procedure: ["ShuffleSplit"]
+      train_size: [5, 10, 15, 20, 25, 30, 50, 100]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [5]
+      noise: [0]
+      seed: [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99]
+      fixed: [False]
+
+solver:
+  - MLP:
+      hidden_layer_sizes: [[64, 64]]
+  - KernelApprox:
+      kind: ["rff"]
+      n_components: [50]
+      gamma: [0.1]
+      alpha: [0.001]
