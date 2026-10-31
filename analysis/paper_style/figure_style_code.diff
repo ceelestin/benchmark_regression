@@ -1,0 +1,670 @@
+diff -u -x __pycache__ -x '*.pyc' -x '*.bak_v4' /data/parietal/store3/work/ceve/paper_crossing_validation_crisis/figure_style/code/compute.py code_v3/compute.py
+--- /data/parietal/store3/work/ceve/paper_crossing_validation_crisis/figure_style/code/compute.py	2026-10-28 09:51:49.062009765 +0000
++++ code_v3/compute.py	2026-10-31 10:36:05.563765558 +0000
+@@ -48,6 +48,14 @@
+ # match_variances
+ # ---------------------------------------------------------------------------
+ 
++class _IdentityResampler:
++    """Stands in for the random generator to "resample" the original sample itself (full-sample estimate)."""
++
++    def choice(self, a, size=None, replace=True):
++        a = np.arange(a) if np.isscalar(a) else np.asarray(a)
++        return a if size is None else a[:size]
++
++
+ def _crossing_gain(
+     multipliers: np.ndarray,
+     nocv_variances: np.ndarray,
+@@ -540,6 +548,7 @@
+     # --- estimator options ---
+     paired: bool = True,
+     interpolate: bool = True,
++    plugin_estimate: bool = False,
+ ) -> pd.DataFrame:
+     """Bootstrapped variance-matching analysis returning Variance-Equivalent Test Sample Gain.
+ 
+@@ -552,6 +561,10 @@
+     With ``paired=False`` the two sides are resampled independently (the
+     behaviour before 2026-10-27).
+ 
++    *plugin_estimate* (default False): also return the estimate on the original seeds (no resampling) as the
++    rows with ``bootstrap_iter == -1``. It is computed before the bootstrap draws and does not use the random
++    generator, so the draws are identical with or without it (CE, 2026-10-31: the figures' thick line is this
++    estimate; the draws give the thin lines and the percentile intervals).
+     *interpolate* (default True): the crossing is read between the two
+     bracketing whole multiples of the test-set size (log-log interpolation, see
+     ``_crossing_gain``) instead of being rounded up to the next whole multiple
+@@ -697,9 +710,10 @@
+     all_results: list[dict] = []
+     filtered_configs: dict = {}
+ 
+-    for i_boot in range(n_bootstraps):
++    for i_boot in ([-1] if plugin_estimate else []) + list(range(n_bootstraps)):
++        r = _IdentityResampler() if i_boot < 0 else rng
+         # --- Resample ---
+-        boot_seeds_cv = rng.choice(unique_seeds_cv, size=len(unique_seeds_cv), replace=True)
++        boot_seeds_cv = r.choice(unique_seeds_cv, size=len(unique_seeds_cv), replace=True)
+         boot_df_cv = (
+             pd.DataFrame({"seed": boot_seeds_cv})
+             .merge(data_cv, on="seed", how="left")
+@@ -708,7 +722,7 @@
+         if df_mode:
+             boot_seeds_nocv = (
+                 boot_seeds_cv if pair_df else
+-                rng.choice(unique_seeds_nocv, size=len(unique_seeds_nocv), replace=True)
++                r.choice(unique_seeds_nocv, size=len(unique_seeds_nocv), replace=True)
+             )
+             boot_df_nocv = (
+                 pd.DataFrame({"seed": boot_seeds_nocv})
+@@ -746,7 +760,7 @@
+             _cache_mode_iter(
+                 i_boot, cv_var_series, nocv_cache,
+                 model_col, models_to_analyze, has_procedure,
+-                method, all_results, filtered_configs, rng,
++                method, all_results, filtered_configs, r,
+                 dataset_col,
+                 boot_seeds=boot_seeds_cv if paired else None,
+                 interpolate=interpolate,
+diff -u -x __pycache__ -x '*.pyc' -x '*.bak_v4' /data/parietal/store3/work/ceve/paper_crossing_validation_crisis/figure_style/code/nlp.py code_v3/nlp.py
+--- /data/parietal/store3/work/ceve/paper_crossing_validation_crisis/figure_style/code/nlp.py	2026-10-28 09:51:49.062312734 +0000
++++ code_v3/nlp.py	2026-10-31 11:03:41.384105102 +0000
+@@ -15,6 +15,7 @@
+ import argparse
+ import gc
+ import os
++import re
+ 
+ import matplotlib.pyplot as plt
+ import numpy as np
+@@ -279,6 +280,11 @@
+     parser.add_argument("--plots-dir", default=DEFAULT_PLOTS_DIR,
+                         help="Output directory for plots.")
+     parser.add_argument("--n-bootstraps", type=int, default=100)
++    parser.add_argument("--random-state", type=int, default=None)
++    parser.add_argument("--hairlines", type=int, default=None)
++    parser.add_argument("--save-gains", default=None, help="directory for the gain tables (estimate + draws)")
++    parser.add_argument("--plugin-estimate", action="store_true",
++                        help="also compute the estimate on the original seeds; the figures draw it as the thick line")
+     parser.add_argument("--test-size", type=float, default=0.2)
+     parser.add_argument("--models", nargs="+", default=DEFAULT_MODELS)
+     parser.add_argument("--study-sizes", nargs="+", type=int,
+@@ -290,6 +296,13 @@
+ # Main pipeline
+ # ─────────────────────────────────────────────────────────────────────────────
+ 
++def _save_gains(res, save_dir, tag):
++    """Write a gain table (estimate rows bootstrap_iter = -1, draws >= 0) for the CI appendix (CE, 2026-10-31)."""
++    if save_dir:
++        os.makedirs(save_dir, exist_ok=True)
++        res.to_parquet(os.path.join(save_dir, re.sub(r"[^A-Za-z0-9_.-]+", "_", tag) + ".parquet"), index=False)
++
++
+ def main(
+     data_dirs=None,
+     plots_dir=DEFAULT_PLOTS_DIR,
+@@ -297,7 +310,13 @@
+     test_size=0.2,
+     models_to_analyze=None,
+     study_sizes=None,
++    random_state=None,
++    hairlines=None,
++    plugin_estimate=False,
++    save_gains=None,
+ ):
++    if hairlines:
++        P.GAIN_DISPLAY["hairlines"] = hairlines
+     if data_dirs is None:
+         data_dirs = DEFAULT_DATA_DIRS
+     if models_to_analyze is None:
+@@ -454,6 +473,7 @@
+         score_col_cv='delta_score_test',
+         model_col='model',
+         n_bootstraps=n_bootstraps,
++        random_state=random_state, plugin_estimate=plugin_estimate,
+         method='absolute',
+         test_size=test_size,
+         df_nocv_combined=df_combined_delta,
+@@ -462,6 +482,7 @@
+         study_sizes=study_sizes,
+     )
+     print(f"Bootstrap results (delta): {len(results_delta)} rows")
++    _save_gains(results_delta, save_gains, "nlp_delta")
+ 
+     # ── 7. Sample gain plots ────────────────────────────────────────────────
+     _tab10 = sns.color_palette('tab10', n_colors=10)
+@@ -655,6 +676,10 @@
+             test_size=args.test_size,
+             models_to_analyze=args.models,
+             study_sizes=args.study_sizes,
++            random_state=args.random_state,
++            hairlines=args.hairlines,
++            plugin_estimate=args.plugin_estimate,
++            save_gains=args.save_gains,
+         )
+ 
+ # %%
+diff -u -x __pycache__ -x '*.pyc' -x '*.bak_v4' /data/parietal/store3/work/ceve/paper_crossing_validation_crisis/figure_style/code/pcam.py code_v3/pcam.py
+--- /data/parietal/store3/work/ceve/paper_crossing_validation_crisis/figure_style/code/pcam.py	2026-10-28 09:51:49.062395740 +0000
++++ code_v3/pcam.py	2026-10-31 11:03:41.384105102 +0000
+@@ -14,6 +14,7 @@
+ # %%
+ import argparse
+ import os
++import re
+ import gc
+ 
+ import matplotlib.pyplot as plt
+@@ -292,6 +293,11 @@
+     parser.add_argument("--plots-dir", default=DEFAULT_PLOTS_DIR,
+                         help="Output directory for plots.")
+     parser.add_argument("--n-bootstraps", type=int, default=100)
++    parser.add_argument("--random-state", type=int, default=None)
++    parser.add_argument("--hairlines", type=int, default=None)
++    parser.add_argument("--save-gains", default=None, help="directory for the gain tables (estimate + draws)")
++    parser.add_argument("--plugin-estimate", action="store_true",
++                        help="also compute the estimate on the original seeds; the figures draw it as the thick line")
+     parser.add_argument("--test-size", type=float, default=0.2)
+     parser.add_argument("--models", nargs="+", default=DEFAULT_MODELS)
+     parser.add_argument("--study-sizes", nargs="+", type=int,
+@@ -303,6 +309,13 @@
+ # Main pipeline
+ # ─────────────────────────────────────────────────────────────────────────────
+ 
++def _save_gains(res, save_dir, tag):
++    """Write a gain table (estimate rows bootstrap_iter = -1, draws >= 0) for the CI appendix (CE, 2026-10-31)."""
++    if save_dir:
++        os.makedirs(save_dir, exist_ok=True)
++        res.to_parquet(os.path.join(save_dir, re.sub(r"[^A-Za-z0-9_.-]+", "_", tag) + ".parquet"), index=False)
++
++
+ def main(
+     data_dir=None,
+     plots_dir=DEFAULT_PLOTS_DIR,
+@@ -310,7 +323,13 @@
+     test_size=1/5,
+     models_to_analyze=None,
+     study_sizes=None,
++    random_state=None,
++    hairlines=None,
++    plugin_estimate=False,
++    save_gains=None,
+ ):
++    if hairlines:
++        P.GAIN_DISPLAY["hairlines"] = hairlines
+     if data_dir is None:
+         data_dir = DEFAULT_DATA_DIR
+     if models_to_analyze is None:
+@@ -464,6 +483,7 @@
+             score_col_cv='delta_score_test',
+             model_col='model',
+             n_bootstraps=n_bootstraps,
++            random_state=random_state, plugin_estimate=plugin_estimate,
+             method='absolute',
+             test_size=test_size,
+             df_nocv_combined=df_comb_delta,
+@@ -480,6 +500,7 @@
+         max_k = int(df_comb_delta['k'].max())
+         res, n_censored = drop_censored_gains(res, max_k, MODEL_DISPLAY_NAMES, name)
+         all_results[name] = res
++        _save_gains(res, save_gains, f"pcam_{name}")
+         _sv = sorted(res['stratified'].unique()) if 'stratified' in res.columns else 'N/A'
+         print(f"[{name}] bootstrap rows: {len(res)} (dropped {n_censored} censored) "
+               f"| stratified: {_sv}")
+@@ -507,6 +528,7 @@
+                     score_col_cv='delta_score_test',
+                     model_col='model',
+                     n_bootstraps=n_bootstraps,
++                    random_state=random_state, plugin_estimate=plugin_estimate,
+                     method='absolute',
+                     test_size=test_size,
+                     df_nocv_combined=df_comb_cross,
+@@ -522,6 +544,7 @@
+                     res_cross, max_k, MODEL_DISPLAY_NAMES,
+                     f"{name} (vs {base_tag} baseline)")
+                 store[name] = res_cross
++                _save_gains(res_cross, save_gains, f"pcam_{name}_vs_{base_tag}_baseline")
+ 
+     # ── 4. Plot 1 (per study size, stratify) + Plot 3 (stratify overlay) ─────
+     specific_xticks = [1, 5, 10, 15, 20]
+@@ -546,6 +569,10 @@
+         # Plot 1: one figure per (study size, stratify); each model a curve.
+         for sval in strat_values:
+             res_s = res[res['stratified'] == sval]
++            if 'cv_procedure' in res_s.columns:
++                # One procedure per curve (CE, 2026-10-29): Repeated K-Fold is compared with MCCV in its
++                # own figure, not pooled with MCCV draws here.
++                res_s = res_s[res_s['cv_procedure'] == 'MCCV']
+             if res_s.empty:
+                 continue
+             C.plot_sample_gain_by_train_size(
+@@ -845,6 +872,10 @@
+             test_size=args.test_size,
+             models_to_analyze=args.models,
+             study_sizes=args.study_sizes,
++            random_state=args.random_state,
++            hairlines=args.hairlines,
++            plugin_estimate=args.plugin_estimate,
++            save_gains=args.save_gains,
+         )
+ 
+ # %%
+diff -u -x __pycache__ -x '*.pyc' -x '*.bak_v4' /data/parietal/store3/work/ceve/paper_crossing_validation_crisis/figure_style/code/plot.py code_v3/plot.py
+--- /data/parietal/store3/work/ceve/paper_crossing_validation_crisis/figure_style/code/plot.py	2026-10-28 09:51:49.062579071 +0000
++++ code_v3/plot.py	2026-10-31 11:03:41.384105102 +0000
+@@ -36,6 +36,78 @@
+ from matplotlib.ticker import FixedFormatter, FixedLocator, MaxNLocator, ScalarFormatter
+ from matplotlib.transforms import Bbox
+ 
++# Uncertainty display of the sample-gain-vs-K figures (CE, 2026-10-29). With ``hairlines`` set, the line
++# is the mean of all bootstrap replicates (drawn bold) and a fixed random subset of the replicates is drawn
++# as thin translucent lines in the curve's colour; the y-axis is cut at a high quantile of the replicates.
++# Pipelines that cannot pass arguments to the plot (pcam.py / nlp.py) set GAIN_DISPLAY["hairlines"].
++GAIN_DISPLAY = {
++    "hairlines": None,          # replicates drawn per curve; None = percentile band instead
++    "hairline_alpha": 0.15,
++    "hairline_linewidth": 0.45,
++    "hairline_seed": 0,         # seed of the random choice of the drawn replicates
++    "mean_linewidth": 2.2,
++    "y_top_quantile": 0.99,
++    # "quantile": y top at y_top_quantile of all replicates; "mean": just above the highest mean curve
++    # (by y_top_margin), whatever the replicates do (CE, 2026-10-30).
++    "y_top": "mean",
++    "y_top_margin": 0.08,
++    "replicate_col": "bootstrap_iter",
++}
++
++
++def _estimate_and_replicates(df):
++    """Split a gain table into the thick-line rows and the bootstrap replicates (CE, 2026-10-31).
++
++    Rows with a negative replicate index hold the estimate on the original seeds
++    (``compute.sample_gain_bootstrap(..., plugin_estimate=True)``); when present they are the thick line, and the
++    replicates give the thin lines. Without them, the thick line is the mean of the replicates, as before.
++    """
++    rcol = GAIN_DISPLAY["replicate_col"]
++    if rcol in df.columns and (df[rcol] < 0).any():
++        return df[df[rcol] < 0], df[df[rcol] >= 0]
++    return df, df
++
++
++def _y_top(df, x_col, y_col, group_cols):
++    """Upper y limit of a gain figure, per GAIN_DISPLAY["y_top"]."""
++    if GAIN_DISPLAY["y_top"] == "mean":
++        df = _estimate_and_replicates(df)[0]
++        keys = [c for c in group_cols if c is not None and c in df.columns] + [x_col]
++        return float(df.groupby(keys)[y_col].mean().max()) * (1 + GAIN_DISPLAY["y_top_margin"])
++    return float(np.quantile(df[y_col].dropna(), GAIN_DISPLAY["y_top_quantile"]))
++
++
++def _hue_colors(levels, palette):
++    """Colour of each hue level, as seaborn assigns it."""
++    if isinstance(palette, dict):
++        return {lv: palette[lv] for lv in levels}
++    return dict(zip(levels, sns.color_palette(palette, n_colors=len(levels))))
++
++
++def _draw_hairlines(ax, df, x_col, y_col, hue_col, hue_levels, colors, style_col=None, style_levels=None,
++                    n_lines=20):
++    """Thin translucent replicate curves, a fixed random subset of the bootstrap replicates per curve.
++
++    Curves of the second and later style levels use a lighter shade of the hue colour, so the replicates of
++    the two styles stay distinguishable. All hairlines are solid.
++    """
++    rcol = GAIN_DISPLAY["replicate_col"]
++    df = df[df[rcol] >= 0]                     # never the full-sample estimate rows
++    rng = np.random.default_rng(GAIN_DISPLAY["hairline_seed"])
++    styles = style_levels if (style_col is not None and style_levels) else [None]
++    for lv in hue_levels:
++        g = df[df[hue_col] == lv]
++        for j, st in enumerate(styles):
++            gs = g[g[style_col] == st] if st is not None else g
++            iters = np.sort(gs[rcol].unique())
++            if n_lines and len(iters) > n_lines:
++                iters = np.sort(rng.choice(iters, n_lines, replace=False))
++            col = colors[lv] if j == 0 else sns.light_palette(colors[lv], 4)[max(1, 3 - j)]
++            for _, c in gs[gs[rcol].isin(iters)].groupby(rcol):
++                c = c.sort_values(x_col)
++                ax.plot(c[x_col], c[y_col], color=col, lw=GAIN_DISPLAY["hairline_linewidth"],
++                        alpha=GAIN_DISPLAY["hairline_alpha"], zorder=1, solid_capstyle="round")
++
+ 
+ # ---------------------------------------------------------------------------
+ # Global style
+@@ -189,9 +261,13 @@
+     palette=None,
+     font_size: float | None = None,
+     densify: int = 1,
++    obstacle_curves: list | None = None,
+ ) -> None:
+     """Place readable labels near curves, avoiding label/curve collisions.
+ 
++    ``obstacle_curves`` (optional): extra curves, DataFrames with ``x_col`` / ``y_col``, that labels must avoid
++    but that get no label themselves (e.g. the other line style of a one-learner panel).
++
+     A legend already on the axes is treated as an obstacle, like the other texts.
+     ``densify`` > 1 adds that many interpolated points between consecutive curve
+     points for the collision test, so a label cannot sit on the line between two
+@@ -274,6 +350,13 @@
+             seg = [a + (b - a) * t[:, None] for a, b in zip(points[:-1], points[1:])]
+             points = np.vstack([*seg, points[-1:]])
+         all_points.append(points)
++    for extra in obstacle_curves or []:
++        pts = ax.transData.transform(extra[[x_col, y_col]].dropna().to_numpy(dtype=float))
++        if densify > 1 and len(pts) > 1:
++            t = np.linspace(0.0, 1.0, densify + 1)[:-1]
++            seg = [a + (b - a) * t[:, None] for a, b in zip(pts[:-1], pts[1:])]
++            pts = np.vstack([*seg, pts[-1:]])
++        all_points.append(pts)
+     all_curve_points = np.vstack(all_points) if all_points else np.empty((0, 2))
+ 
+     offset_scale = ax.figure.dpi / 72.0
+@@ -393,6 +476,8 @@
+     direct_label_densify: int = 1,
+     errorbar=("pi", 95),
+     output_path: str | None = None,
++    hairlines: int | None = None,
++    ylim_top: float | None = None,
+ ) -> plt.Figure:
+     """Line plot of test sample gain or k_equiv versus number of CV splits.
+ 
+@@ -450,11 +535,16 @@
+     if xticks is None:
+         xticks = [1, 5, 10, 15, 20]
+     split_col = "K" if "K" in results_df.columns else "s"
++    n_hair = hairlines if hairlines is not None else GAIN_DISPLAY["hairlines"]
++    use_hair = bool(n_hair) and GAIN_DISPLAY["replicate_col"] in results_df.columns
++    if use_hair:
++        errorbar = None
++    central_df, rep_df = _estimate_and_replicates(results_df)
+ 
+     fig, ax = plt.subplots(figsize=figsize)
+ 
+     sns.lineplot(
+-        data=results_df,
++        data=central_df if use_hair else rep_df,
+         x=split_col,
+         y=y_col,
+         hue=hue_col,
+@@ -489,6 +579,21 @@
+     ax.grid(True, which="both", linestyle="--", alpha=0.7)
+     sns.despine(ax=ax)
+ 
++    if use_hair:
++        for line in ax.get_lines():
++            line.set_linewidth(GAIN_DISPLAY["mean_linewidth"])
++            line.set_zorder(3)
++        hue_levels = list(hue_order) if hue_order is not None else list(pd.unique(results_df[hue_col]))
++        style_levels = None
++        if style_col is not None and style_col in results_df.columns:
++            style_levels = list(style_order) if style_order is not None else list(pd.unique(results_df[style_col]))
++        _draw_hairlines(ax, rep_df, split_col, y_col, hue_col, hue_levels, _hue_colors(hue_levels, palette),
++                        style_col=style_col, style_levels=style_levels, n_lines=n_hair)
++        top = ylim_top if ylim_top is not None else _y_top(results_df, split_col, y_col, [hue_col, style_col])
++        ax.set_ylim(top=top)
++    elif ylim_top is not None:
++        ax.set_ylim(top=ylim_top)
++
+     if title_text is not None:
+         # clip_on keeps the in-axes "fake title" from expanding the tight-bbox
+         # crop: a long title is clipped to the axes instead of widening the
+@@ -537,7 +642,7 @@
+                 _style_legend_halo(legend, title=None)
+         _add_curve_labels(
+             ax,
+-            results_df,
++            central_df,
+             x_col=split_col,
+             y_col=y_col,
+             hue_col=hue_col,
+@@ -565,6 +670,108 @@
+     return fig
+ 
+ 
++def plot_sample_gain_facets(
++    results_df: pd.DataFrame,
++    panel_col: str,
++    panel_order: list,
++    style_col: str,
++    style_order: list,
++    dashes: dict,
++    palette: dict | None = None,
++    y_col: str = "sample_gain",
++    xticks: list[int] | None = None,
++    xlim: tuple[float, float] | None = None,
++    hairlines: int = 30,
++    panel_size: tuple[float, float] = (2.0, 2.4),
++    axis_label_fontsize: float = 10,
++    output_path: str | None = None,
++    ncols: int | None = None,
++    axes_size: tuple[float, float] | None = None,
++    margins: tuple[float, float, float, float] = (0.53, 0.51, 0.10, 0.10),
++    gaps: tuple[float, float] = (0.20, 0.20),
++) -> plt.Figure:
++    """One panel per ``panel_col`` level (e.g. network), its ``style_col`` levels overlaid (CE, 2026-10-29).
++
++    Same display as plot_sample_gain_vs_splits with hairlines: bold mean of all replicates per style, a
++    fixed random subset of replicates as hairlines, shared y-axis cut at a high quantile of the replicates.
++    The panel title is the panel level; the style legend sits in the first panel.
++    """
++    if xticks is None:
++        xticks = [1, 5, 10, 15, 20]
++    split_col = "K" if "K" in results_df.columns else "s"
++    colors = _hue_colors(panel_order, palette)
++    ncols = ncols or len(panel_order)
++    nrows = int(np.ceil(len(panel_order) / ncols))
++    if axes_size is None:
++        fig, axes = plt.subplots(nrows, ncols, figsize=(panel_size[0] * ncols + 0.4, panel_size[1] * nrows),
++                                 sharey=True, sharex=True, squeeze=False)
++    else:
++        # Every panel gets exactly ``axes_size`` inches, the axes of a single-panel gain figure, so that panels
++        # print at the same size as those figures (CE, 2026-10-30). Margins (left, bottom, right, top) and gaps
++        # (between columns, between rows) are in inches; inner tick labels are hidden, as with sharex/sharey.
++        (aw, ah), (ml, mb, mr, mt), (gw, gh) = axes_size, margins, gaps
++        fw, fh = ml + ncols * aw + (ncols - 1) * gw + mr, mb + nrows * ah + (nrows - 1) * gh + mt
++        fig = plt.figure(figsize=(fw, fh), layout="none")
++        axes = np.empty((nrows, ncols), dtype=object)
++        for r in range(nrows):
++            for c in range(ncols):
++                x0, y0 = ml + c * (aw + gw), mb + (nrows - 1 - r) * (ah + gh)
++                axes[r, c] = fig.add_axes([x0 / fw, y0 / fh, aw / fw, ah / fh],
++                                          sharex=axes[0, 0] if (r, c) != (0, 0) else None,
++                                          sharey=axes[0, 0] if (r, c) != (0, 0) else None)
++                if c > 0:
++                    axes[r, c].tick_params(labelleft=False)
++    for ax in axes.ravel()[len(panel_order):]:
++        ax.set_visible(False)
++    left_col = [axes[r, 0] for r in range(nrows)]
++    # lowest visible panel of each column carries the x tick labels and label (an empty last slot leaves the
++    # panel above it at the bottom of its column)
++    bottom = [axes[max(r for r in range(nrows) if r * ncols + c < len(panel_order)), c] for c in range(ncols)
++              if c < len(panel_order)]
++    axes = axes.ravel()[: len(panel_order)]
++    top = _y_top(results_df, split_col, y_col, [panel_col, style_col])
++    for ax, lv in zip(axes, panel_order):
++        g = results_df[results_df[panel_col] == lv]
++        _draw_hairlines(ax, g, split_col, y_col, panel_col, [lv], colors, style_col=style_col,
++                        style_levels=style_order, n_lines=hairlines)
++        g = _estimate_and_replicates(g)[0]          # thick line: full-sample estimate when present
++        for st in style_order:
++            mu = g[g[style_col] == st].groupby(split_col)[y_col].mean()
++            line, = ax.plot(mu.index, mu.values, color=colors[lv], lw=GAIN_DISPLAY["mean_linewidth"], zorder=3)
++            if dashes.get(st):
++                line.set_dashes(dashes[st])
++        ax.xaxis.set_major_locator(FixedLocator(xticks))
++        ax.set_xlim(*(xlim if xlim is not None else (0, max(xticks))))
++        ax.set_xlabel("Number of Splits (K)" if ax in bottom else "", fontsize=axis_label_fontsize)
++        if ax not in bottom:
++            ax.tick_params(labelbottom=False)
++        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
++        ax.grid(True, which="both", linestyle="--", alpha=0.7)
++        sns.despine(ax=ax)
++        ax.set_ylim(top=top)
++    for ax in left_col:
++        ax.set_ylabel(r"Test Sample Gain ($G^{\mathrm{test}}_K$)", fontsize=axis_label_fontsize)
++    handles = []
++    for st in style_order:
++        h = Line2D([0], [0], color="0.25", linewidth=1.6, label=str(st))
++        if dashes.get(st):
++            h.set_dashes(dashes[st])
++        handles.append(h)
++    legend = axes[0].legend(handles=handles, loc="upper left", title="", frameon=False)
++    _style_legend_halo(legend, title=None)
++    # Learner name inside each panel, in its colour, placed by the paper's label placer next to the first-style
++    # curve and away from the other style's curve, the legend and other texts (CE, 2026-10-30).
++    for ax, lv in zip(axes, panel_order):
++        g = _estimate_and_replicates(results_df[results_df[panel_col] == lv])[0]
++        first = g[g[style_col] == style_order[0]]
++        others = [g[g[style_col] == st].groupby(split_col)[y_col].mean().reset_index() for st in style_order[1:]]
++        _add_curve_labels(ax, first, x_col=split_col, y_col=y_col, hue_col=panel_col, hue_order=[lv],
++                          palette={lv: colors[lv]}, densify=10, obstacle_curves=others)
++    if output_path is not None:
++        save_figure(fig, output_path, format="pdf", bbox_inches="tight")
++    return fig
++
++
+ # ---------------------------------------------------------------------------
+ # plot_variance_diagnostic
+ # ---------------------------------------------------------------------------
+--- /data/parietal/store3/work/ceve/paper_crossing_validation_crisis/figure_style/real_data/regen_real_data_gain_figures.py	2026-10-29 14:22:52.361708244 +0000
++++ regen_v3.py	2026-10-31 11:03:41.384105102 +0000
+@@ -1,5 +1,9 @@
+ #!/usr/bin/env python3
+-"""Rebuild the paper's five real-data sample-gain figures with the paper's current estimator
++"""[v3, 2026-10-29: 1,000 bootstrap draws with random_state 0; bold mean + hairlines (code/plot.py GAIN_DISPLAY);
++Figures F.1 and K.1 as one panel per network (plot.plot_sample_gain_facets); Figure 5 PCam panel MCCV only
++(in pcam.py). Changes from CE's driver are marked "v3".]
++
++Rebuild the paper's five real-data sample-gain figures with the paper's current estimator
+ (paired + interpolated, Code/compute.py) and 95 % bootstrap percentile bands (Code/plot.py).
+ 
+ Each figure is produced exactly as the version now in the paper was produced (same data, same
+@@ -23,6 +27,17 @@
+ import sys
+ 
+ FIGS = ["fig5_pcam", "fig5_yelp", "figF1", "figK1", "figL1"]
++N_BOOT, SEED, HAIR, HAIR_FACET = 1000, 0, 20, 30                                   # v3
++PIPE_ARGS = ["--n-bootstraps", str(N_BOOT), "--random-state", str(SEED), "--hairlines", str(HAIR),   # v3
++             "--plugin-estimate"]                     # v5 (CE, 2026-10-31): thick line = estimate on all seeds
++SINGLE_AXES = (2.502, 2.409)   # v5: inches, axes of a 3.2 x 3.0 in single-panel gain figure
++PCAM_COLORS = {"DenseNet121": "#1f77b4", "MobileNetV2": "#ff7f0e", "WideResNet101_2": "#2ca02c", "ViT-B/16": "#d62728"}  # v3
++
++
++def _save_table(res, out, tag):
++    """v5: gain table (estimate rows bootstrap_iter = -1, draws >= 0) for the CI appendix."""
++    os.makedirs(os.path.join(out, "tables"), exist_ok=True)
++    res.to_parquet(os.path.join(out, "tables", f"{tag}.parquet"), index=False)
+ 
+ 
+ def run_pipeline(code_dir, script, args, work, plots):
+@@ -37,14 +52,14 @@
+ 
+ def fig5_pcam(code_dir, data, out):
+     work = os.path.join(out, "work", "pcam"); plots = os.path.join(work, "plots")
+-    run_pipeline(code_dir, "pcam.py", ["--data-dir", os.path.join(data, "pcam", "results_output_pcam")], work, plots)
++    run_pipeline(code_dir, "pcam.py", ["--data-dir", os.path.join(data, "pcam", "results_output_pcam")] + PIPE_ARGS + ["--save-gains", os.path.join(out, "tables")], work, plots)
+     shutil.copy(os.path.join(plots, "aggregated_test_gain_k_500_delta_linear_accuracy_stratFalse.pdf"), out)
+ 
+ 
+ def fig5_yelp(code_dir, data, out):
+     work = os.path.join(out, "work", "nlp"); plots = os.path.join(work, "plots")
+     dirs = [os.path.join(data, "nlp", d) for d in ("yelp_runs_a", "yelp_runs_b", "yelp_qwen3_0.6b")]
+-    run_pipeline(code_dir, "nlp.py", ["--data-dirs", *dirs], work, plots)
++    run_pipeline(code_dir, "nlp.py", ["--data-dirs", *dirs] + PIPE_ARGS + ["--save-gains", os.path.join(out, "tables")], work, plots)
+     shutil.copy(os.path.join(plots, "aggregated_test_gain_k_1000_delta_linear.pdf"), out)
+ 
+ 
+@@ -71,20 +86,24 @@
+     _, comb = compute.build_nocv_combined_df(dfk, nocv, model_col="model", score_raw_col="objective_score_test",
+                                              bench_col="objective_score_bench", include_k0=True)
+     res = compute.sample_gain_bootstrap(data_cv=cvm_delta, score_col_cv="delta_score_test", model_col="model",
+-                                        n_bootstraps=100, method="absolute", test_size=0.2, df_nocv_combined=comb,
++                                        n_bootstraps=N_BOOT, random_state=SEED, plugin_estimate=True,                              # v3
++                                        method="absolute", test_size=0.2, df_nocv_combined=comb,
+                                         score_col_nocv="delta_score_combined", models_to_analyze=pcam.DEFAULT_MODELS,
+                                         study_sizes=[300], compute_train_size=False)
++    _save_table(res, out, "figF1")                                                                        # v5
+     res = res[res["K"] <= 20].copy()
+     res["procedure_display"] = res["cv_procedure"].map({"MCCV": "MCCV", "RepeatedKFold": "Repeated 5-Fold"})
+     cnn = ["densenet121", "mobilenet_v2", "wide_resnet101_2"]          # the figure excludes ViT
+     res = res[res["model"].isin(cnn)].copy()
+     P.set_paper_style()
+-    C.plot_sample_gain_by_train_size(
+-        res, study_sizes=[300], models_to_analyze=cnn, model_display_names=pcam.MODEL_DISPLAY_NAMES,
+-        model_color_map=None, title_prefix="PCam", plots_dir=work, xticks=[1, 5, 10, 15, 20],
+-        style_col="procedure_display", style_order=["MCCV", "Repeated 5-Fold"],
+-        dashes={"MCCV": (), "Repeated 5-Fold": (4, 2)}, style_legend=True, file_suffix="_cv_procedures")
+-    shutil.copy(os.path.join(work, "aggregated_test_gain_k_300_delta_linear_cv_procedures.pdf"), out)
++    res["model_disp"] = res["model"].map(pcam.MODEL_DISPLAY_NAMES)                                      # v3: one panel per network
++    order = [pcam.MODEL_DISPLAY_NAMES[m] for m in cnn]
++    P.plot_sample_gain_facets(
++        res, panel_col="model_disp", panel_order=order, style_col="procedure_display",
++        style_order=["MCCV", "Repeated 5-Fold"], dashes={"MCCV": (), "Repeated 5-Fold": (4, 2)},
++        palette={m: PCAM_COLORS[m] for m in order}, xticks=[1, 5, 10, 15, 20], hairlines=HAIR_FACET,
++        axes_size=SINGLE_AXES, axis_label_fontsize=12,                                                  # v5: 1 x 3
++        output_path=os.path.join(out, "aggregated_test_gain_k_300_delta_linear_cv_procedures.pdf"))
+ 
+ 
+ def figK1(code_dir, data, out):
+@@ -105,19 +124,22 @@
+     _, comb = compute.build_nocv_combined_df(dfk, base, model_col="model", score_raw_col="objective_score_test",
+                                              bench_col="objective_score_bench", include_k0=True)
+     df_cross = pd.concat([comb.assign(stratified=sv) for sv in [False, True]], ignore_index=True)
+-    res = compute.sample_gain_bootstrap(data_cv=cvd, score_col_cv="delta_score_test", model_col="model", n_bootstraps=200,
++    res = compute.sample_gain_bootstrap(data_cv=cvd, score_col_cv="delta_score_test", model_col="model", n_bootstraps=N_BOOT,
++                                        random_state=SEED, plugin_estimate=True,                                                   # v3
+                                         method="absolute", test_size=1 / 5, df_nocv_combined=df_cross,
+                                         score_col_nocv="delta_score_combined", study_sizes=[500],
+                                         extra_cv_cols=["stratified"], compute_train_size=False)
++    _save_table(res, out, "figK1")                                                                        # v5
+     res = res[res.K <= 20].copy(); res["stratified_display"] = res["stratified"].map({False: "Unstratified", True: "Stratified"})
+     P.set_paper_style()
+-    C.plot_sample_gain_by_train_size(
+-        res, study_sizes=[500], models_to_analyze=pcam.DEFAULT_MODELS, model_display_names=pcam.MODEL_DISPLAY_NAMES,
+-        model_color_map=None, title_prefix="PCam (NLL), strat. baseline", plots_dir=work, xticks=[1, 5, 10, 15, 20],
+-        style_col="stratified_display", style_order=["Unstratified", "Stratified"],
+-        dashes={"Unstratified": (), "Stratified": (4, 2)}, style_legend=True, figsize=(3.5, 3.0),
+-        file_suffix="_nll_vs_strat_baseline")
+-    shutil.copy(os.path.join(work, "aggregated_test_gain_k_500_delta_linear_nll_vs_strat_baseline.pdf"), out)
++    res["model_disp"] = res["model"].map(pcam.MODEL_DISPLAY_NAMES)                                      # v3: one panel per network
++    order = [pcam.MODEL_DISPLAY_NAMES[m] for m in pcam.DEFAULT_MODELS if m in set(res["model"])]
++    P.plot_sample_gain_facets(
++        res, panel_col="model_disp", panel_order=order, style_col="stratified_display",
++        style_order=["Unstratified", "Stratified"], dashes={"Unstratified": (), "Stratified": (4, 2)},
++        palette={m: PCAM_COLORS[m] for m in order}, xticks=[1, 5, 10, 15, 20], hairlines=HAIR_FACET,
++        ncols=2, axes_size=SINGLE_AXES, axis_label_fontsize=12,                                         # v5: 2 x 2
++        output_path=os.path.join(out, "aggregated_test_gain_k_500_delta_linear_nll_vs_strat_baseline.pdf"))
+ 
+ 
+ def figL1(code_dir, data, out):
+@@ -142,22 +164,26 @@
+         _, comb = compute.build_nocv_combined_df(dfk, nocv, model_col="model", score_raw_col="objective_score_test",
+                                                  bench_col="objective_score_bench", include_k0=True)
+         comb["stratified"] = True
+-        r = compute.sample_gain_bootstrap(data_cv=cvd, score_col_cv="delta_score_test", model_col="model", n_bootstraps=200,
++        r = compute.sample_gain_bootstrap(data_cv=cvd, score_col_cv="delta_score_test", model_col="model", n_bootstraps=N_BOOT,
++                                          random_state=SEED, plugin_estimate=True,                                                 # v3
+                                           method="absolute", test_size=1 / 5, df_nocv_combined=comb,
+                                           score_col_nocv="delta_score_combined", study_sizes=[500],
+                                           extra_cv_cols=["stratified"], compute_train_size=False)
+         r["metric"] = disp; allres.append(r)
+-    res = pd.concat(allres, ignore_index=True); res = res[res.K <= 20]
++    res = pd.concat(allres, ignore_index=True); _save_table(res, out, "figL1"); res = res[res.K <= 20]    # v5
+     pal = dict(zip(["Accuracy", "Brier", "NLL"], sns.color_palette("colorblind", 3)))
+     P.set_paper_style()
+     fig = P.plot_sample_gain_vs_splits(
+         res, y_col="sample_gain", hue_col="metric", hue_order=["Accuracy", "Brier", "NLL"], palette=pal,
+         xticks=[1, 5, 10, 15, 20], title_text=r"PCam WideResNet101_2, $n_{\mathrm{tr}}=500$",
+         title_text_xy=(0.5, 0.02), title_text_ha="center", title_text_va="bottom", xlim=(0, 20), direct_labels=True,
++        hairlines=HAIR,                                                                                       # v3
+         output_path=os.path.join(out, "sample_gain_by_metric_wide_resnet101_2_N500_stratTrue.pdf"))
+     plt.close(fig)
+-    k20 = res[res.K == 20].groupby("metric").sample_gain.mean().round(2).to_dict()
+-    print("Figure L.1 caption values, mean G_20 by metric:", k20)
++    k20 = res[res.K == 20]
++    est = k20[k20.bootstrap_iter < 0].groupby("metric").sample_gain.mean().round(2).to_dict()             # v5
++    ci = k20[k20.bootstrap_iter >= 0].groupby("metric").sample_gain.quantile([.025, .975]).round(2).unstack().to_dict("index")
++    print("Figure L.1 caption values, G_20 by metric (estimate on all seeds):", est, "95% percentile:", ci)
+ 
+ 
+ def main():
