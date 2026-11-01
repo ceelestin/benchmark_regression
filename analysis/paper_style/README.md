@@ -17,3 +17,4 @@ cut 8% above the highest thick line; single-figure-sized facet panels; `--plugin
 | `text_numbers_v5.py` | Appendix I, L and M values quoted in the text |
 | `compare_v5.py` | before / after renders (thick line = mean of draws vs estimate on all seeds) |
 | `pdfcheck.py` | page sizes and fonts of the figure PDFs |
+| `appL_r2.py` | Appendix L: Ridge gains on R^2 and on the MSE from the same July runs |
