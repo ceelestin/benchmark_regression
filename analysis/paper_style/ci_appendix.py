@@ -71,7 +71,7 @@ y = pd.read_parquet(f"{R}/nlp_delta.parquet"); y = y[y.N == 1250]
 c1, c2 = cells(pc, ["model"], K), cells(y, ["model"], K)
 rows = [["\\texttt{PCam}, $n_{\\text{tr}}=400$", tt(PCAM[m])] + [c1[(m,)][k] for k in K] for m in PCAM if (m,) in c1] + ["mid"] + \
        [["\\texttt{Yelp}, $n_{\\text{tr}}=1{,}000$", tt(NLP[m])] + [c2[(m,)][k] for k in K] for m in NLP if (m,) in c2]
-out.append(table("Sample gains of \\autoref{fig:all_data_test_sample_gains} (middle and right): accuracy, $50$ seeds ($100$ for \\texttt{BERT} and \\texttt{XLM-RoBERTa}).",
+out.append(table("Sample gains of \\autoref{fig:all_data_test_sample_gains} (middle and right): accuracy; \\texttt{PCam}: $50$ seeds; \\texttt{Yelp}: $100$ single-split seeds ($50$ for \\texttt{Qwen3-0.6B}), and on the $K$-split side the seeds scored on the benchmarking set, $20$ for \\texttt{BERT} and \\texttt{XLM-RoBERTa} and $50$ for \\texttt{Qwen3-0.6B}.",
                  "tab:ci-fig5", ["Dataset", "Network"], rows, K))
 # Figure F.1
 f1 = pd.read_parquet(f"{R}/figF1.parquet")
