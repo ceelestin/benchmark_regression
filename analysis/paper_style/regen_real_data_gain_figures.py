@@ -9,7 +9,7 @@ Rebuild the paper's five real-data sample-gain figures with the paper's current 
 Each figure is produced exactly as the version now in the paper was produced (same data, same
 selection, same plotting call); only the data and output locations are parameters.
 
-    Figure 5, PCam panel  aggregated_test_gain_k_500_delta_linear_accuracy_stratFalse.pdf   pcam.py on data/pcam/results_output_pcam
+    Figure 5, PCam panel  aggregated_test_gain_k_400_delta_linear_accuracy_stratFalse.pdf   pcam.py on data/pcam/results_output_pcam
     Figure 5, Yelp panel  aggregated_test_gain_k_1000_delta_linear.pdf                       nlp.py  on data/nlp/*
     Figure F.1            aggregated_test_gain_k_300_delta_linear_cv_procedures.pdf          data/pcam/results_output_pcam
     Figure K.1            aggregated_test_gain_k_500_delta_linear_nll_vs_strat_baseline.pdf  data/pcam/stratandnewmetrics
@@ -53,7 +53,7 @@ def run_pipeline(code_dir, script, args, work, plots):
 def fig5_pcam(code_dir, data, out):
     work = os.path.join(out, "work", "pcam"); plots = os.path.join(work, "plots")
     run_pipeline(code_dir, "pcam.py", ["--data-dir", os.path.join(data, "pcam", "results_output_pcam")] + PIPE_ARGS + ["--save-gains", os.path.join(out, "tables")], work, plots)
-    shutil.copy(os.path.join(plots, "aggregated_test_gain_k_500_delta_linear_accuracy_stratFalse.pdf"), out)
+    shutil.copy(os.path.join(plots, "aggregated_test_gain_k_400_delta_linear_accuracy_stratFalse.pdf"), out)
 
 
 def fig5_yelp(code_dir, data, out):
@@ -64,7 +64,7 @@ def fig5_yelp(code_dir, data, out):
 
 
 def figF1(code_dir, data, out):
-    """Figure F.1: PCam MCCV vs Repeated 5-Fold, n_tr = 300, accuracy (former cvproc.py)."""
+    """Figure F.1: PCam MCCV vs Repeated 5-Fold, study set 300 (n_tr = 240), accuracy (former cvproc.py)."""
     import pandas as pd, pcam, compute, pipeline_common as C, plot as P
     work = os.path.join(out, "work", "figF1"); os.makedirs(work, exist_ok=True)
     data_ = pcam.load_cv_data(os.path.join(data, "pcam", "results_output_pcam"))
@@ -107,7 +107,7 @@ def figF1(code_dir, data, out):
 
 
 def figK1(code_dir, data, out):
-    """Figure K.1: PCam NLL, n_tr = 500, unstratified and stratified CV against the stratified baseline."""
+    """Figure K.1: PCam NLL, study set 500 (n_tr = 400), unstratified and stratified CV against the stratified baseline."""
     import pandas as pd, pcam, compute, pipeline_common as C, plot as P
     work = os.path.join(out, "work", "figK1"); os.makedirs(work, exist_ok=True)
     d = pcam.load_cv_data(os.path.join(data, "pcam", "stratandnewmetrics")); d = d[d.study_size == 500].copy()
@@ -143,7 +143,7 @@ def figK1(code_dir, data, out):
 
 
 def figL1(code_dir, data, out):
-    """Figure L.1: PCam WideResNet101_2, n_tr = 500, stratified: gain by metric (accuracy, Brier, NLL)."""
+    """Figure L.1: PCam WideResNet101_2, study set 500 (n_tr = 400), stratified: gain by metric (accuracy, Brier, NLL)."""
     import pandas as pd, seaborn as sns, matplotlib.pyplot as plt, pcam, compute, pipeline_common as C, plot as P
     d = pcam.load_cv_data(os.path.join(data, "pcam", "stratandnewmetrics"))
     d = d[(d.model == "wide_resnet101_2") & (d.study_size == 500) & (d.stratified == True)].copy()
@@ -175,7 +175,7 @@ def figL1(code_dir, data, out):
     P.set_paper_style()
     fig = P.plot_sample_gain_vs_splits(
         res, y_col="sample_gain", hue_col="metric", hue_order=["Accuracy", "Brier", "NLL"], palette=pal,
-        xticks=[1, 5, 10, 15, 20], title_text=r"PCam WideResNet101_2, $n_{\mathrm{tr}}=500$",
+        xticks=[1, 5, 10, 15, 20], title_text=r"PCam WideResNet101_2, $n_{\mathrm{tr}}=400$",  # study set 500: n_tr = 0.8 x 500 (CE, 2026-11-02)
         title_text_xy=(0.5, 0.02), title_text_ha="center", title_text_va="bottom", xlim=(0, 20), direct_labels=True,
         hairlines=HAIR,                                                                                       # v3
         output_path=os.path.join(out, "sample_gain_by_metric_wide_resnet101_2_N500_stratTrue.pdf"))

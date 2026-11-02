@@ -347,6 +347,11 @@ def main(
 
     if data.empty:
         raise RuntimeError("No data loaded — check data_dir.")
+    if 'study_pool_size' in data.columns and data['study_pool_size'].notna().any():
+        # Runs from pcam_deep_training_adapted.py after commit e194b00 (2026-08-01) label `study_size` with n_tr
+        # and record the study set in `study_pool_size`; the n_tr conversion below expects study-set labels.
+        raise ValueError("data_dir mixes in runs whose size label is n_tr (column study_pool_size); "
+                         "this pipeline expects runs labelled by the study set.")
 
     print(f"Seeds: {len(data['seed'].unique())}")
 
@@ -491,7 +496,9 @@ def main(
             models_to_analyze=models_to_analyze,
             study_sizes=study_sizes,
             extra_cv_cols=['stratified'],
-            compute_train_size=False,
+            # The size label of these runs is the study set; the paper reports n_tr, the training and validation
+            # subsets together, i.e. (1 - test_size) x study set, as for Yelp (CE, 2026-11-02).
+            compute_train_size=True,
         )
         res = res.copy()
         res['metric'] = m['display']
@@ -536,7 +543,7 @@ def main(
                     models_to_analyze=models_to_analyze,
                     study_sizes=study_sizes,
                     extra_cv_cols=['stratified'],
-                    compute_train_size=False,
+                    compute_train_size=True,  # n_tr = (1 - test_size) x study set, see above
                 )
                 res_cross = res_cross.copy()
                 res_cross['metric'] = m['display']

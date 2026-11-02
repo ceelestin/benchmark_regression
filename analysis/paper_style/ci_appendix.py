@@ -1,5 +1,6 @@
 """LaTeX tables of the sample gains (estimate on all seeds) and their 95% percentile bootstrap intervals, one per
 gain figure, from the tables saved by the figure scripts (CE, 2026-10-31). Prints the LaTeX to stdout."""
+# PCam sizes are n_tr = 0.8 x study set (study sets 300 and 500 -> 240 and 400; CE, 2026-11-02)
 import os
 import numpy as np, pandas as pd
 V = os.path.expandvars("$WORK/paper_style_figs/v3")
@@ -68,7 +69,7 @@ K = [5, 10, 20]
 pc = pd.read_parquet(f"{R}/pcam_accuracy.parquet"); pc = pc[(pc.N == 500) & (pc.cv_procedure == "MCCV")]
 y = pd.read_parquet(f"{R}/nlp_delta.parquet"); y = y[y.N == 1250]
 c1, c2 = cells(pc, ["model"], K), cells(y, ["model"], K)
-rows = [["\\texttt{PCam}, $n_{\\text{tr}}=500$", tt(PCAM[m])] + [c1[(m,)][k] for k in K] for m in PCAM if (m,) in c1] + ["mid"] + \
+rows = [["\\texttt{PCam}, $n_{\\text{tr}}=400$", tt(PCAM[m])] + [c1[(m,)][k] for k in K] for m in PCAM if (m,) in c1] + ["mid"] + \
        [["\\texttt{Yelp}, $n_{\\text{tr}}=1{,}000$", tt(NLP[m])] + [c2[(m,)][k] for k in K] for m in NLP if (m,) in c2]
 out.append(table("Sample gains of \\autoref{fig:all_data_test_sample_gains} (middle and right): accuracy, $50$ seeds.",
                  "tab:ci-fig5", ["Dataset", "Network"], rows, K))
@@ -76,7 +77,7 @@ out.append(table("Sample gains of \\autoref{fig:all_data_test_sample_gains} (mid
 f1 = pd.read_parquet(f"{R}/figF1.parquet")
 c = cells(f1, ["model", "cv_procedure"], K)
 order = [(m, p) for m in ("densenet121", "mobilenet_v2", "wide_resnet101_2") for p in ("MCCV", "RepeatedKFold")]
-out.append(table("Sample gains of \\autoref{fig:pcam_mccv_vs_kfold}: \\texttt{PCam}, $n_{\\text{tr}}=300$, accuracy, $50$ seeds.",
+out.append(table("Sample gains of \\autoref{fig:pcam_mccv_vs_kfold}: \\texttt{PCam}, $n_{\\text{tr}}=240$, accuracy, $50$ seeds.",
                  "tab:ci-figF1", ["Network", "Procedure"],
                  rows_from(c, order, [lambda m: tt(PCAM[m]), lambda p: {"MCCV": "MCCV", "RepeatedKFold": "Repeated 5-Fold"}[p]], K), K))
 # Figure I.1
@@ -98,12 +99,12 @@ out.append(table("Sample gains of \\autoref{fig:fixed-vs-resampled}: simulated l
 k1 = pd.read_parquet(f"{R}/figK1.parquet")
 c = cells(k1, ["model", "stratified"], K)
 order = [(m, s) for m in PCAM for s in (False, True)]
-out.append(table("Sample gains of \\autoref{fig:stratified-overlay}: \\texttt{PCam}, $n_{\\text{tr}}=500$, negative log-likelihood, $100$ seeds, against the stratified single-split baseline.",
+out.append(table("Sample gains of \\autoref{fig:stratified-overlay}: \\texttt{PCam}, $n_{\\text{tr}}=400$, negative log-likelihood, $100$ seeds, against the stratified single-split baseline.",
                  "tab:ci-figK1", ["Network", "Resampling"], rows_from(c, order, [lambda m: tt(PCAM[m]), lambda s: "stratified" if s else "unstratified"], K), K))
 # Figure L.1
 l1 = pd.read_parquet(f"{R}/figL1.parquet")
 c = cells(l1, ["metric"], K)
-out.append(table("Sample gains of \\autoref{fig:metrics-gain}: \\texttt{PCam}, \\texttt{WideResNet101\\_2}, $n_{\\text{tr}}=500$, stratified resampling, $100$ seeds.",
+out.append(table("Sample gains of \\autoref{fig:metrics-gain}: \\texttt{PCam}, \\texttt{WideResNet101\\_2}, $n_{\\text{tr}}=400$, stratified resampling, $100$ seeds.",
                  "tab:ci-figL1", ["Metric"], rows_from(c, [("Accuracy",), ("Brier",), ("NLL",)], [lambda x: {"Accuracy": "accuracy", "Brier": "Brier score", "NLL": "negative log-likelihood"}[x]], K), K))
 # Figure M.1, all budgets
 m1 = pd.read_parquet(f"{S}/figM1.parquet")
