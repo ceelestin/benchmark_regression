@@ -152,9 +152,13 @@ def _paper_gain(var_k, alpha_var):
     return float(np.exp(la0 + frac * (la1 - la0))), False
 
 
+CI = 0.90  # percentile-interval level of the seed bootstrap (--ci); 0.90 until 2026-11-02, 0.95 for the paper since then
+
+
 def gains(df):
     rows = []
     rng = np.random.default_rng(0)
+    lo_q, hi_q = 50 - 50 * CI, 50 + 50 * CI
     for key, g in df.groupby(CONFIG_KEYS, dropna=False):
         piv_q = g.pivot_table(index="p_dataset_seed", columns="idx_rep", values="q").dropna(axis=0)
         piv_b = g.pivot_table(index="p_dataset_seed", columns="idx_rep", values="b").loc[piv_q.index]
@@ -187,9 +191,9 @@ def gains(df):
                                             v1_alpha_curve(E[idx, 0], Xc[idx]))[0])
             rows.append(dict(zip(CONFIG_KEYS, key), K=K, n_seeds=n_seeds, n_alpha=n_alpha,
                              G_paper=g_paper, G_paper_capped=capped, G_paper_fixed=g_paper_fixed,
-                             G_paper_lo=np.percentile(bs_paper, 5), G_paper_hi=np.percentile(bs_paper, 95),
-                             G_raw=g_raw, G_raw_lo=np.percentile(bs_raw, 5), G_raw_hi=np.percentile(bs_raw, 95),
-                             G_err=g_err, G_err_lo=np.percentile(bs_err, 5), G_err_hi=np.percentile(bs_err, 95)))
+                             G_paper_lo=np.percentile(bs_paper, lo_q), G_paper_hi=np.percentile(bs_paper, hi_q),
+                             G_raw=g_raw, G_raw_lo=np.percentile(bs_raw, lo_q), G_raw_hi=np.percentile(bs_raw, hi_q),
+                             G_err=g_err, G_err_lo=np.percentile(bs_err, lo_q), G_err_hi=np.percentile(bs_err, hi_q)))
     return pd.DataFrame(rows)
 
 
@@ -278,7 +282,10 @@ def main():
     ap.add_argument("--glob", required=True)
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--loss", default="neg_mse", choices=list(LOSS_COLS))
+    ap.add_argument("--ci", type=float, default=0.90, help="level of the percentile bootstrap intervals (paper: 0.95)")
     args = ap.parse_args()
+    global CI
+    CI = args.ci
     os.makedirs(args.out_dir, exist_ok=True)
     df = load(args.glob, args.loss)
     print(f"loss={args.loss} rows={len(df):,} configurations={df.groupby(CONFIG_KEYS).ngroups} "

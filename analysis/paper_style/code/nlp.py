@@ -77,7 +77,9 @@ def load_nlp_data(directories: list[str]) -> pd.DataFrame:
     dfs = []
     for i, fp in enumerate(file_paths):
         try:
-            dfs.append(pd.read_parquet(fp))
+            _df = pd.read_parquet(fp)
+            _df["_source_file"] = os.path.basename(fp)
+            dfs.append(_df)
         except Exception as e:
             print(f"Error reading {fp}: {e}")
         if (i + 1) % 20 == 0:
@@ -88,6 +90,18 @@ def load_nlp_data(directories: list[str]) -> pd.DataFrame:
 
     data = pd.concat(dfs, ignore_index=True, sort=True)
     gc.collect()
+    # One run per (model, size, seed, split count), chosen deterministically (CE, 2026-11-02): the Yelp K = 20 runs of
+    # seeds 0-19 exist twice (a run without benchmark scores and a later run with them); keep the run with the most
+    # benchmark scores, ties broken by the latest file name, and drop exact copies of a file found in two folders.
+    _key = [c for c in ("model_arg_choice", "study_set_size", "seed", "n_splits_cv") if c in data.columns]
+    if len(_key) == 4:
+        _score = (data.groupby(_key + ["_source_file"])["benchmark_eval_accuracy"].apply(lambda x: int(x.notna().sum()))
+                  .reset_index(name="_nb").sort_values(_key + ["_nb", "_source_file"]))
+        _keep = _score.groupby(_key).tail(1)[_key + ["_source_file"]]
+        _n0 = len(data)
+        data = data.merge(_keep, on=_key + ["_source_file"], how="inner")
+        data = data.drop_duplicates(subset=_key + ["_source_file", "fold_index"], keep="first").reset_index(drop=True)
+        print(f"Deduplicated runs: {_n0} -> {len(data)} rows")
 
     # Rename columns to canonical names used throughout the pipeline
     rename_map = {
@@ -540,7 +554,7 @@ def main(
         bench_col='objective_score_bench',
         gt_score_col='objective_score_bench',
         cv_colors_retrieval=["#4C78A8", "#59A14F", "#E15759"],
-        retrieval_n_bootstraps=100,
+        retrieval_n_bootstraps=1000,  # 95% percentile intervals of Figure 7 from 1,000 draws (CE, 2026-11-02)
         test_size=test_size,
         y_as_percent=True,
     )

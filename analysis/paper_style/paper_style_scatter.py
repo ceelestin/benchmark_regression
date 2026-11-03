@@ -29,6 +29,7 @@ import plot as P
 
 K, T = 20, 0.2
 REG = os.path.expandvars("$WORK/benchmark_regression/analysis")
+OMEGA_HOLDOUT = "out_omega_ci95"  # Figure D.2: holdout gains with 95% bootstrap intervals (out_omega: 90%, before 2026-11-02)
 PCAM = os.path.expandvars("$WORK/benchmark_pcam/analysis")
 BLUES = ["#86b6ef", "#3987e5", "#1c5cab", "#0d366b"]
 BINS = [(0, 100, "50-100"), (101, 750, "300-750"), (751, 3000, "1,000-3,000"), (3001, 10**9, "5,000-10,000")]
@@ -96,7 +97,7 @@ def fig7(out):
 
 
 def fig8(out):
-    d = pd.read_csv(f"{REG}/out_omega/omega_holdout1_neg_mse.csv")
+    d = pd.read_csv(f"{REG}/{OMEGA_HOLDOUT}/omega_holdout1_neg_mse.csv")  # 95% gain intervals (CE, 2026-11-02)
     k = 3
     x, lo, hi = T * d[f"rho_e_mean_{k}"], T * d[f"rho_e_q10_{k}"], T * d[f"rho_e_q90_{k}"]
     g, n = d["G_paper"], d["p_obj_train_size"].astype(int)

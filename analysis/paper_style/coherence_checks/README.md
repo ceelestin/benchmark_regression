@@ -12,3 +12,5 @@ pass on the paper (items 6 to 9). Paths use `$WORK` and `$SCRATCH`.
 | `pcam24_redundancy.py`, `pcam24_gains.py` | Appendix M, On real data: PCam at n_tr = 24 (gains from `code/pcam.py --data-dir <links to the 199 August files> --n-bootstraps 200 --random-state 0 --plugin-estimate --save-gains <tables>`) |
 | `vit_all.py` | Section 4: ViT-B/16 benchmark accuracy 0.51-0.59 in every run set, CNNs 0.60-0.85 |
 | `fold_geometry.py` | Appendix M: share of runs in which the redundancy is defined after 3 and 5 splits |
+| `yelp_dups.py`, `yelp_pipeline_rows.py`, `yelp_dedup_cmp.py`, `yelp_g1_retrieval.py` | Yelp K = 20 runs of BERT and XLM-RoBERTa: seeds 0-19 run twice (21 January without benchmark scores, 23 January with them); the loader now keeps one run per seed (the one with benchmark scores). Figure 5 (right), Figure 7, Table O.2 and Table G.1's K = 20 column recomputed (2026-11-03) |
+| `check_above_k.py` | Appendix D.1, Estimates above K: 40 of Figure 6's 663 simulated configurations exceed 20; 38 in the noise-injection grid, where the noise-reduced gain implies a fold-error correlation of -0.025 to 0 |
