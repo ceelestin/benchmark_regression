@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
-"""[v4, 2026-10-30 (CE): GradientBoosting dropped; Figure J.1 as one panel per learner (2 x 2); Figure M.1 with the
-main-text learners (Ridge and ExtraTrees from the July sweeps, MLP (64, 64) and RandomFeatures from
-small_budget_mlp64_rff50), gains for all eight budgets; --groups / --from-results to recompute only some groups.]
-[v3, 2026-10-29: 1,000 bootstrap draws with random_state 0; bold mean + 20 hairlines per curve
-(code/plot.py GAIN_DISPLAY); Figure M.1 panels share the y-axis top (larger 99th percentile of the two).]
+"""Simulated sample-gain figures of the paper (mean squared error) and the gain tables behind their intervals.
 
-Figures 1-6 of FIGURE_STYLE_SPEC.md (2026-10-28): paper-style MSE gain-vs-K figures, paper estimator.
+Figures written to --out-dir:
+  aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_full.pdf        Figure 4 (n_tr = 1,000, K up to 200)
+  aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_K20.pdf         Figure 5 (left)
+  aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_K20_hpo.pdf     Figure G.1 (fixed parameters, grid and random search)
+  aggregated_test_gain_k_100_sim_linear_mse_fixedsplit_overlay_K20.pdf  Figure H.1 (frozen and resampled splits)
+  small_label_gain_vs_K_N30_mse.pdf, small_label_gain_vs_K_N100_mse.pdf Figure L.1 (small budgets)
+It also writes the bootstrap results of each group of runs (sample_gain_bootstrap_<group>.parquet), the gain tables
+read by ci_appendix.py (tables/fig4, figI1, figJ1, figM1.parquet, for Tables E.1, E.3, E.4 and E.8; the names follow
+the LaTeX labels of those tables) and a K = 1 / 20 / 200 summary (summary_K1_K20_K200.csv).
 
-Same pipeline as figure_style/code/mse_gain_figures.py (load -> gains() -> plot.plot_sample_gain_vs_splits),
-with the Jean-Zay paths of the runs instead of CE's extract, the spec's fixed colours and names, figsize from
-set_paper_style for every panel, and figures 3 (HPO) and 5-6 (small budgets) added.
-Run in $WORK/paper_style_figs with `module load pytorch-gpu/py3/2.8.0` (seaborn); writes figures,
-the bootstrap results and a K = 1 / 20 / 200 summary to --out-dir.
+Estimator: the paper's variance-equivalent test sample gain (code/compute.py) on the benchmark-adjusted MSE. Thick
+line: the estimate on all seeds; thin lines: 20 of the 1,000 bootstrap resamples of the seeds (random_state 0).
+groups() lists the runs of each group under the data root; configs/README.md gives the config of every run.
+
+The figures are built in two passes, so that the stored bootstrap draws do not change when the estimate is added:
+  python paper_style_figs.py --out-dir A --groups n1000 n100 small hpo_ridge hpo_rff small_mlp32 \
+      mlp32_n1000 mlp32_n100 frozen_redrawn                                # bootstrap draws of every group
+  python paper_style_figs.py --out-dir B --from-results A --groups \
+      --plugin-groups n1000 n100 small hpo_ridge hpo_rff small_mlp32 mlp32_n1000 mlp32_n100 frozen_redrawn
+The second pass computes the estimate on all seeds of every group and draws the figures in B.
 """
 from __future__ import annotations
 
@@ -33,15 +42,15 @@ from matplotlib.ticker import MaxNLocator
 
 import compute
 import datapaths
-import mse_gain_figures as T          # the spec's template: COLS, display_name(); gains() copied below (v3)
+import mse_gain_figures as T          # COLS, TEST / BENCH / OUTER, display_name(); gains() adapted below
 import plot as P
 import simulated as SIM
 
-N_BOOT, SEED, HAIR = 1000, 0, 20      # v3
+N_BOOT, SEED, HAIR = 1000, 0, 20      # bootstrap draws, their random_state, thin lines per curve
 
 
 def gains(data, n_bootstraps, test_size, random_state=SEED, plugin=False):
-    """mse_gain_figures.gains, unchanged except for random_state (v3)."""
+    """mse_gain_figures.gains with a random_state; plugin=True adds the estimate on all seeds (bootstrap_iter = -1)."""
     data_cv = data[data["procedure"].isin(["ShuffleSplit", "RepeatedKFold"])].sort_values(
         ["objective_name", "solver_name", "dataset_name", "idx_rep"]).copy()
     nocv_base = data_cv[data_cv["idx_rep"] == 0].copy()
@@ -73,7 +82,7 @@ def run_locations(root=None):
 
 
 OUT, JULY = run_locations()
-# v4e (CE, 2026-10-30): the four simulated-data learners take matplotlib C0-C3 (ExtraTrees C0, RandomFeatures C1, MLP C2, Ridge C3).
+# The four simulated-data learners take matplotlib C0-C3 in every figure (ExtraTrees C0, RandomFeatures C1, MLP C2, Ridge C3).
 COLOR = {"ExtraTrees": "#1f77b4", "GradientBoosting": "#ff7f0e", "MLP": "#2ca02c", "Ridge": "#d62728",
          "RandomFeatures": "#ff7f0e", "MLP_GridSearch": "#8c564b", "MLP_RandomSearch": "#e377c2",
          "ExtraTrees_GridSearch": "#17becf", "ExtraTrees_RandomSearch": "#bcbd22", "MLP (32)": "#2ca02c"}
@@ -107,32 +116,39 @@ def prepare(frames):
 
 def groups():
     g = {}
+    # Each group has its own random generator, so that adding a group does not change the bootstrap draws of the others.
+    # n_tr = 1,000 (Figures 4, 5 left and G.1): paper_main_gain_mse_k200{,_mlp64x64,_rff50}, hpo_mse_MLP_*, and the July
+    # runs of config_hpo_test_{grid,random}search.yml (ExtraTrees grid and random search).
     g["n1000"] = read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")), drop={MLP32}) \
         + read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200_mlp64x64__c*.parquet"))) \
         + read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200_rff50__c*.parquet"))) \
         + read(sorted(glob.glob(f"{OUT}/hpo_mse_MLP_*__c*.parquet"))) \
         + read([JULY.format("07-27_12h40m37"), JULY.format("07-27_12h47m49")])
+    # n_tr = 100 (Figure H.1): the July runs of linear_1000_K20_new_fixed_samedata.yml (frozen split, same data) and
+    # linear_1000_K20_new_unfixed.yml (resampled), and paper_ntr100_k20_{fixed,resampled}_{mlp64x64,rff50}.
     g["n100"] = read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")], drop={MLP32}) \
         + read(sorted(glob.glob(f"{OUT}/paper_ntr100_k20_*_mlp64x64__c*.parquet"))) \
         + read(sorted(glob.glob(f"{OUT}/paper_ntr100_k20_*_rff50__c*.parquet")))
+    # Small budgets (Figure L.1): the July runs of linear_1000_half1_K20_smalldata{,2}.yml (Ridge, ExtraTrees) and
+    # small_budget_mlp64_rff50.
     g["small"] = read([JULY.format("07-31_19h07m06"), JULY.format("07-31_21h07m56")]) \
         + read(sorted(glob.glob(f"{OUT}/small_budget_mlp64_rff50__c*.parquet")))
-    # v4c (CE, 2026-10-30): Ridge grid/random search for Figure I.1, in its own group so that the bootstrap
-    # draws (one RNG per group) of the n1000 curves already in the paper do not change.
+    # Ridge grid / random search (Figure G.1), in its own group so that the draws of the n1000 curves do not change.
     g["hpo_ridge"] = read(sorted(glob.glob(f"{OUT}/hpo_mse_Ridge_*__c*.parquet")))
-    # v4e (CE, 2026-10-30): Figure M.1 back to the one-hidden-layer MLP (32 units) of the July small-budget runs,
-    # in its own group so that the bootstrap draws of the other small-budget curves do not change.
+    # MLP (32) of the July small-budget runs (linear_1000_half2_K20_smalldata{,2}.yml) for Figure L.1, in its own group
+    # so that the draws of the other small-budget curves do not change.
     g["small_mlp32"] = read([JULY.format("07-31_19h02m17"), JULY.format("07-31_21h05m17")], drop={"GradientBoosting[n_estimators=200]"})
-    # v4f (CE, 2026-10-30): one MLP throughout the paper, the one-hidden-layer MLP (32 units) of the redundancy
-    # experiments; its runs at n_tr = 1,000 (job 1426287) and n_tr = 100 (July sweeps) get their own groups so that
-    # the bootstrap draws of the other curves do not change. MLP [64, 64] rows are dropped from every figure.
+    # One MLP throughout the paper, the one-hidden-layer MLP (32 units) of the redundancy experiments; its runs at
+    # n_tr = 1,000 (paper_main_gain_mse_k200) and n_tr = 100 (July runs) get their own groups so that the draws of the
+    # other curves do not change. MLP [64, 64] rows are dropped from every figure.
     g["mlp32_n1000"] = [f[f.solver_name == MLP32] for f in read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")))]
     g["mlp32_n100"] = [f[f.solver_name == MLP32] for f in read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")])]
-    # v4g (CE, 2026-10-30): Figure J.1's frozen arm from runs that redraw the data at every seed, as the reshuffled
-    # arm does (July 21h00m32 for Ridge / ExtraTrees / MLP (32), job 1747862 for RandomFeatures), in its own group.
+    # Frozen arm of Figure H.1: runs that redraw the data at every seed, as the resampled arm does (the July run of
+    # linear_1000_K20_new_fixed.yml for Ridge / ExtraTrees / MLP (32), paper_ntr100_k20_fixed_redrawn_rff50 for
+    # RandomFeatures), in its own group.
     g["frozen_redrawn"] = read([JULY.format("07-27_21h00m32")], drop={"GradientBoosting[n_estimators=200]"}) \
         + read(sorted(glob.glob(f"{OUT}/paper_ntr100_k20_fixed_redrawn_rff50__c*.parquet")))
-    g["hpo_rff"] = read(sorted(glob.glob(f"{OUT}/hpo_mse_RandomFeatures_*__c*.parquet")))    # v4d, same reason
+    g["hpo_rff"] = read(sorted(glob.glob(f"{OUT}/hpo_mse_RandomFeatures_*__c*.parquet")))    # Figure G.1, own group
     return g
 
 
@@ -164,8 +180,8 @@ def main():
     ap.add_argument("--n-bootstraps", type=int, default=N_BOOT)
     ap.add_argument("--from-results", default=None, help="load sample_gain_bootstrap_<group>.parquet from this dir instead of computing")
     ap.add_argument("--plugin-groups", nargs="*", default=[],
-                    help="v5: compute only the estimate on all seeds (bootstrap_iter = -1) for these groups")
-    ap.add_argument("--hpo-learners", nargs="+", default=["MLP", "ExtraTrees"], help="learners of Figure I.1 (v4d)")
+                    help="compute the estimate on all seeds (bootstrap_iter = -1, the thick line) for these groups")
+    ap.add_argument("--hpo-learners", nargs="+", default=["MLP", "ExtraTrees"], help="learners of Figure G.1")
     ap.add_argument("--y-top", choices=["quantile", "mean"], default="mean")
     ap.add_argument("--groups", nargs="*", default=["n1000", "n100", "small"], help="groups to compute (others are loaded; none = redraw only)")
     a = ap.parse_args()
@@ -175,13 +191,13 @@ def main():
     P.GAIN_DISPLAY["y_top"] = a.y_top
     res = {}
     M6464 = "MLP[hidden_layer_sizes=[64, 64]]"
-    swap = lambda r, m32: pd.concat([r[r["solver_name"] != M6464], m32], ignore_index=True)       # v4f
+    swap = lambda r, m32: pd.concat([r[r["solver_name"] != M6464], m32], ignore_index=True)       # MLP (32) rows replace MLP [64, 64]
     for name in ("n1000", "n100", "small", "hpo_ridge", "hpo_rff", "small_mlp32", "mlp32_n1000", "mlp32_n100", "frozen_redrawn"):
         if name not in a.groups:
             res[name] = pd.read_parquet(f"{a.from_results}/sample_gain_bootstrap_{name}.parquet")
-    # v5 (CE, 2026-10-31): the thick line is the estimate on all seeds. It is computed separately (no draws) and
-    # stored as sample_gain_plugin_<group>.parquet; the stored draws are unchanged, since computing the estimate
-    # does not use the random generator.
+    # The thick line is the estimate on all seeds. It is computed separately (no draws) and stored as
+    # sample_gain_plugin_<group>.parquet; the stored draws are unchanged, since computing the estimate does not use the
+    # random generator. It is merged into the groups loaded with --from-results (see the module docstring).
     if a.plugin_groups:
         for name, frames in groups().items():
             if name in a.plugin_groups:
@@ -203,19 +219,19 @@ def main():
         r.to_parquet(f"{a.out_dir}/sample_gain_bootstrap_{name}.parquet", index=False)
         res[name] = r
     f = lambda t: f"$y = X\\beta$, $n_{{\\mathrm{{tr}}}}={t}$"
-    base = ["ExtraTrees", "MLP", "Ridge", "RandomFeatures"]                     # v4: no GradientBoosting
+    base = ["ExtraTrees", "MLP", "Ridge", "RandomFeatures"]                     # GradientBoosting is not shown
     hpo = [f"{n}{p}" for n in a.hpo_learners for p in ("", "_GridSearch", "_RandomSearch")]
     r1 = disp(pd.concat([swap(res["n1000"], res["mlp32_n1000"]), res["hpo_ridge"], res["hpo_rff"]], ignore_index=True)); r1 = r1[~r1["fixed_split"]]
     main_ = r1[r1["solver_disp"].isin(base)]
     figs = []
-    tdir = f"{a.out_dir}/tables"; os.makedirs(tdir, exist_ok=True)                        # v5: tables for the CI appendix
+    tdir = f"{a.out_dir}/tables"; os.makedirs(tdir, exist_ok=True)  # tables for ci_appendix.py (Appendix E)
     save = lambda df, tag: df.drop(columns=[c for c in df.columns if df[c].dtype == object and c not in
                                             ("solver_disp", "procedure_disp", "split_mode", "solver_name", "dataset_type")],
                                    errors="ignore").to_parquet(f"{tdir}/{tag}.parquet", index=False)
     save(main_, "fig4")
     fig = draw(main_, base, K200, f"{a.out_dir}/aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_full.pdf", f(1000)); figs.append(fig)
     fig = draw(main_[main_["K"] <= 20], base, K20, f"{a.out_dir}/aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_K20.pdf", f(1000)); figs.append(fig)
-    # v4b (CE, 2026-10-30): colour = learner as in every other figure, line style = tuning procedure.
+    # Figure G.1: colour = learner as in every other figure, line style = tuning procedure.
     proc = {f"{n}{p}": (n, lab) for n in a.hpo_learners
             for p, lab in (("", "Fixed"), ("_GridSearch", "Grid search"), ("_RandomSearch", "Random search"))}
     h = r1[r1["solver_disp"].isin(hpo) & (r1["K"] <= 20)].copy(); save(h, "figI1")
@@ -225,16 +241,16 @@ def main():
                style_col="procedure_disp", style_order=["Fixed", "Grid search", "Random search"],
                dashes={"Fixed": (), "Grid search": (4, 2), "Random search": (1, 1)}, style_legend=True,
                style_legend_loc="upper left", style_legend_bbox=(0.02, 0.86)); figs.append(fig)
-    r4 = swap(res["n100"], res["mlp32_n100"]); r4 = r4[~r4["fixed_split"].astype(bool)]           # v4g: reshuffled arm
+    r4 = swap(res["n100"], res["mlp32_n100"]); r4 = r4[~r4["fixed_split"].astype(bool)]           # Figure H.1, resampled arm
     r4 = disp(pd.concat([r4, res["frozen_redrawn"]], ignore_index=True)); r4 = r4[(r4["K"] <= 20) & r4["solver_disp"].isin(base)]
     r4 = r4.assign(split_mode=r4["fixed_split"].map({False: "Resampled split", True: "Fixed split"})); save(r4, "figJ1")
-    fig = P.plot_sample_gain_facets(                                                  # v4: one panel per learner
+    fig = P.plot_sample_gain_facets(                                                  # Figure H.1: one panel per learner
         r4, panel_col="solver_disp", panel_order=base, style_col="split_mode",
         style_order=["Resampled split", "Fixed split"], dashes={"Resampled split": (), "Fixed split": (1, 1)},
         palette={n: COLOR[n] for n in base}, xticks=K20, hairlines=30, ncols=2,
-        axes_size=(2.502, 2.409), axis_label_fontsize=12,    # v4g: each panel the size of a single figure's axes
+        axes_size=(2.502, 2.409), axis_label_fontsize=12,    # each panel the size of a single figure's axes
         output_path=f"{a.out_dir}/aggregated_test_gain_k_100_sim_linear_mse_fixedsplit_overlay_K20.pdf"); figs.append(fig)
-    r5 = disp(swap(res["small"], res["small_mlp32"]))                                # v4f: MLP (32) labelled MLP
+    r5 = disp(swap(res["small"], res["small_mlp32"]))                                # Figure L.1; MLP (32) labelled MLP
     r5 = r5[~r5["fixed_split"] & (r5["K"] <= 20)]
     small_names = base
     save(r5, "figM1")
@@ -249,10 +265,10 @@ def main():
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
         P.save_figure(fig, f"{a.out_dir}/small_label_gain_vs_K_N{n}_mse.pdf", format="pdf", bbox_inches="tight")
         print("panel", n, "ylim", ax.get_ylim(), "yticks", list(ax.get_yticks()))
-    # K = 1 / 20 / 200 means per learner (checklist item 1)
+    # K = 1 / 20 / 200 summary per learner
     rows = []
     for name, r in (("n1000", r1), ("n100", r4), ("small", r5)):
-        keys = ["N", "fixed_split", "solver_disp", "K"]                                        # v5
+        keys = ["N", "fixed_split", "solver_disp", "K"]
         est = r[r["bootstrap_iter"] < 0].groupby(keys)["sample_gain"].mean().rename("estimate")
         s = r[r["bootstrap_iter"] >= 0].groupby(keys)["sample_gain"].agg(
             mean="mean", lo=lambda x: x.quantile(0.025), hi=lambda x: x.quantile(0.975),

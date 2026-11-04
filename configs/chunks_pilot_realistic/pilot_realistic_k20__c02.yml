@@ -1,4 +1,4 @@
-# REALISTIC HIGH-GAIN LEARNERS ON THE MAIN DESIGN, MSE (2026-10-22, CE: single trees alone will not convince;
+# REALISTIC HIGH-GAIN LEARNERS ON THE MAIN DESIGN, MSE (2026-10-22: single trees alone will not convince;
 # find other learners). Same design as configs/pilot_highgain_k20.yml (sim_linear d = 5, noise 0, n_tr = 1000,
 # t = 0.2, K = 20, seeds 0-199, store_per_sample on). Learners with fit-to-fit variability from random
 # initialisation / stochastic optimisation (MLPs, SGD), random features (RBF random Fourier features + Ridge),

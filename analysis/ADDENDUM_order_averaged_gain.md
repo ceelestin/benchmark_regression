@@ -1,6 +1,6 @@
 # Addendum (post hoc, 2026-09-26): pre-registered checks re-evaluated with the order-averaged gain
 
-NOT pre-registered. Decided by CE on 2026-09-26 after the gain decomposition
+NOT pre-registered. Decided on 2026-09-26 after the gain decomposition
 (analysis/GAIN_DECOMPOSITION.md) showed that the paper gain as implemented pooled the outer
 (hidden) chunks in ONE fixed order. At 50 seeds that single-split curve V1(alpha) swings between
 0.5 and 1.2 times its expectation, and the chunks are the same samples for every learner of a given

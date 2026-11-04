@@ -1,4 +1,4 @@
-"""Item 13 side check: Yelp gains, current pipeline (v5c) vs deterministic deduplication."""
+"""Yelp gains before and after the loader kept one run per seed (deterministic deduplication)."""
 import os, sys
 import pandas as pd
 # usage: python yelp_dedup_cmp.py OUT_BEFORE OUT_AFTER (the --out-dir of two fig5_yelp runs of

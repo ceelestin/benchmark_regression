@@ -1,13 +1,13 @@
-"""Item 10: ViT-B/16 vs the CNNs, benchmark accuracy per run set and size (mean, share of fits below 0.55 / 0.6)."""
+"""Section 4: ViT-B/16 vs the CNNs, benchmark accuracy per run set and size (mean, share of fits below 0.55 / 0.6)."""
 import glob, os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
 import datapaths
 import pandas as pd
 sets = {
-    "Mar 2026 (Fig 5, F.1, H.1)": glob.glob(datapaths.data_path("pcam", "results_output_pcam", "*shuffle_split*.parquet")),
-    "Jul 2026 (K.1, L.1)": glob.glob(datapaths.data_path("pcam", "stratandnewmetrics", "*.parquet")),
-    "Aug 2026 (App M)": glob.glob(datapaths.pcam_repo_path("results_output_pcam", "*_sizes_30_202608*.parquet")),
+    "Mar 2026 (Fig 5, I.1, N.1)": glob.glob(datapaths.data_path("pcam", "results_output_pcam", "*shuffle_split*.parquet")),
+    "Jul 2026 (J.1, K.1)": glob.glob(datapaths.data_path("pcam", "stratandnewmetrics", "*.parquet")),
+    "Aug 2026 (App L)": glob.glob(datapaths.pcam_repo_path("results_output_pcam", "*_sizes_30_202608*.parquet")),
     "Sep 2026 round 3 (D.2)": glob.glob(datapaths.pcam_repo_path("results_output_pcam", "pcam_results_CV_shuffle_split_unstrat_*_seeds_1[0-4][0-9]-*_sizes_*.parquet")),
 }
 rows = []

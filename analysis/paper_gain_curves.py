@@ -6,7 +6,7 @@ Estimator (paper, benchmark-aware plug-in): G_K = Var_s(delta_1) / Var_s(mean_{k
 MSE minus the benchmark MSE of the same predictor, variances across seeds; the single-holdout variance is that of
 the first split of the same CV runs (so G_1 = 1). Bands: 95 % percentile intervals, 100 bootstrap resamples of seeds.
 
-Usage (Jean-Zay): python analysis/paper_gain_curves.py --files A.parquet [B.parquet ...] --n-tr 1000 --kmax 20 \
+Usage: python analysis/paper_gain_curves.py --files A.parquet [B.parquet ...] --n-tr 1000 --kmax 20 \
     [--overlay-fixed] --out Images/aggregated_test_gain_k_1000_sim_linear_mse_K20.pdf
 """
 import argparse

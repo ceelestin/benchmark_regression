@@ -1,4 +1,4 @@
-"""Item 7: dataset parameters, seeds and solvers of every run file in <data root>/paper_runs."""
+"""Appendix F.1: dataset parameters, seeds and solvers of every run file in <data root>/paper_runs."""
 import glob, os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py

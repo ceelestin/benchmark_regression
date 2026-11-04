@@ -32,7 +32,7 @@ class Solver(BaseSolver):
         self.beta = beta
 
         # alpha is a scale parameter: sampled log-uniformly over [1e-4, 1e3]
-        # (CE, 2026-10-30), the range of Ridge_GridSearch's grid.
+        # the range of Ridge_GridSearch's grid.
         param_distributions = {"alpha": loguniform(1e-4, 1e3)}
 
         # random_state left unset so each split draws its own candidates.

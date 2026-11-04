@@ -1,4 +1,4 @@
-"""Table G.1 PCam rows: is D-bar the mean of the same per-seed differences whose standard deviation is s_D?"""
+"""Table M.1 PCam rows: is D-bar the mean of the same per-seed differences whose standard deviation is s_D?"""
 import glob, itertools, os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py

@@ -1,7 +1,7 @@
 # RANDOM FOURIER FEATURES (50, gamma 0.1, Ridge alpha 1e-3) FOR THE PAPER'S SIMULATED GAIN FIGURES ON MSE (2026-10-22,
-# CE: second high-gain learner beside MLP [64, 64], 50 features rather than 100). Same design as
+# a second high-gain learner beside MLP [64, 64], 50 features rather than 100). Same design as
 # configs/paper_main_gain_mse_k200_mlp64x64.yml, whose header follows:
-# MLP [64, 64] FOR THE PAPER'S MAIN SIMULATED SAMPLE-GAIN FIGURE ON MSE (2026-10-22, CE: Ridge, GB, ExtraTrees and
+# MLP [64, 64] FOR THE PAPER'S MAIN SIMULATED SAMPLE-GAIN FIGURE ON MSE (2026-10-22: Ridge, GB, ExtraTrees and
 # MLP [64, 64]). Same design as configs/paper_main_gain_mse_k200.yml (job 1426287, whose Ridge / GB / ExtraTrees
 # runs are reused); only the MLP architecture changes ([32] -> [64, 64], MSE gain ~10.8 vs ~6.8 at K = 20).
 objective:

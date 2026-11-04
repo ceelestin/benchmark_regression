@@ -2,7 +2,7 @@
 """Analysis of the redundancy-score DERIVATION experiments
 (configs/derivation_redundancy_levers_*.yml: regression job 49236, classification analog).
 
-Usage (login node, benchcv venv):
+Usage (requirements.txt environment):
     python analysis/derivation_levers_analysis.py --loss neg_mse \
         --glob "$DATA_ROOT/outputs/derivation_redundancy_levers_[sfr]*__c*.parquet" \
         --out-dir analysis/out_derivation_mse

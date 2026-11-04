@@ -1,6 +1,6 @@
-# TIMING RE-MEASUREMENT (2026-10-27, CE: option 3). Seeds 0-49 (5%) of the July run behind Appendix J, resampled
+# TIMING RE-MEASUREMENT (2026-10-27). Seeds 0-49 (5%) of the July run behind Appendix H, resampled
 # (July run 2026-07-27_21h01m05), re-run on Jean-Zay with the objective's eval_time column, so that fit + evaluation
-# time per run can be summed and scaled to the 1,000 seeds of the original run for Table E.2.
+# time per run can be summed and scaled to the 1,000 seeds of the original run for Table F.2.
 objective:
   - Regression:
       n_splits: [20]

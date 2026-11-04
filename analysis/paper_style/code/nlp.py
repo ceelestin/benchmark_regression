@@ -108,7 +108,7 @@ def load_nlp_data(directories: list[str]) -> pd.DataFrame:
         print(f"Runs of nlpfinetuning_aligned.py: {_n0} -> {len(data)} rows; seeds per (model, study set): "
               f"{data.groupby(_key[:2])['seed'].nunique().to_dict()}")
         return data
-    # One run per (model, size, seed, split count), chosen deterministically (CE, 2026-11-02): the Yelp K = 20 runs of
+    # One run per (model, size, seed, split count), chosen deterministically: the Yelp K = 20 runs of
     # seeds 0-19 exist twice (a run without benchmark scores and a later run with them); keep the run with the most
     # benchmark scores, ties broken by the latest file name, and drop exact copies of a file found in two folders.
     _key = [c for c in ("model_arg_choice", "study_set_size", "seed", "n_splits_cv") if c in data.columns]
@@ -169,7 +169,7 @@ def _infer_cross_validation(data: pd.DataFrame) -> pd.Series:
 
 def _pairwise_ttest_table(data_nocv_base, data_cv, *, test_size, K, pair=("bert", "roberta"), out="results",
                           all_splits=False):
-    """Table G.1 rows: paired t-test of the per-seed benchmarking-set scores of the single-split models (mean D and
+    """Table M.1 rows: paired t-test of the per-seed benchmarking-set scores of the single-split models (mean D and
     standard deviation s_D of the same per-seed differences), and the share of seeds in which the single split and
     K-split CV rank the higher-mean network first. With *all_splits* (runs of nlpfinetuning_aligned.py, every split
     benchmark-scored), the per-seed score is the mean over all the splits of the seed. Written to
@@ -194,7 +194,7 @@ def _pairwise_ttest_table(data_nocv_base, data_cv, *, test_size, K, pair=("bert"
                      "n_seeds_cv": len(cv)})
     table = pd.DataFrame(rows)
     if not table.empty:
-        print("\nPaired t-test on the single-split benchmarking-set scores (Table G.1):")
+        print("\nPaired t-test on the single-split benchmarking-set scores (Table M.1):")
         print(table.to_string(index=False))
         os.makedirs(out, exist_ok=True)
         table.to_csv(os.path.join(out, "pairwise_ttest_nlp.csv"), index=False)
@@ -368,7 +368,7 @@ def parse_args(argv=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _save_gains(res, save_dir, tag):
-    """Write a gain table (estimate rows bootstrap_iter = -1, draws >= 0) for the CI appendix (CE, 2026-10-31)."""
+    """Write a gain table (estimate rows bootstrap_iter = -1, draws >= 0) for the CI appendix (Appendix E)."""
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
         res.to_parquet(os.path.join(save_dir, re.sub(r"[^A-Za-z0-9_.-]+", "_", tag) + ".parquet"), index=False)
@@ -385,7 +385,7 @@ def main(
     hairlines=None,
     plugin_estimate=False,
     save_gains=None,
-    quasi_oracle="all-splits",  # CE, 2026-11-04: the quasi-oracle of the aligned runs averages all the splits
+    quasi_oracle="all-splits",  # the quasi-oracle of the aligned runs averages all the splits
 ):
     if hairlines:
         P.GAIN_DISPLAY["hairlines"] = hairlines
@@ -627,7 +627,7 @@ def main(
         bench_col='objective_score_bench',
         gt_score_col='objective_score_bench',
         cv_colors_retrieval=["#4C78A8", "#59A14F", "#E15759"],
-        retrieval_n_bootstraps=1000,  # 95% percentile intervals of Figure 7 from 1,000 draws (CE, 2026-11-02)
+        retrieval_n_bootstraps=1000,  # 95% percentile intervals of Figure 7 from 1,000 draws
         test_size=test_size,
         y_as_percent=True,
     )

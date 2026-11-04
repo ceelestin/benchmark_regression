@@ -1,4 +1,4 @@
-# MLP [64] TEST AT n_tr = 1,000, K = 20 (2026-10-30, CE: would a one-hidden-layer, 64-unit MLP give gains good enough to
+# MLP [64] TEST AT n_tr = 1,000, K = 20 (2026-10-30: would a one-hidden-layer, 64-unit MLP give gains good enough to
 # use one MLP architecture throughout the paper?). Same design as configs/paper_main_gain_mse_k200_mlp64x64.yml, with
 # K = 20 instead of 200 (compare with MLP [32]: 7.3, MLP [64, 64]: 9.2 at K = 20).
 objective:

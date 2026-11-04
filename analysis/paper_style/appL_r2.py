@@ -1,5 +1,6 @@
-"""App L: Ridge (alpha = 1613) gain on R^2 and on the MSE from the same runs (July 07-24_10h46m, 1,000 seeds, K = 20),
-paper estimator on all seeds, with the 95% percentile interval of 1,000 draws (CE, 2026-11-01)."""
+"""Appendix K: Ridge (alpha = 1613) gain on R^2 and on the MSE from the same runs (July run 07-24_10h46m24,
+configs/linear_1000_half1_K20_N1000.yml, 1,000 seeds, K = 20), paper estimator on all seeds, with the 95% percentile
+interval of 1,000 draws."""
 import glob, os, sys
 import numpy as np, pandas as pd, pyarrow.parquet as pq
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

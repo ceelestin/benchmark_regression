@@ -1,4 +1,4 @@
-"""Item 9: PCam n_tr = 24 (August batch): redundancy omega = t * mean_seed rho (OOF intersection, all 20 splits) per network x loss."""
+"""Appendix L: PCam n_tr = 24 (August runs, <data root>/pcam/ntr24): redundancy omega = t * mean_seed rho (OOF intersection, all 20 splits) per network x loss."""
 import glob, os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py

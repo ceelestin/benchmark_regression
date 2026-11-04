@@ -1,11 +1,12 @@
-"""Text numbers from the all-seeds estimate (CE, 2026-10-31)."""
+"""Numbers quoted in the text of Appendices G, K and L, from the estimate on all seeds (FIGS_DIR/sim/tables, and
+small_redundancy_k5.csv from redundancy_numbers.py)."""
 import glob, os, sys
 import numpy as np, pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import paper_style_figs as F
 import datapaths
 est = lambda r: r[r.bootstrap_iter < 0]
-# (a) App M
+# (a) Appendix L (small budgets)
 m = est(pd.read_parquet(datapaths.figs_path("sim", "tables", "figM1.parquet")))
 t = m[m.K.isin([5, 20])].pivot_table(index=["N", "solver_disp"], columns="K", values="sample_gain")
 t["ratio"] = t[20] / t[5]; print(t.round(2).unstack("solver_disp").to_string())
@@ -18,12 +19,12 @@ kap = {}
 for (n, l), r in t.iterrows():
     if l in w.columns: kap[(n, l)] = (20 / r[20] - 1) / 19 - w.loc[n, l]
 k = pd.Series(kap).unstack(); print(k.round(3).to_string()); print("mean kappa by N:", k.mean(axis=1).round(3).to_dict())
-# (b) App I: random-search MLP without its worst-fitting seeds
+# (b) Appendix G: random-search MLP without its worst-fitting seeds
 fr = F.read(sorted(glob.glob(f"{F.OUT}/hpo_mse_MLP_randomsearch__c*.parquet")))
 d = pd.concat(fr); mse = -d.objective_neg_mse_test; bad = set(d[mse > 10 * mse.median()].p_dataset_seed.astype(int))
 for lab, frames in (("all seeds", fr), (f"without {len(bad)} seeds", [x[~x.p_dataset_seed.astype(int).isin(bad)] for x in fr])):
-    r = F.gains(F.prepare(frames), 0, 0.20, plugin=True); print("App I random-search MLP", lab, "G20 =", round(float(r[r.K == 20].sample_gain.iloc[0]), 2))
-# (c) App L: MAE
+    r = F.gains(F.prepare(frames), 0, 0.20, plugin=True); print("App G random-search MLP", lab, "G20 =", round(float(r[r.K == 20].sample_gain.iloc[0]), 2))
+# (c) Appendix K: MAE
 for lab, files, solver in (("MLP(32)", sorted(glob.glob(f"{F.OUT}/paper_main_gain_mse_k200__c*.parquet")), F.MLP32),
                            ("RandomFeatures", sorted(glob.glob(f"{F.OUT}/paper_main_gain_mse_k200_rff50__c*.parquet")), None)):
     import pyarrow.parquet as pq
@@ -34,4 +35,4 @@ for lab, files, solver in (("MLP(32)", sorted(glob.glob(f"{F.OUT}/paper_main_gai
         fr2 = [pd.read_parquet(f, columns=keep) for f in files]
         fr2 = [x[(x.idx_rep < 20) & ((x.solver_name == solver) if solver else True)] for x in fr2]
         r = F.gains(F.prepare(fr2), 0, 0.20, plugin=True)
-        print(f"App L {lab} {met}: G20 = {float(r[r.K == 20].sample_gain.iloc[0]):.2f}", flush=True)
+        print(f"App K {lab} {met}: G20 = {float(r[r.K == 20].sample_gain.iloc[0]):.2f}", flush=True)

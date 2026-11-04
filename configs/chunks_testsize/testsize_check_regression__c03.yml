@@ -1,4 +1,4 @@
-# TEST-SIZE CHECK (2026-09-27; exploratory, NOT pre-registered; requested by CE). Does the factor
+# TEST-SIZE CHECK (2026-09-27; exploratory, NOT pre-registered). Does the factor
 # linking the loss correlation rho_e to the fold-error correlation (rho_delta ~ f * rho_e) follow the
 # test fraction t, as expected from the mean overlap of two random test folds (f = t)? Everything
 # else fixed; test fraction 0.1 / 0.2 / 0.3 / 0.5 at train sizes 300 and 1000 (train size fixed, so

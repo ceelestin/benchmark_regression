@@ -1,5 +1,5 @@
-"""LaTeX snippets of the Yelp re-run for the paper (Table G.1 rows, Table O.2 rows, Table E.2 rows) and the numbers
-quoted in the text, from the final outputs of regen_v3.py fig5_yelp_aligned. Writes paper_snippets.json."""
+"""LaTeX snippets of the Yelp re-run for the paper (Table M.1 rows, Table E.2 rows, Table F.2 rows) and the numbers
+quoted in the text, from the outputs of regen_real_data_gain_figures.py --only fig5_yelp_aligned. Writes paper_snippets.json."""
 import glob, json, os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
 import datapaths
@@ -8,7 +8,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else datapaths.figs_path("real")  # --out
 D = datapaths.data_path("nlp", "yelp_aligned")
 NEW = lambda x: "{\\NEWon " + x + "}"
 snip = {}
-# Table G.1
+# Table M.1
 g1 = pd.read_csv(f"{OUT}/work/nlp_aligned/results/pairwise_ttest_nlp.csv")
 NAMES = {"bert": "BERT", "roberta": "XLM-RoBERTa"}
 rows = []
@@ -19,7 +19,7 @@ for r in g1.itertuples():
         f"{100 * r.K20_cv_retrieval:.0f}\\%")) + " \\\\")
 snip["g1_rows"] = "\n\\midrule\n".join(rows)
 snip["g1"] = g1.round(5).to_dict("records")
-# Table O.2 (cells as ci_appendix.py)
+# Table E.2 (cells as ci_appendix.py)
 t = pd.read_parquet(f"{OUT}/tables/nlp_delta_aligned_with_qwen.parquet")
 t = t[t.N == 1250]
 o2 = {}
@@ -34,7 +34,7 @@ for m, g in t.groupby("model"):
         cells.append(f"${float(e.iloc[0]):.1f}{flag}$ {{\\scriptsize $[{lo:.1f},\\,{hi:.1f}]$}}")
     o2[m] = cells
 snip["o2"] = o2
-# Table E.2: recorded runtimes, hours
+# Table F.2: recorded runtimes, hours
 d = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(f"{D}/*.parquet"))], ignore_index=True)
 d["eval"] = d[["val_runtime", "test_runtime", "benchmark_runtime"]].sum(axis=1) + d["hidden_runtime"].fillna(0)
 e2 = {}

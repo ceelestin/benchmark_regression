@@ -1,4 +1,4 @@
-# PILOT: R^2-linearized redundancy (2026-10-22, CE's request).
+# PILOT: R^2-linearized redundancy (2026-10-22).
 # Same design as the paper's main simulated gain figure (sim_linear d = 5, noise 0, n_tr = 1000,
 # test fraction 0.2, four solvers), K = 20 splits, seeds 0-199. The objective now records
 # study_r2lin_* : the OOF-intersection loss correlation of the per-sample linearization of R^2,

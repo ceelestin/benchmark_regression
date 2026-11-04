@@ -2,7 +2,7 @@
 """Decompose the gap between the observed sample gain and the study-only closed form into
 additive log terms, one per mechanism, using the oracle (benchmark-set) quantities.
 
-Usage (Jean-Zay login node, benchcv venv):
+Usage (requirements.txt environment):
     python analysis/gain_decomposition.py --loss neg_mse --glob "<parquets>" --out-dir <dir>
     python analysis/gain_decomposition.py --loss accuracy --stat-loss nll --glob ... --out-dir ...
 

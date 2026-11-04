@@ -1,4 +1,4 @@
-"""Item 8: seeds per Yelp run set (CE copy real_data/data/nlp)."""
+"""Appendix F.3: seeds per Yelp run set (<data root>/nlp)."""
 import glob, os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py

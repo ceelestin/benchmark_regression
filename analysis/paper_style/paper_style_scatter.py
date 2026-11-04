@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Figures 7-8 of FIGURE_STYLE_SPEC.md (2026-10-28): the two redundancy scatters in the paper's scatter style.
+"""Figure 6 of the paper (redundancy_vs_gain_all_k3.pdf) and the whiskered configuration-level scatter of the
+pre-registered holdout, in the paper's scatter style.
 
-Values are unchanged from benchmark_regression analysis/paper_redundancy_main_figure.py (663 simulated
-configurations + 36 PCam) and analysis/paper_redundancy_config_figure.py (whiskered version, 243 configurations
-of the pre-registered holdout); only the formatting follows Section 4 of the spec.
-Run in $WORK/paper_style_figs with `module load pytorch-gpu/py3/2.8.0`.
+Values are those of analysis/paper_redundancy_main_figure.py (663 simulated configurations + 36 PCam) and
+analysis/paper_redundancy_config_figure.py (whiskered version, 243 configurations of the pre-registered holdout;
+no longer a figure of the paper); only the formatting differs. Reads this repository's analysis/out_omega*/ tables
+and the analysis outputs of the benchmark_pcam checkout.
 """
 from __future__ import annotations
 
@@ -30,7 +31,7 @@ import plot as P
 
 K, T = 20, 0.2
 REG = datapaths.repo_path("analysis")  # outputs of this repository's analysis scripts (out_omega*/)
-OMEGA_HOLDOUT = "out_omega_ci95"  # Figure D.2: holdout gains with 95% bootstrap intervals (out_omega: 90%, before 2026-11-02)
+OMEGA_HOLDOUT = "out_omega_ci95"  # whiskered holdout scatter: gains with 95% bootstrap intervals (out_omega: 90%)
 PCAM = datapaths.pcam_repo_path("analysis")  # analysis outputs of the benchmark_pcam checkout
 BLUES = ["#86b6ef", "#3987e5", "#1c5cab", "#0d366b"]
 BINS = [(0, 100, "50-100"), (101, 750, "300-750"), (751, 3000, "1,000-3,000"), (3001, 10**9, "5,000-10,000")]
@@ -89,7 +90,7 @@ def fig7(out):
     h1 = [Line2D([], [], marker="o", ls="", markerfacecolor=c, markeredgecolor="white", markersize=5.3) for c in BLUES]
     l1 = ax.legend(h1, [f"$n_{{\\mathrm{{tr}}}}$ {b[2]}" for b in BINS], loc="upper right", **LEG)
     ax.add_artist(l1)
-    # CE 2026-10-29: no second legend; markers and curve are described in the caption of Figure 6.
+    # No second legend: the markers and the curve are described in the caption of Figure 6.
     rs, rp = spearmanr(w, g).statistic, spearmanr(pc["omega3"], pc["G_paper_20"]).statistic
     corr_text(ax, [f"simulated: rank corr. = {rs:.2f}, $n$ = {len(d)}", f"PCam: rank corr. = {rp:.2f}, $n$ = {len(pc)}"])
     fig.savefig(out, format="pdf", bbox_inches="tight")
@@ -98,7 +99,7 @@ def fig7(out):
 
 
 def fig8(out):
-    d = pd.read_csv(f"{REG}/{OMEGA_HOLDOUT}/omega_holdout1_neg_mse.csv")  # 95% gain intervals (CE, 2026-11-02)
+    d = pd.read_csv(f"{REG}/{OMEGA_HOLDOUT}/omega_holdout1_neg_mse.csv")  # 95% gain intervals
     k = 3
     x, lo, hi = T * d[f"rho_e_mean_{k}"], T * d[f"rho_e_q10_{k}"], T * d[f"rho_e_q90_{k}"]
     g, n = d["G_paper"], d["p_obj_train_size"].astype(int)

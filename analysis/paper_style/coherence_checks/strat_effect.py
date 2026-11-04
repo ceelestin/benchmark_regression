@@ -1,4 +1,4 @@
-"""Item 6 (CE, 2026-11-02): what stratified splitting changes on PCam (stratandnewmetrics, study set 500, n_tr 400,
+"""Appendix J: what stratified splitting changes on PCam (stratandnewmetrics, study set 500, n_tr 400,
 100 seeds, K = 20, paired by seed: same study set, only the fold partition differs).
 Per network x metric, on the benchmark-adjusted fold score delta_k = test_k - bench_k:
   V1  = Var_seeds(delta_1)            single split (first fold)

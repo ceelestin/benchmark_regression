@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Paper-style MSE versions of the simulated gain-vs-K figures.
 
-Redraws, on the mean squared error, the orchestrator's figures of 2026-10-22
-(benchmark_regression analysis/paper_gain_curves.py, outputs in
-$SCRATCH/paper_figs_mse on Jean-Zay) with the paper's own pipeline, so that they
+Redraws, on the mean squared error, the figures of analysis/paper_gain_curves.py (2026-10-22) with the
+paper's own pipeline, so that they
 match the existing Images/aggregated_test_gain_k_*_sim_linear_*_r2_*.pdf:
 
 * estimator: compute.build_nocv_cache + compute.sample_gain_bootstrap, i.e. the
@@ -17,21 +16,21 @@ match the existing Images/aggregated_test_gain_k_*_sim_linear_*_r2_*.pdf:
   map is needed because simulated.py colours by sorted solver order, which would
   recolour MLP and Ridge once KernelApprox is added.
 
-Data (same runs as the orchestrator):
+Data (same runs as analysis/paper_gain_curves.py):
   n_tr = 1000, K = 200, resampled: job 1426287 (Ridge, GB, ExtraTrees; its MLP[32] is
       dropped), MLP[64, 64] job 1446474, random features (KernelApprox, rff, 50) job 1453342
-      -> Run outputs/Regression/data/mse_paper_figs/orchestrator_mse_runs_extract.parquet
+      -> <data root>/mse_paper_figs/orchestrator_mse_runs_extract.parquet
   n_tr = 100, K = 20: Ridge / GB / ExtraTrees from the July runs (MLP[32] dropped),
       MLP[64, 64] and random features from the same extract.
-      --fixed-source orchestrator (default): fixed arm = benchopt_run_2026-07-27_20h48m32,
-          the run the orchestrator used, in which the DATASET is frozen too (p_dataset_fixed
+      --fixed-source samedata (default; former name: orchestrator): fixed arm = benchopt_run_2026-07-27_20h48m32,
+          the run analysis/paper_gain_curves.py used, in which the DATASET is frozen too (p_dataset_fixed
           = True), like its new MLP / random-feature fixed runs.
-      --fixed-source corrected: fixed arm = benchopt_run_2026-07-27_21h00m32 (dataset
+      --fixed-source redrawn (former name: corrected): fixed arm = benchopt_run_2026-07-27_21h00m32 (dataset
           varies across seeds, the design the paper uses); MLP[64, 64] and random features
           then have no fixed arm, since no such run exists for them.
       Resampled arm: benchopt_run_2026-07-27_21h01m05 in both cases.
 
-Usage: python mse_gain_figures.py [--fixed-source orchestrator|corrected] [--out-dir DIR]
+Usage: python mse_gain_figures.py [--fixed-source samedata|redrawn] [--out-dir DIR]
 """
 from __future__ import annotations
 
@@ -62,7 +61,7 @@ _TAB10 = plt.get_cmap("tab10").colors
 FAMILY_COLOR = {"ExtraTrees": _TAB10[0], "GradientBoosting": _TAB10[1], "MLP": _TAB10[2],
                 "Ridge": _TAB10[3], "RandomFeatures": _TAB10[4]}
 DISPLAY = {"KernelApprox": "RandomFeatures"}
-DROP_SOLVERS = {"MLP[hidden_layer_sizes=[32]]"}       # replaced by MLP[64, 64], as the orchestrator did
+DROP_SOLVERS = {"MLP[hidden_layer_sizes=[32]]"}       # replaced by MLP[64, 64], as in analysis/paper_gain_curves.py
 COLS = ["objective_name", "solver_name", "dataset_name", "idx_rep", "p_obj_procedure", "p_obj_n_splits",
         "p_obj_train_size", "p_obj_fixed_split", "p_dataset_seed", "p_dataset_noise", "p_dataset_fixed",
         "objective_neg_mse_test", "objective_neg_mse_bench", "objective_outer_neg_mse"]
@@ -188,11 +187,14 @@ def figures(res: pd.DataFrame, out_dir: str, tag: str, n_splits_max: int = 200) 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--fixed-source", choices=["orchestrator", "corrected"], default="orchestrator")
+    ap.add_argument("--fixed-source", choices=["samedata", "redrawn", "orchestrator", "corrected"], default="samedata",
+                    help="fixed arm at n_tr = 100: same dataset at every seed, or data redrawn (orchestrator and corrected are "
+                         "the former names of these two choices)")
     ap.add_argument("--out-dir", default=DEFAULT_OUT)
     ap.add_argument("--n-bootstraps", type=int, default=100)
     ap.add_argument("--test-size", type=float, default=0.20)
     a = ap.parse_args()
+    a.fixed_source = {"samedata": "orchestrator", "redrawn": "corrected"}.get(a.fixed_source, a.fixed_source)
     os.makedirs(a.out_dir, exist_ok=True)
     tag = "" if a.fixed_source == "orchestrator" else "_correctedfixed"
     data = load(a.fixed_source)

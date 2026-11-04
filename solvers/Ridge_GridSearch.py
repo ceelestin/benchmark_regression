@@ -31,7 +31,7 @@ class Solver(BaseSolver):
         self.cat_ind = categorical_indicator
         self.beta = beta
 
-        # 12 log-spaced values over [1e-4, 1e3] (CE, 2026-10-30): the same number of
+        # 12 log-spaced values over [1e-4, 1e3]: the same number of
         # candidates as the MLP and ExtraTrees searches.
         param_grid = {"alpha": np.logspace(-4, 3, 12)}
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Jean-Zay SLURM job array for the Ridge grid/random-search HPO experiment on MSE (configs/hpo_mse_Ridge_*.yml, Figure I.1).
+# Jean-Zay SLURM job array for the Ridge grid/random-search HPO experiment on MSE (configs/hpo_mse_Ridge_*.yml, Figure G.1).
 #
 # Each array task runs benchopt on ONE seed-chunk config (see make_chunks.py)
 # on ONE full cpu_p1 node (40 cores), with 40 single-core benchopt workers.

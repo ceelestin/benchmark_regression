@@ -1,4 +1,4 @@
-# RANDOM FEATURES GRIDSEARCH HPO EXPERIMENT (2026-10-30, CE: a learner whose tuning procedures separate in Figure I.1).
+# RANDOM FEATURES GRIDSEARCH HPO EXPERIMENT (2026-10-30: a learner whose tuning procedures separate in Figure G.1).
 # Same objective, data and seeds as configs/hpo_mse_MLP_gridsearch.yml; 50 random Fourier features, gamma in [0.01, 0.3]
 # and Ridge alpha in [1e-4, 1e-2] (12 candidates, 3-fold inner CV), selected by sklearn default score.
 objective:

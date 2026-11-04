@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""Figure D.1 regenerated from the current runs (coherence item 19, option (i); CE, 2026-11-04).
+"""Figure D.1: fold-error correlation against the sample gain, from the current runs.
 
 Estimated fold-error correlation rho_delta = tau_te / sigma2_te|K against the observed sample gain at K = 20, with the
 ICC curve K / (1 + (K - 1) rho_delta). tau_te and sigma2_te|K are the ANOVA estimates of compute.compute_tau
 (tau = B - W / K, sigma2 = W + tau) on the per-split delta-scores (test-fold score minus the same predictor's
 benchmarking-set score) of the first K = 20 splits of every seed. G_20 is the estimate on all seeds (bootstrap_iter
-= -1) that the paper's figures and Appendix O report.
+= -1) that the paper's figures and Appendix E report.
 
 Configurations, each on the metric of its gain figure:
   simulated linear process, mean squared error: the four learners of Figure 4 (Ridge, ExtraTrees, MLP (32),
-    RandomFeatures) at n_tr = 1,000 (1,000 seeds) and n_tr = 100 (resampled arm of Figure J.1, 1,000 seeds);
+    RandomFeatures) at n_tr = 1,000 (1,000 seeds) and n_tr = 100 (resampled arm of Figure H.1, 1,000 seeds);
   PCam, accuracy: the four networks at n_tr = 24, 80, 240, 400, 640 (MCCV, unstratified, 50 seeds; Figure 5 middle,
-    Figure F.1);
+    Figure I.1);
   Yelp, accuracy: BERT and XLM-RoBERTa at n_tr = 1,000 and 3,000 (re-run on the PCam protocol, 50 seeds), Qwen3-0.6B
     at n_tr = 1,000 (50 seeds).
-Writes figD1_rho_delta.csv and rho_delta_vs_gain.pdf to --out-dir.
-Run on Jean-Zay in $WORK/paper_style_figs/v3 with `module load pytorch-gpu/py3/2.8.0`.
+Writes figD1_rho_delta.csv and rho_delta_vs_gain.pdf to --out-dir. Reads the run outputs under the data root and the
+gain tables written by paper_style_figs.py (--sim-gain-dir) and regen_real_data_gain_figures.py (--real-dir).
 """
 import argparse
 import glob
@@ -35,7 +35,7 @@ import compute
 import datapaths
 import mse_gain_figures as T
 import plot as P
-import paper_style_figs as H  # the repo copy of paper_style_figs_v4h.py
+import paper_style_figs as H
 
 K = 20
 SIM_SOLVERS = {"Ridge[alpha=1613]": "Ridge", "ExtraTrees_noHPO[n_estimators=200]": "ExtraTrees",

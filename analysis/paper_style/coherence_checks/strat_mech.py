@@ -1,4 +1,4 @@
-"""Item 6: is ViT-B/16 near a constant predictor at n_tr = 400? Benchmark (oracle) scores per network, and the spread
+"""Appendix J: is ViT-B/16 near a constant predictor at n_tr = 400? Benchmark (oracle) scores per network, and the spread
 of fold-1 test accuracy across seeds (a constant predictor's test accuracy is the class share of the fold)."""
 import glob, os
 import sys

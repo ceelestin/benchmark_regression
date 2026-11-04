@@ -1,4 +1,5 @@
-"""Item 9: PCam n_tr = 24 gains (paper estimator, plug-in on all seeds + 200 bootstrap draws) vs App M's claims."""
+"""Appendix L: PCam n_tr = 24 gains (paper estimator, plug-in on all seeds + 200 bootstrap draws) vs the text's claims.
+Reads the gain tables of pcam.py --save-gains on the August n_tr = 24 runs (FIGS_DIR/pcam24/tables)."""
 import os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py

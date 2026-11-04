@@ -1,4 +1,4 @@
-"""Coverage of the 95% percentile bootstrap intervals of G_K (CE, 2026-10-30).
+"""Coverage of the 95% percentile bootstrap intervals of G_K (Appendix E).
 
 Figure 4 data (n_tr = 1,000, 1,000 seeds; Ridge, ExtraTrees, MLP (32), RandomFeatures; K <= 20). Reference:
 the gain computed on all 1,000 seeds (no resampling). Seeds are split into disjoint groups of m (50 = real-data

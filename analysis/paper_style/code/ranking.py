@@ -1,8 +1,8 @@
 # %% ──────────────────────────────────────────────────────────────────────────
-# ranking.py — Ranking-Equivalent Sample Gain (paper Appendix H)
+# ranking.py — Ranking-Equivalent Sample Gain (paper Appendix O)
 #
 # Computes the *ranking-equivalent sample gain* G^rank_{K,alpha} for the
-# ExtraTrees family of solvers and reproduces the two panels of Figure H.1:
+# ExtraTrees family of solvers and reproduces the two panels of Figure O.1:
 #
 #   (a) the distribution of G^rank_{K,alpha=0.95} as a function of the number of
 #       splits K, aggregated over the family's ordered model pairs;
@@ -12,7 +12,7 @@
 # The oracle ranking inside a family is fixed by hyperparameter monotonicity:
 # for ExtraTrees, more estimators -> lower oracle risk -> better, so the oracle
 # order is n_estimators 200 > 20 > 2. This pins the per-pair oracle direction
-# without any benchmark-set estimate (cf. Appendix H).
+# without any benchmark-set estimate (cf. Appendix O).
 # ─────────────────────────────────────────────────────────────────────────────
 import argparse
 import os
@@ -51,13 +51,13 @@ DEFAULT_DATA_PATHS = [
 DEFAULT_PLOTS_DIR = "plots/ranking"
 DEFAULT_RESULTS_DIR = "results"
 
-# Number of CV splits K shown on the plots (x-axis of H.1a, curve set of H.1b).
+# Number of CV splits K shown on the plots (x-axis of O.1a, curve set of O.1b).
 SPLIT_COUNTS = [1, 2, 3, 5, 10, 20, 50, 100, 200]
 
-# Ranking-retrieval confidence level alpha (the dashed threshold of H.1b).
+# Ranking-retrieval confidence level alpha (the dashed threshold of O.1b).
 ALPHA = 0.95
 
-# Bootstrap resamples over seeds used to build the gain distribution (H.1a).
+# Bootstrap resamples over seeds used to build the gain distribution (O.1a).
 N_BOOTSTRAPS = 500
 
 # Family specification: how to recognise a solver family and how its
@@ -73,7 +73,7 @@ FAMILIES = {
 DEFAULT_FAMILIES = ["ExtraTrees"]
 
 # Ranking modes to run:
-#   'pairwise' — paper Appendix H: each ordered pair scored independently.
+#   'pairwise' — paper Appendix O: each ordered pair scored independently.
 #   'full'     — a retrieval counts only if the *whole* family ranking is
 #                recovered (e.g. n_estimators 200 > 20 > 2).
 DEFAULT_RANKING_MODES = ["pairwise", "full"]
@@ -213,7 +213,7 @@ def add_cv_means(df: pd.DataFrame, split_counts) -> pd.DataFrame:
 
 
 # %% ──────────────────────────────────────────────────────────────────────────
-# Ranking retrieval (paper eq. H.1)
+# Ranking retrieval (paper eq. O.1)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def comparison_groups(params, higher_is_better, mode):
@@ -221,7 +221,7 @@ def comparison_groups(params, higher_is_better, mode):
 
     ``members`` is the oracle order best -> worst.
 
-    - ``mode='pairwise'`` (paper Appendix H): one 2-member group per ordered
+    - ``mode='pairwise'`` (paper Appendix O): one 2-member group per ordered
       pair, e.g. ``(200, 20)``; retrieval is correct when that pair is ordered
       right.
     - ``mode='full'``: a single group holding the whole family, e.g.
@@ -284,7 +284,7 @@ def build_correct(df_fam: pd.DataFrame, groups, split_counts):
 
 def family_retrieval_curve(correct_df: pd.DataFrame, n_bootstraps: int = 0,
                            random_state: int = 0) -> pd.DataFrame:
-    """Pool retrieval over all groups and seeds -> family curve pi_K(N) (H.1b).
+    """Pool retrieval over all groups and seeds -> family curve pi_K(N) (O.1b).
 
     With ``n_bootstraps > 0``, also returns 95% ``ci_low``/``ci_high`` columns
     from a non-parametric bootstrap over seeds (the comparison groups are first
@@ -318,7 +318,7 @@ def family_retrieval_curve(correct_df: pd.DataFrame, n_bootstraps: int = 0,
 
 
 # %% ──────────────────────────────────────────────────────────────────────────
-# Threshold-crossing study size N*_{K,alpha} (paper Def H.1)
+# Threshold-crossing study size N*_{K,alpha} (paper eq. O.2)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def threshold_crossing_N(N_grid, pi, alpha: float) -> float:
@@ -362,7 +362,7 @@ def threshold_table(matrices, groups, split_counts, alpha) -> pd.DataFrame:
 
 
 # %% ──────────────────────────────────────────────────────────────────────────
-# Ranking-equivalent sample gain + seed bootstrap (paper Def H.2, Figure H.1a)
+# Ranking-equivalent sample gain + seed bootstrap (paper eq. O.3, Figure O.1a)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def compute_gain_distribution(
@@ -405,7 +405,7 @@ def plot_retrieval_vs_studysize(
     curve_df, alpha, split_counts, family, mode="pairwise", thin=True,
     output_path=None
 ):
-    """Figure H.1(b): family retrieval curves pi_K(N) vs study size N.
+    """Figure O.1(b): family retrieval curves pi_K(N) vs study size N.
 
     With ``thin=True`` the curves are plotted only on a 1-2-5 log ladder of
     study sizes (see :func:`_log_thin_1_2_5`); the threshold-crossing N* and the
@@ -450,7 +450,7 @@ def plot_retrieval_vs_studysize(
 
 def plot_ranking_gain_violin(gain_df, split_counts, family, mode="pairwise",
                              output_path=None):
-    """Figure H.1(a): distribution of G^rank_{K,alpha} vs number of splits K."""
+    """Figure O.1(a): distribution of G^rank_{K,alpha} vs number of splits K."""
     ks = [k for k in split_counts if k in gain_df["K"].unique()]
     color = FAMILY_COLORS.get(family, "#4E9D63")
     order = [str(k) for k in ks]
@@ -547,7 +547,7 @@ def analyze_family(data, family, split_counts, alpha, n_bootstraps,
 
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(
-        description="Ranking-equivalent sample gain (paper Appendix H).")
+        description="Ranking-equivalent sample gain (paper Appendix O).")
     parser.add_argument("--data-paths", nargs="+", default=DEFAULT_DATA_PATHS)
     parser.add_argument("--plots-dir", default=DEFAULT_PLOTS_DIR)
     parser.add_argument("--results-dir", default=DEFAULT_RESULTS_DIR)
@@ -558,7 +558,7 @@ def parse_args(argv=None):
                         choices=list(FAMILIES.keys()))
     parser.add_argument("--ranking-mode", nargs="+", default=DEFAULT_RANKING_MODES,
                         choices=["pairwise", "full"],
-                        help="'pairwise' (paper Appendix H) and/or 'full' "
+                        help="'pairwise' (paper Appendix O) and/or 'full' "
                              "(whole-family ranking must be exactly recovered).")
     return parser.parse_args(argv)
 

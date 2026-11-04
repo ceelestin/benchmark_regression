@@ -1,4 +1,4 @@
-"""Redundancy (t * rho on the squared error, OOF intersection) for the App I / App M text pass (2026-10-30)."""
+"""Redundancy (t * rho on the squared error, OOF intersection) quoted in Appendices G and L."""
 import glob, os, sys
 import numpy as np, pandas as pd, pyarrow.parquet as pq
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "code"))
@@ -12,7 +12,7 @@ def load(files, solver=None):
 def red(d, k):
     x = d[d.idx_rep == k - 1]
     return (x.p_obj_test_size.astype(float) * x[RHO]).groupby([x.solver_name, x.p_obj_train_size]).mean()
-print("== App I (n_tr = 1,000), after 3 / 5 splits")
+print("== App G (n_tr = 1,000), after 3 / 5 splits")
 sets = {"MLP(32) fixed": load(sorted(glob.glob(f"{O}/paper_main_gain_mse_k200__c0[0-3].parquet")), "MLP[hidden_layer_sizes=[32]"),
         "MLP(64,64) fixed": load(sorted(glob.glob(f"{O}/paper_main_gain_mse_k200_mlp64x64__c0[0-3].parquet"))),
         "ExtraTrees fixed": load(sorted(glob.glob(f"{O}/paper_main_gain_mse_k200__c0[0-3].parquet")), "ExtraTrees"),
@@ -21,7 +21,7 @@ sets = {"MLP(32) fixed": load(sorted(glob.glob(f"{O}/paper_main_gain_mse_k200__c
         "ExtraTrees grid/random": load([J.format("07-27_12h40m37"), J.format("07-27_12h47m49")])}
 for lab, d in sets.items():
     print(f"  {lab:22s} k=3: {red(d, 3).round(3).to_dict()} | k=5: {red(d, 5).round(3).to_dict()}", flush=True)
-print("== App M (small budgets), after 5 splits")
+print("== App L (small budgets), after 5 splits")
 sm = pd.concat([load([J.format(t) for t in ("07-31_19h02m17", "07-31_21h05m17", "07-31_19h07m06", "07-31_21h07m56")]),
                 load(sorted(glob.glob(f"{O}/small_budget_mlp64_rff50__c*.parquet")))])
 w = red(sm, 5).unstack(0).round(3); print(w.to_string())

@@ -5,13 +5,13 @@ x_k is the test fraction t times the loss-correlation factor rho_e of the paper'
 redundancy score omega-hat (eq. study-loss-correlation), computed from the first k
 splits of ONE CV run on the gain's own metric (squared error for the MSE gain,
 0-1 error for the accuracy gain, NLL for the NLL gain), then averaged over the seeds
-of a configuration.  The orchestrator's finding is that the sample gain follows the
+of a configuration.  The sample gain follows the
 ICC curve G_K ~ K / (1 + (K-1) x_k) on both benchmarks (simulated and PCam).
 
 Inputs: the configuration-level tables written by benchmark_regression
 analysis/omega_gain_relation.py (omega_<set>_<loss>.csv) and
-analysis/pcam_consistency_check.py (pcam_<loss>_k<k>.csv), pulled from the NFS to
-"Run outputs/Regression/orchestrator_analysis/analysis".  Their gain is the paper's
+analysis/pcam_consistency_check.py (pcam_<loss>_k<k>.csv), in this repository's analysis/ folder.  Their gain is the
+paper's
 order-averaged G^test_20 on delta scores (fold score minus benchmark score).
 
 Outputs (PDF + PNG), in the style of Images/rho_delta_vs_gain.pdf and
@@ -56,7 +56,7 @@ GROUPS = {
     "sim_clf": ("Synthetic classification", "^", "#55A868"),
     "pcam": ("PCam", "s", "#DD8452"),
 }
-# Which orchestrator tables feed which group (gain loss <-> redundancy loss are matched).
+# Which configuration tables feed which group (gain loss <-> redundancy loss are matched).
 SIM_SETS = {
     "neg_mse": ["derivation", "holdout1", "holdout2", "holdout3", "coupling"],
     "accuracy": ["derivation_clf", "holdout2_clf", "holdout3_clf", "coupling_clf", "sweep_clf"],
@@ -404,7 +404,7 @@ def main() -> None:
     summary: list[str] = [
         f"Study-only statistic x_{k} = t * rho_e,{k} (t = {T}), gain = paper G^test_20 on delta scores, K = {K}.",
         "Sources: benchmark_regression analysis/out_omega*/omega_<set>_<loss>.csv and "
-        "out_pcam_consistency/pcam_<loss>_k<k>.csv (orchestrator, NFS snapshot).",
+        "out_pcam_consistency/pcam_<loss>_k<k>.csv.",
         "Per-configuration values are means over seeds; the gain CIs in those tables are 90% and are not drawn.",
     ]
 

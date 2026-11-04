@@ -1,5 +1,5 @@
 """Sanity checks of the runs of nlpfinetuning_aligned.py: completeness, scores, collapsed splits, outer chunks,
-redundancy columns, recorded runtimes (Table E.2)."""
+redundancy columns, recorded runtimes (Table F.2)."""
 import glob, os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
 import datapaths

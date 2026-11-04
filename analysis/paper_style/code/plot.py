@@ -36,8 +36,8 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedFormatter, FixedLocator, MaxNLocator, ScalarFormatter
 from matplotlib.transforms import Bbox
 
-# Uncertainty display of the sample-gain-vs-K figures (CE, 2026-10-29). With ``hairlines`` set, the line
-# is the mean of all bootstrap replicates (drawn bold) and a fixed random subset of the replicates is drawn
+# Uncertainty display of the sample-gain-vs-K figures. With ``hairlines`` set, the line is the estimate on the
+# original seeds when the table holds it (see _estimate_and_replicates), else the mean of the bootstrap replicates (drawn bold) and a fixed random subset of the replicates is drawn
 # as thin translucent lines in the curve's colour; the y-axis is cut at a high quantile of the replicates.
 # Pipelines that cannot pass arguments to the plot (pcam.py / nlp.py) set GAIN_DISPLAY["hairlines"].
 GAIN_DISPLAY = {
@@ -48,7 +48,7 @@ GAIN_DISPLAY = {
     "mean_linewidth": 2.2,
     "y_top_quantile": 0.99,
     # "quantile": y top at y_top_quantile of all replicates; "mean": just above the highest mean curve
-    # (by y_top_margin), whatever the replicates do (CE, 2026-10-30).
+    # (by y_top_margin), whatever the replicates do.
     "y_top": "mean",
     "y_top_margin": 0.08,
     "replicate_col": "bootstrap_iter",
@@ -56,7 +56,7 @@ GAIN_DISPLAY = {
 
 
 def _estimate_and_replicates(df):
-    """Split a gain table into the thick-line rows and the bootstrap replicates (CE, 2026-10-31).
+    """Split a gain table into the thick-line rows and the bootstrap replicates.
 
     Rows with a negative replicate index hold the estimate on the original seeds
     (``compute.sample_gain_bootstrap(..., plugin_estimate=True)``); when present they are the thick line, and the
@@ -690,7 +690,7 @@ def plot_sample_gain_facets(
     margins: tuple[float, float, float, float] = (0.53, 0.51, 0.10, 0.10),
     gaps: tuple[float, float] = (0.20, 0.20),
 ) -> plt.Figure:
-    """One panel per ``panel_col`` level (e.g. network), its ``style_col`` levels overlaid (CE, 2026-10-29).
+    """One panel per ``panel_col`` level (e.g. network), its ``style_col`` levels overlaid.
 
     Same display as plot_sample_gain_vs_splits with hairlines: bold mean of all replicates per style, a
     fixed random subset of replicates as hairlines, shared y-axis cut at a high quantile of the replicates.
@@ -707,7 +707,7 @@ def plot_sample_gain_facets(
                                  sharey=True, sharex=True, squeeze=False)
     else:
         # Every panel gets exactly ``axes_size`` inches, the axes of a single-panel gain figure, so that panels
-        # print at the same size as those figures (CE, 2026-10-30). Margins (left, bottom, right, top) and gaps
+        # print at the same size as those figures. Margins (left, bottom, right, top) and gaps
         # (between columns, between rows) are in inches; inner tick labels are hidden, as with sharex/sharey.
         (aw, ah), (ml, mb, mr, mt), (gw, gh) = axes_size, margins, gaps
         fw, fh = ml + ncols * aw + (ncols - 1) * gw + mr, mb + nrows * ah + (nrows - 1) * gh + mt
@@ -760,7 +760,7 @@ def plot_sample_gain_facets(
     legend = axes[0].legend(handles=handles, loc="upper left", title="", frameon=False)
     _style_legend_halo(legend, title=None)
     # Learner name inside each panel, in its colour, placed by the paper's label placer next to the first-style
-    # curve and away from the other style's curve, the legend and other texts (CE, 2026-10-30).
+    # curve and away from the other style's curve, the legend and other texts.
     for ax, lv in zip(axes, panel_order):
         g = _estimate_and_replicates(results_df[results_df[panel_col] == lv])[0]
         first = g[g[style_col] == style_order[0]]
@@ -2259,7 +2259,7 @@ def plot_predicted_vs_observed_gain(
 
 
 # ---------------------------------------------------------------------------
-# plot_replicability_curves  (significance-decision replicability, rebuttal)
+# plot_replicability_curves  (significance-decision replicability, Appendix N)
 # ---------------------------------------------------------------------------
 
 def plot_replicability_curves(

@@ -1,4 +1,4 @@
-# RERUN OF THE PAPER'S PROSPECTIVE REDUNDANCY HOLDOUT DESIGN (2026-10-03, CE's go).
+# RERUN OF THE PAPER'S PROSPECTIVE REDUNDANCY HOLDOUT DESIGN (2026-10-03).
 # Same design as benchopt_run_2026-05-04_12h45m52 (216 configurations: 3 families x 3 noise levels
 # x 3 training sizes x 8 solvers, K = 200, 150,000 samples, 20 features, test fraction 0.2), with the
 # current objective (records MSE and NLL scores, cumulative study-only statistics) and FRESH seeds

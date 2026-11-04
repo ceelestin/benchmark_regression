@@ -1,4 +1,4 @@
-"""Item 13 side check: which duplicated Yelp run feeds the K-split side in nlp.py (Jean-Zay file order)."""
+"""Which duplicated Yelp run feeds the K-split side in nlp.py (Jean-Zay file order)."""
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
 import datapaths

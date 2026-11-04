@@ -2,7 +2,7 @@
 ANOVA rho_delta = tau / sigma2 (tau = B - W/K, sigma2 = W + tau) on the first K = 20 splits, for:
   A. PCam round 3 (seeds 100-149), 4 networks x n_tr 100/300/800 x accuracy/NLL/Brier (Table D.2, Figure 6);
   B. the simulated designs of Figure 6 still on disk (holdout1, holdout3), mean squared error;
-  C. the HPO runs of Appendix I (mean squared error);
+  C. the HPO runs of Appendix G (mean squared error);
   D. the implied rho (K/G_true - 1)/(K - 1) of the decomposition CSVs, by design (all four designs of Figure 6).
 Read-only."""
 import glob, os, sys
@@ -100,7 +100,7 @@ if "B" in part:
 if "C" in part:
     hp = sorted(glob.glob(datapaths.data_path("outputs", "hpo_mse_*__c*.parquet")))
     print("HPO files in outputs:", len(hp), sorted({os.path.basename(f).split("__c")[0] for f in hp}))
-    c = sim_rho(datapaths.data_path("outputs", "hpo_mse_*__c*.parquet"), "C. HPO (Appendix I)")
+    c = sim_rho(datapaths.data_path("outputs", "hpo_mse_*__c*.parquet"), "C. HPO (Appendix G)")
     c.to_csv("rho_hpo.csv", index=False)
 
 if "D" in part:

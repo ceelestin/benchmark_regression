@@ -1,4 +1,4 @@
-# SECOND HIGH-GAIN FAMILY ON THE MAIN DESIGN, MSE (2026-10-22, CE: before updating the paper, find a second
+# SECOND HIGH-GAIN FAMILY ON THE MAIN DESIGN, MSE (2026-10-22: before updating the paper, find a second
 # algorithm with big gains besides MLP [64, 64]). Same design as configs/pilot_realistic_k20.yml (sim_linear d = 5,
 # noise 0, n_tr = 1000, t = 0.2, K = 20, seeds 0-199, store_per_sample on). Realistic learners with fit-to-fit
 # randomness and little systematic error: weakly regularised kernel approximations (random Fourier features,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Paper figure (Appendix D.2): configuration-level gain G_20 (MSE) against the redundancy omega_k = t * rho_e,k on
+"""Former paper figure (Appendix D.2, Figure D.2; no longer in the paper): configuration-level gain G_20 (MSE) against the redundancy omega_k = t * rho_e,k on
 the pre-registered holdout (job 101294, analysis/out_omega/omega_holdout1_neg_mse.csv), with the reference curve
 K / (1 + (K-1) omega). Point = mean over the 50 single runs of a configuration, colour = training size; black
 markers = median and interquartile range of the configurations in each redundancy bin, placed at the bin's median redundancy; the dotted lines mark the

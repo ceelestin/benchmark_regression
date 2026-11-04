@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Jean-Zay SLURM job array for the RandomFeatures (50) frozen split, data redrawn, n_tr = 100 (configs/paper_ntr100_k20_fixed_redrawn_rff50.yml, Figure J.1).
+# Jean-Zay SLURM job array for the RandomFeatures (50) frozen split, data redrawn, n_tr = 100 (configs/paper_ntr100_k20_fixed_redrawn_rff50.yml, Figure H.1).
 #
 # Each array task runs benchopt on ONE seed-chunk config (see make_chunks.py)
 # on ONE full cpu_p1 node (40 cores), with 40 single-core benchopt workers.

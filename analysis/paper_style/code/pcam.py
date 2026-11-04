@@ -311,7 +311,7 @@ def parse_args(argv=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _save_gains(res, save_dir, tag):
-    """Write a gain table (estimate rows bootstrap_iter = -1, draws >= 0) for the CI appendix (CE, 2026-10-31)."""
+    """Write a gain table (estimate rows bootstrap_iter = -1, draws >= 0) for the CI appendix (Appendix E)."""
     if save_dir:
         os.makedirs(save_dir, exist_ok=True)
         res.to_parquet(os.path.join(save_dir, re.sub(r"[^A-Za-z0-9_.-]+", "_", tag) + ".parquet"), index=False)
@@ -498,7 +498,7 @@ def main(
             study_sizes=study_sizes,
             extra_cv_cols=['stratified'],
             # The size label of these runs is the study set; the paper reports n_tr, the training and validation
-            # subsets together, i.e. (1 - test_size) x study set, as for Yelp (CE, 2026-11-02).
+            # subsets together, i.e. (1 - test_size) x study set, as for Yelp.
             compute_train_size=True,
         )
         res = res.copy()
@@ -578,7 +578,7 @@ def main(
         for sval in strat_values:
             res_s = res[res['stratified'] == sval]
             if 'cv_procedure' in res_s.columns:
-                # One procedure per curve (CE, 2026-10-29): Repeated K-Fold is compared with MCCV in its
+                # One procedure per curve: Repeated K-Fold is compared with MCCV in its
                 # own figure, not pooled with MCCV draws here.
                 res_s = res_s[res_s['cv_procedure'] == 'MCCV']
             if res_s.empty:

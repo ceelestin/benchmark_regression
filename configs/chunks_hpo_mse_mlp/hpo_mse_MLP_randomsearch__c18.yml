@@ -1,4 +1,4 @@
-# MSE RE-RUN OF THE MLP RANDOMSEARCH HPO EXPERIMENT (2026-10-26, CE: re-launch the appendix experiments that used
+# MSE RE-RUN OF THE MLP RANDOMSEARCH HPO EXPERIMENT (2026-10-26: re-launch the appendix experiments that used
 # R^2 so that they report MSE). Identical to configs/config_hpo_test_MLP_randomsearch.yml (runs of 2026-07-23, which
 # predate MSE recording); the solver is unchanged, so candidates are still selected by sklearn's default score.
 objective:

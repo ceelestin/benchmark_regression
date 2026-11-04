@@ -1,3 +1,4 @@
+"""Appendix F.1: dataset parameters of the per-sample and R^2-linearised pilot runs (Appendix K)."""
 import glob, os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py

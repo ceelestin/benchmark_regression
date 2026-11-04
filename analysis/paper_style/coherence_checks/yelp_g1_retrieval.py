@@ -1,4 +1,4 @@
-"""Problem 1: Table G.1 Yelp K = 20 CV retrieval (share of seeds where 20-split CV ranks BERT above XLM-RoBERTa), deduplicated vs first-listed."""
+"""Table M.1: Yelp K = 20 CV retrieval (share of seeds where 20-split CV ranks BERT above XLM-RoBERTa), deduplicated vs first-listed."""
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
 import datapaths

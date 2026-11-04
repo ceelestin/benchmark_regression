@@ -1,5 +1,5 @@
 # RANDOM FOURIER FEATURES (50, gamma 0.1, Ridge alpha 1e-3) FOR THE PAPER'S SIMULATED GAIN FIGURES ON MSE (2026-10-22,
-# CE: second high-gain learner beside MLP [64, 64], 50 features rather than 100). Same design as
+# a second high-gain learner beside MLP [64, 64], 50 features rather than 100). Same design as
 # configs/paper_ntr100_k20_resampled_mlp64x64.yml, whose header follows:
 # MLP [64, 64] FOR THE PAPER'S n_tr = 100 FIXED-vs-RESAMPLED-SPLIT GAIN FIGURE ON MSE (2026-10-22). Same design as the
 # July runs benchopt_run_2026-07-27_21h01m05 (configs/linear_1000_K20_new_unfixed.yml, with

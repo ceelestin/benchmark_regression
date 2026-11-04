@@ -1,6 +1,6 @@
-"""Item 9 (CE, 2026-11-02): probability that the redundancy is defined after k splits, i.e. that some pair of the first
+"""Appendix L: probability that the redundancy is defined after k splits, i.e. that some pair of the first
 k random test folds shares at least two held-out observations (exact fold geometry, Monte Carlo).
-Reproduces Appendix M's 60% / 95% at n_tr = 20 (study 25, folds of 5) and gives 73% / 99% for PCam at n_tr = 24
+Reproduces Appendix L's 60% / 95% at n_tr = 20 (study 25, folds of 5) and gives 73% / 99% for PCam at n_tr = 24
 (study 30, folds of 6)."""
 import random
 

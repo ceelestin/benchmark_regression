@@ -1,4 +1,4 @@
-"""Problem 2: verify the gains above K in Figure 6 and the noise-injection grid's implied fold-error correlation."""
+"""Appendix D.1: verify the gains above K in Figure 6 and the noise-injection grid's implied fold-error correlation."""
 import glob, os
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py

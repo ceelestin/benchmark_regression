@@ -1,4 +1,4 @@
-"""Table E.2 rows of the Yelp re-run: recorded training and evaluation runtimes (hours, as the older Yelp rows) per
+"""Table F.2 rows of the Yelp re-run: recorded training and evaluation runtimes (hours, as the older Yelp rows) per
 model, both sizes together, and the scheduler's GPU-hours of the two arrays (sacct, one GPU per task)."""
 import glob, os, subprocess
 import sys

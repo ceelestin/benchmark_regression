@@ -1,7 +1,7 @@
 """
-replicability.py — Significance-decision replicability curves (rebuttal experiment).
+replicability.py — Significance-decision replicability curves (Appendix N).
 
-Answers the reviewer point that variance is ultimately used in significance tests: for
+Variance is ultimately used in significance tests: for
 each headline pair (the comparisons in the paper's significance table) and study size,
 we measure how often the K-repetition significance decision on the small study set
 matches the oracle decision from the large benchmarking set, as a function of K — plus

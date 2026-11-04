@@ -1,4 +1,4 @@
-"""Which data reproduce Table G.1's Yelp paired t-test columns (D-bar, s_D, t, p)?"""
+"""Which data reproduce Table M.1's Yelp paired t-test columns (D-bar, s_D, t, p)?"""
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
 import datapaths
