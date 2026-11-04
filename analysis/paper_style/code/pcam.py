@@ -720,10 +720,11 @@ def main(
                 'single split needs to match CV variance'
             ),
         }
-        var_k_ped = (
-            df_diag_all_k.groupby(['model', 'study_size', 'k'])[ped_config['nocv_col']]
-            .var().reset_index(name='variance')
-        )
+        # 2026-11-04: the single-split curve of the gain estimator, averaged over the order of the outer chunks
+        # (compute.v1_alpha_curve_long; chunk_order='stored' / $GAIN_CHUNK_ORDER=stored gives the variance at each k
+        # in the stored order, as before). Only MobileNetV2 is drawn.
+        var_k_ped = compute.v1_alpha_curve_long(
+            df_diag_all_k[df_diag_all_k['model'] == 'mobilenet_v2'], ['model', 'study_size'], ped_config['nocv_col'])
         var_k_ped['x_axis_val'] = var_k_ped['k'].apply(lambda k: ped_config['x_transform'](k, test_size))
         var_cv_ped = (
             cv_diag.groupby(['model', 'study_size', 'procedure', 'n_splits'])[ped_config['cv_col']]

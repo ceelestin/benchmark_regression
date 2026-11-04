@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""[v4, 2026-10-30 (CE): GradientBoosting dropped; Figure J.1 as one panel per learner (2 x 2); Figure M.1 with the
+"""[2026-11-04 (CE: "go for the order-averaged estimator everywhere"): every gain uses the single-split curve averaged
+exactly over the order of the outer chunks (code/compute.py, chunk_order default 'average'); --chunk-order stored
+reproduces the values before. --bootstrap-range START STOP computes only those draws of a group and writes them as
+sample_gain_bootstrap_<group>.part<START>-<STOP>.parquet (login node: each process under the 30-min CPU limit;
+the parts concatenated are identical to one run); --from-results then assembles the parts of a group. The code
+directory is ./code next to this script, or $PAPER_STYLE_CODE. Current paper numbering of the outputs: Figure 4
+(_mse_full), Figure 5 left (_mse_K20; the paper's panel is redrawn by fig5_common_axis.py), Figure G.1 (_hpo,
+table figI1), Figure H.1 (fixedsplit_overlay, table figJ1), Figure L.1 (small_label_*, table figM1).]
+[v4, 2026-10-30 (CE): GradientBoosting dropped; Figure J.1 as one panel per learner (2 x 2); Figure M.1 with the
 main-text learners (Ridge and ExtraTrees from the July sweeps, MLP (64, 64) and RandomFeatures from
 small_budget_mlp64_rff50), gains for all eight budgets; --groups / --from-results to recompute only some groups.]
 [v3, 2026-10-29: 1,000 bootstrap draws with random_state 0; bold mean + 20 hairlines per curve
@@ -21,7 +29,7 @@ import math
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "code"))
+sys.path.insert(0, os.environ.get("PAPER_STYLE_CODE") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "code"))
 
 import matplotlib
 matplotlib.use("Agg")
@@ -39,8 +47,8 @@ import simulated as SIM
 N_BOOT, SEED, HAIR = 1000, 0, 20      # v3
 
 
-def gains(data, n_bootstraps, test_size, random_state=SEED, plugin=False):
-    """mse_gain_figures.gains, unchanged except for random_state (v3)."""
+def gains(data, n_bootstraps, test_size, random_state=SEED, plugin=False, chunk_order=None, bootstrap_range=None):
+    """mse_gain_figures.gains, unchanged except for random_state (v3), chunk_order and bootstrap_range (oa)."""
     data_cv = data[data["procedure"].isin(["ShuffleSplit", "RepeatedKFold"])].sort_values(
         ["objective_name", "solver_name", "dataset_name", "idx_rep"]).copy()
     nocv_base = data_cv[data_cv["idx_rep"] == 0].copy()
@@ -60,7 +68,8 @@ def gains(data, n_bootstraps, test_size, random_state=SEED, plugin=False):
         n_bootstraps=n_bootstraps, method="absolute", test_size=test_size, nocv_cache=cache,
         models_to_analyze=None, study_sizes=sorted(data_cv["train_size"].unique()),
         size_col="train_size", dataset_col="dataset_type", extra_cv_cols=["fixed_split"],
-        compute_train_size=False, random_state=random_state, plugin_estimate=plugin)
+        compute_train_size=False, random_state=random_state, plugin_estimate=plugin,
+        chunk_order=chunk_order, bootstrap_range=bootstrap_range)                                   # 2026-11-04
     res.attrs = {}
     return res
 
@@ -98,35 +107,65 @@ def prepare(frames):
     return data
 
 
-def groups():
+def _group_loaders():
+    """oa: the groups of v4h as loaders (nothing is read until called)."""
     g = {}
-    g["n1000"] = read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")), drop={MLP32}) \
+    g["n1000"] = lambda: read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")), drop={MLP32}) \
         + read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200_mlp64x64__c*.parquet"))) \
         + read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200_rff50__c*.parquet"))) \
         + read(sorted(glob.glob(f"{OUT}/hpo_mse_MLP_*__c*.parquet"))) \
         + read([JULY.format("07-27_12h40m37"), JULY.format("07-27_12h47m49")])
-    g["n100"] = read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")], drop={MLP32}) \
+    g["n100"] = lambda: read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")], drop={MLP32}) \
         + read(sorted(glob.glob(f"{OUT}/paper_ntr100_k20_*_mlp64x64__c*.parquet"))) \
         + read(sorted(glob.glob(f"{OUT}/paper_ntr100_k20_*_rff50__c*.parquet")))
-    g["small"] = read([JULY.format("07-31_19h07m06"), JULY.format("07-31_21h07m56")]) \
+    g["small"] = lambda: read([JULY.format("07-31_19h07m06"), JULY.format("07-31_21h07m56")]) \
         + read(sorted(glob.glob(f"{OUT}/small_budget_mlp64_rff50__c*.parquet")))
     # v4c (CE, 2026-10-30): Ridge grid/random search for Figure I.1, in its own group so that the bootstrap
     # draws (one RNG per group) of the n1000 curves already in the paper do not change.
-    g["hpo_ridge"] = read(sorted(glob.glob(f"{OUT}/hpo_mse_Ridge_*__c*.parquet")))
+    g["hpo_ridge"] = lambda: read(sorted(glob.glob(f"{OUT}/hpo_mse_Ridge_*__c*.parquet")))
     # v4e (CE, 2026-10-30): Figure M.1 back to the one-hidden-layer MLP (32 units) of the July small-budget runs,
     # in its own group so that the bootstrap draws of the other small-budget curves do not change.
-    g["small_mlp32"] = read([JULY.format("07-31_19h02m17"), JULY.format("07-31_21h05m17")], drop={"GradientBoosting[n_estimators=200]"})
+    g["small_mlp32"] = lambda: read([JULY.format("07-31_19h02m17"), JULY.format("07-31_21h05m17")], drop={"GradientBoosting[n_estimators=200]"})
     # v4f (CE, 2026-10-30): one MLP throughout the paper, the one-hidden-layer MLP (32 units) of the redundancy
     # experiments; its runs at n_tr = 1,000 (job 1426287) and n_tr = 100 (July sweeps) get their own groups so that
     # the bootstrap draws of the other curves do not change. MLP [64, 64] rows are dropped from every figure.
-    g["mlp32_n1000"] = [f[f.solver_name == MLP32] for f in read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")))]
-    g["mlp32_n100"] = [f[f.solver_name == MLP32] for f in read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")])]
+    g["mlp32_n1000"] = lambda: [f[f.solver_name == MLP32] for f in read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")))]
+    g["mlp32_n100"] = lambda: [f[f.solver_name == MLP32] for f in read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")])]
     # v4g (CE, 2026-10-30): Figure J.1's frozen arm from runs that redraw the data at every seed, as the reshuffled
     # arm does (July 21h00m32 for Ridge / ExtraTrees / MLP (32), job 1747862 for RandomFeatures), in its own group.
-    g["frozen_redrawn"] = read([JULY.format("07-27_21h00m32")], drop={"GradientBoosting[n_estimators=200]"}) \
+    g["frozen_redrawn"] = lambda: read([JULY.format("07-27_21h00m32")], drop={"GradientBoosting[n_estimators=200]"}) \
         + read(sorted(glob.glob(f"{OUT}/paper_ntr100_k20_fixed_redrawn_rff50__c*.parquet")))
-    g["hpo_rff"] = read(sorted(glob.glob(f"{OUT}/hpo_mse_RandomFeatures_*__c*.parquet")))    # v4d, same reason
+    g["hpo_rff"] = lambda: read(sorted(glob.glob(f"{OUT}/hpo_mse_RandomFeatures_*__c*.parquet")))    # v4d, same reason
     return g
+
+
+def groups(only=None):
+    """oa: the same groups as v4h, read lazily (only those named in *only*; None = all)."""
+    return {k: f() for k, f in _group_loaders().items() if only is None or k in only}
+
+
+def each_group(names):
+    """oa: (name, frames) for the groups in *names*, in v4h's order, one group in memory at a time
+    (the login node allows 5 GB per user)."""
+    for k, f in _group_loaders().items():
+        if k in names:
+            yield k, f()
+
+
+def load_draws(d, name, n_bootstraps):
+    """oa: sample_gain_bootstrap_<name>.parquet, or its parts (--bootstrap-range runs) concatenated in order."""
+    f = f"{d}/sample_gain_bootstrap_{name}.parquet"
+    if os.path.exists(f):
+        return pd.read_parquet(f)
+    parts = sorted(glob.glob(f"{d}/sample_gain_bootstrap_{name}.part*-*.parquet"))
+    if not parts:
+        raise SystemExit(f"no draws for group {name} in {d}")
+    rng_ = [tuple(int(v) for v in os.path.basename(p).split(".part")[1].split(".")[0].split("-")) for p in parts]
+    order = sorted(range(len(parts)), key=lambda i: rng_[i])
+    edges = [rng_[i] for i in order]
+    if edges[0][0] != 0 or edges[-1][1] != n_bootstraps or any(a[1] != b[0] for a, b in zip(edges, edges[1:])):
+        raise SystemExit(f"group {name}: parts {edges} do not cover 0..{n_bootstraps} contiguously")
+    return pd.concat([pd.read_parquet(parts[i]) for i in order], ignore_index=True)
 
 
 def disp(res, mlp_label="MLP"):
@@ -158,8 +197,24 @@ def main():
     ap.add_argument("--hpo-learners", nargs="+", default=["MLP", "ExtraTrees"], help="learners of Figure I.1 (v4d)")
     ap.add_argument("--y-top", choices=["quantile", "mean"], default="mean")
     ap.add_argument("--groups", nargs="*", default=["n1000", "n100", "small"], help="groups to compute (others are loaded; none = redraw only)")
+    ap.add_argument("--chunk-order", choices=compute.CHUNK_ORDERS, default=None,
+                    help="V1(alpha) averaged over the order of the chunks (default) or in their stored order; default $GAIN_CHUNK_ORDER, else average")
+    ap.add_argument("--bootstrap-range", nargs=2, type=int, default=None, metavar=("START", "STOP"),
+                    help="oa: compute only these draws of --groups, write them as parts and stop (no figures)")
     a = ap.parse_args()
+    a.chunk_order = compute.resolve_chunk_order(a.chunk_order)                                     # 2026-11-04
     os.makedirs(a.out_dir, exist_ok=True)
+    with open(f"{a.out_dir}/CHUNK_ORDER.txt", "a") as fh:                                           # 2026-11-04: provenance
+        fh.write(f"chunk_order={a.chunk_order} n_bootstraps={a.n_bootstraps} groups={a.groups} "
+                 f"plugin_groups={a.plugin_groups} bootstrap_range={a.bootstrap_range}\n")
+    if a.bootstrap_range is not None:                                                               # 2026-11-04: one chunk of draws
+        lo, hi = a.bootstrap_range
+        for name, frames in each_group(a.groups):
+            if name in a.groups:
+                r = gains(prepare(frames), a.n_bootstraps, 0.20, chunk_order=a.chunk_order, bootstrap_range=(lo, hi))
+                r.to_parquet(f"{a.out_dir}/sample_gain_bootstrap_{name}.part{lo:05d}-{hi:05d}.parquet", index=False)
+                print("draws", name, lo, hi, len(r), flush=True)
+        return
     P.set_paper_style()
     P.GAIN_DISPLAY["y_top"] = a.y_top
     res = {}
@@ -167,28 +222,29 @@ def main():
     swap = lambda r, m32: pd.concat([r[r["solver_name"] != M6464], m32], ignore_index=True)       # v4f
     for name in ("n1000", "n100", "small", "hpo_ridge", "hpo_rff", "small_mlp32", "mlp32_n1000", "mlp32_n100", "frozen_redrawn"):
         if name not in a.groups:
-            res[name] = pd.read_parquet(f"{a.from_results}/sample_gain_bootstrap_{name}.parquet")
+            res[name] = load_draws(a.from_results, name, a.n_bootstraps)                            # 2026-11-04: parts too
     # v5 (CE, 2026-10-31): the thick line is the estimate on all seeds. It is computed separately (no draws) and
     # stored as sample_gain_plugin_<group>.parquet; the stored draws are unchanged, since computing the estimate
     # does not use the random generator.
     if a.plugin_groups:
-        for name, frames in groups().items():
+        for name, frames in each_group(a.plugin_groups):                                        # 2026-11-04: one at a time
             if name in a.plugin_groups:
-                pe = gains(prepare(frames), 0, 0.20, plugin=True)
+                pe = gains(prepare(frames), 0, 0.20, plugin=True, chunk_order=a.chunk_order)      # 2026-11-04
                 pe.to_parquet(f"{a.out_dir}/sample_gain_plugin_{name}.parquet", index=False)
                 print("plugin", name, len(pe), flush=True)
+                del frames                                                                          # 2026-11-04: memory
     for name in list(res):
         for d_ in (a.from_results, a.out_dir):
             f_ = f"{d_}/sample_gain_plugin_{name}.parquet" if d_ else None
             if f_ and os.path.exists(f_):
                 res[name] = pd.concat([res[name], pd.read_parquet(f_)], ignore_index=True)
                 break
-    for name, frames in groups().items():
+    for name, frames in each_group(a.groups):                                                    # 2026-11-04: one at a time
         if name not in a.groups:
             continue
         data = prepare(frames)
         print(name, data.groupby(["train_size", "fixed_split", "solver_name"]).seed.nunique().to_string(), flush=True)
-        r = gains(data, a.n_bootstraps, 0.20)
+        r = gains(data, a.n_bootstraps, 0.20, chunk_order=a.chunk_order)                           # 2026-11-04
         r.to_parquet(f"{a.out_dir}/sample_gain_bootstrap_{name}.parquet", index=False)
         res[name] = r
     f = lambda t: f"$y = X\\beta$, $n_{{\\mathrm{{tr}}}}={t}$"

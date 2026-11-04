@@ -52,6 +52,10 @@ GAIN_DISPLAY = {
     "y_top": "mean",
     "y_top_margin": 0.08,
     "replicate_col": "bootstrap_iter",
+    # (2026-11-04, item 32) fixed y range and y ticks, so that separately drawn panels of one figure (Figure 5)
+    # share the same axis: ylim = (bottom, top), yticks = list. None = per-figure axis, as before.
+    "ylim": None,
+    "yticks": None,
 }
 
 
@@ -593,6 +597,10 @@ def plot_sample_gain_vs_splits(
         ax.set_ylim(top=top)
     elif ylim_top is not None:
         ax.set_ylim(top=ylim_top)
+    if GAIN_DISPLAY.get("ylim") is not None:                        # 2026-11-04: panels sharing one y axis
+        ax.set_ylim(*GAIN_DISPLAY["ylim"])
+    if GAIN_DISPLAY.get("yticks") is not None:
+        ax.yaxis.set_major_locator(FixedLocator(GAIN_DISPLAY["yticks"]))
 
     if title_text is not None:
         # clip_on keeps the in-axes "fake title" from expanding the tight-bbox
@@ -980,14 +988,29 @@ def plot_pedagogical_variance_diagnostic_paper_style(
     cv_colors: list | None = None,
     x_scale: Literal["linear", "log"] = "linear",
     output_path: str | None = None,
+    x_right: float | None = None,
+    major_ticks: list[float] | None = None,
+    curve_label_xy: tuple[float, float] | None = None,
+    cv_label_xy: dict | None = None,
+    crossing_label_row: dict | None = None,
+    figsize: tuple[float, float] | None = None,
 ) -> plt.Figure:
-    """Cleaner paper-style version of the pedagogical variance diagnostic."""
+    """Cleaner paper-style version of the pedagogical variance diagnostic.
+
+    Optional layout overrides (2026-11-04, Figure 2 of the paper; None = automatic, as before): *x_right* the right
+    end of the x axis; *major_ticks* the numbered x ticks; *curve_label_xy* the (x, y) data position of the
+    "Single split + extra test data" label (its bottom centre); *cv_label_xy* {K: (x, y, ha)} data positions of the
+    "CV, K=..." labels; *crossing_label_row* {K: points} extra downward offset of the G^test_K label under the axis;
+    *figsize* the figure size in inches.
+    """
     if cv_colors is None:
         cv_colors = ["#4C78A8", "#59A14F", "#E15759"][:len(target_splits)]
+    x_right_arg = x_right
+    major_ticks_arg = major_ticks
 
     curve = var_k_df[[x_col, var_col]].dropna().sort_values(x_col)
     fig_width = 3.55 if x_scale == "log" else 3.2
-    fig, ax = plt.subplots(figsize=(fig_width, 2.8))
+    fig, ax = plt.subplots(figsize=figsize if figsize is not None else (fig_width, 2.8))
 
     ax.plot(
         curve[x_col],
@@ -1036,6 +1059,8 @@ def plot_pedagogical_variance_diagnostic_paper_style(
         )
     else:
         x_right = x_lim[1]
+    if x_right_arg is not None:
+        x_right = float(x_right_arg)
     x_left = x_lim[0]
 
     curve_in_view = curve[(curve[x_col] >= x_left) & (curve[x_col] <= x_right)]
@@ -1084,6 +1109,8 @@ def plot_pedagogical_variance_diagnostic_paper_style(
                 label_ha = "center"
             else:
                 label_ha = "right"
+        if cv_label_xy and K_split in cv_label_xy:
+            label_x, label_y, label_ha = cv_label_xy[K_split]
         ax.text(
             label_x,
             label_y,
@@ -1094,10 +1121,12 @@ def plot_pedagogical_variance_diagnostic_paper_style(
 
     if curve_x.size:
         label_x = x_left + 0.38 * (x_right - x_left)
-        label_y = np.interp(label_x, curve_x, curve_y)
+        label_y = np.interp(label_x, curve_x, curve_y) * 1.55
+        if curve_label_xy is not None:
+            label_x, label_y = curve_label_xy
         ax.text(
             label_x,
-            label_y * 1.55,
+            label_y,
             "Single split\n+ extra test data",
             color="#5F5F5F", fontsize=8.2, ha="center", va="bottom",
             path_effects=halo,
@@ -1140,6 +1169,8 @@ def plot_pedagogical_variance_diagnostic_paper_style(
             major_ticks = sorted({*major_ticks, *extra_ticks})
     else:
         major_ticks = major_tick_candidates
+    if major_ticks_arg is not None:
+        major_ticks = list(major_ticks_arg)
     ax.set_xticks(major_ticks)
     ax.xaxis.set_major_formatter(ScalarFormatter())
     if crossings:
@@ -1154,10 +1185,14 @@ def plot_pedagogical_variance_diagnostic_paper_style(
         )
         ax.tick_params(axis="x", which="major", pad=4)
         ax.tick_params(axis="x", which="minor", length=0, pad=4)
-        for label, (_, _, _, color) in zip(ax.get_xticklabels(minor=True), crossings):
+        for label, (K_split, _, _, color) in zip(ax.get_xticklabels(minor=True), crossings):
             label.set_color(color)
             label.set_fontsize(7.8 if x_scale == "log" else 8.5)
             label.set_path_effects(halo)
+            if crossing_label_row and crossing_label_row.get(K_split):
+                from matplotlib.transforms import ScaledTranslation
+                label.set_transform(label.get_transform()
+                                    + ScaledTranslation(0, -crossing_label_row[K_split] / 72, fig.dpi_scale_trans))
     ax.set_xlabel(xlabel, labelpad=7, fontsize=9.5)
     ax.set_ylabel("Estimation error variance")
     ax.grid(False)

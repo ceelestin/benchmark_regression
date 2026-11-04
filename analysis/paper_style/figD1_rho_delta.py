@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Figure D.1 regenerated from the current runs (coherence item 19, option (i); CE, 2026-11-04).
 
+[2026-11-04, order-averaged estimator everywhere: G_20 from the order-averaged gain tables (--sim-gain-dir,
+--pcam-gain, --yelp-aligned-gain, --qwen-gain); y axis to 15 with a tick at 14 (ViT-B/16 at n_tr = 24 reaches 14.0).
+The code directory is ./code next to this script (or $PAPER_STYLE_CODE); the simulated runs are read as in
+paper_style_figs.py.]
+
 Estimated fold-error correlation rho_delta = tau_te / sigma2_te|K against the observed sample gain at K = 20, with the
 ICC curve K / (1 + (K - 1) rho_delta). tau_te and sigma2_te|K are the ANOVA estimates of compute.compute_tau
 (tau = B - W / K, sigma2 = W + tau) on the per-split delta-scores (test-fold score minus the same predictor's
@@ -22,9 +27,10 @@ import glob
 import os
 import sys
 
-V = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(V, "code"))
-sys.path.insert(0, V)
+HERE = os.path.dirname(os.path.abspath(__file__))
+V = os.path.expandvars("$WORK/paper_style_figs/v3")
+sys.path.insert(0, os.environ.get("PAPER_STYLE_CODE") or os.path.join(HERE, "code"))
+sys.path.insert(0, HERE)
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -34,7 +40,7 @@ import pandas as pd
 import compute
 import mse_gain_figures as T
 import plot as P
-import paper_style_figs as H  # the repo copy of paper_style_figs_v4h.py
+import paper_style_figs as H  # the simulated runs, read as for Figures 4 and 5
 
 K = 20
 SIM_SOLVERS = {"Ridge[alpha=1613]": "Ridge", "ExtraTrees_noHPO[n_estimators=200]": "ExtraTrees",
@@ -139,8 +145,8 @@ def draw(df, path):
     ax.xaxis.set_major_locator(FixedLocator([0.03, 0.05, 0.1, 0.2]))
     ax.xaxis.set_minor_locator(NullLocator())
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
-    ax.set_ylim(3, 13.5)
-    ax.set_yticks([4, 6, 8, 10, 12])
+    ax.set_ylim(3, 15)
+    ax.set_yticks([4, 6, 8, 10, 12, 14])
     ax.set_xlabel(r"Fold-error correlation $\widehat\rho_\delta$")
     ax.set_ylabel(r"Test sample gain $G^{\mathrm{test}}_{20}$")
     ax.grid(color="0.9", lw=0.6)
@@ -172,12 +178,14 @@ def main():
     ap.add_argument("--sim-gain-dir", default=f"{V}/final_sim_v5")
     ap.add_argument("--pcam-tau", default=f"{V}/final_real_v5c/work/pcam/results/tau_gain_pcam.parquet")
     ap.add_argument("--pcam-gain", default=f"{V}/final_real_v5c/tables/pcam_accuracy.parquet")
+    ap.add_argument("--yelp-aligned-tau", default=f"{V}/final_yelp_aligned/work/nlp_aligned/results/tau_gain_nlp.parquet")
+    ap.add_argument("--yelp-aligned-gain", default=f"{V}/final_yelp_aligned/tables_aligned/nlp_delta.parquet")
+    ap.add_argument("--qwen-tau", default=f"{V}/final_real_dedup/work/nlp/results/tau_gain_nlp.parquet")
+    ap.add_argument("--qwen-gain", default=f"{V}/final_real_dedup/tables/nlp_delta.parquet")
     a = ap.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)
-    yelp = yelp_rows([(f"{V}/final_yelp_aligned/work/nlp_aligned/results/tau_gain_nlp.parquet",
-                       f"{V}/final_yelp_aligned/tables_aligned/nlp_delta.parquet", ["bert", "roberta"]),
-                      (f"{V}/final_real_dedup/work/nlp/results/tau_gain_nlp.parquet",
-                       f"{V}/final_real_dedup/tables/nlp_delta.parquet", ["qwen3-0.6b"])])
+    yelp = yelp_rows([(a.yelp_aligned_tau, a.yelp_aligned_gain, ["bert", "roberta"]),
+                      (a.qwen_tau, a.qwen_gain, ["qwen3-0.6b"])])
     df = pd.concat([simulated_rows(a.sim_gain_dir), pcam_rows(a.pcam_tau, a.pcam_gain), yelp], ignore_index=True)
     df["rho_delta"] = df.tau_te / df.sigma2_te_K
     df["icc_gain"] = K / (1 + (K - 1) * df.rho_delta)

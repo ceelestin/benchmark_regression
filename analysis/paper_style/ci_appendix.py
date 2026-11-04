@@ -3,11 +3,20 @@ gain figure, from the tables saved by the figure scripts (CE, 2026-10-31). Print
 # PCam sizes are n_tr = 0.8 x study set (study sets 300 and 500 -> 240 and 400; CE, 2026-11-02)
 import os
 import numpy as np, pandas as pd
+# 2026-11-04 (order-averaged estimator everywhere): the table folders are options; the defaults are the
+# order-averaged outputs of paper_style_figs.py and regen_real_data_gain_figures.py in final_oa/ (1,000 draws each).
+import argparse
 V = os.path.expandvars("$WORK/paper_style_figs/v3")
-S, R = f"{V}/final_sim_v5/tables", f"{V}/final_real_v5c/tables"
-R_NLP = f"{V}/final_real_dedup/tables"  # Yelp gains with one run per seed (CE, 2026-11-03)
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--sim-tables", default=f"{V}/final_oa/sim/tables")
+_ap.add_argument("--real-tables", default=f"{V}/final_oa/real/tables")
+_ap.add_argument("--nlp-tables", default=f"{V}/final_oa/real/tables")
+_ap.add_argument("--nlp-aligned-tables", default=f"{V}/final_oa/real/tables")
+_a = _ap.parse_args()
+S, R = _a.sim_tables, _a.real_tables
+R_NLP = _a.nlp_tables  # Yelp gains with one run per seed (CE, 2026-11-03)
 # BERT and XLM-RoBERTa re-run on the PCam protocol, Qwen3-0.6B as published (regen_v3.py fig5_yelp_aligned)
-R_NLP_ALIGNED = f"{V}/final_yelp_aligned/tables"
+R_NLP_ALIGNED = _a.nlp_aligned_tables
 PCAM = {"densenet121": "DenseNet121", "mobilenet_v2": "MobileNetV2", "wide_resnet101_2": "WideResNet101\\_2", "vit_b_16": "ViT-B/16"}
 NLP = {"bert": "BERT", "roberta": "XLM-RoBERTa", "qwen3-0.6b": "Qwen3-0.6B"}
 tt = lambda x: "\\texttt{" + x + "}"

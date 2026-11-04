@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""[v3, 2026-10-29: 1,000 bootstrap draws with random_state 0; bold mean + hairlines (code/plot.py GAIN_DISPLAY);
+"""[2026-11-04 (CE: "go for the order-averaged estimator everywhere"): the single-split curve V1(alpha) is averaged
+exactly over the order of the outer chunks (code/compute.py, chunk_order default 'average', v1_alpha_curve) in every
+gain. --chunk-order stored (or $GAIN_CHUNK_ORDER=stored) reproduces the values before; --n-bootstraps overrides the
+1,000 draws (checks only). The order used is set in $GAIN_CHUNK_ORDER for the pcam.py / nlp.py subprocesses and
+appended to OUT/CHUNK_ORDER.txt. Defaults: --code-dir ./code, --data-root ./data next to this script.
+Current paper numbering of the figures below (names kept for --only): F.1 = Figure I.1, K.1 = Figure J.1,
+L.1 = Figure K.1; fig5_yelp_aligned also writes Figure 7 (retrieval, Wilson intervals: code/nlp.py).]
+[v3, 2026-10-29: 1,000 bootstrap draws with random_state 0; bold mean + hairlines (code/plot.py GAIN_DISPLAY);
 Figures F.1 and K.1 as one panel per network (plot.plot_sample_gain_facets); Figure 5 PCam panel MCCV only
 (in pcam.py). Changes from CE's driver are marked "v3".]
 
@@ -223,16 +230,30 @@ def figL1(code_dir, data, out):
 
 
 def main():
+    global N_BOOT, PIPE_ARGS
     ap = argparse.ArgumentParser()
     here = os.path.dirname(os.path.abspath(__file__))
-    ap.add_argument("--code-dir", default=os.path.join(here, "..", "code"))
+    ap.add_argument("--code-dir", default=os.path.join(here, "code"))
     ap.add_argument("--data-root", default=os.path.join(here, "data"))
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--only", nargs="+", choices=FIGS, default=FIGS)
+    ap.add_argument("--chunk-order", choices=["stored", "average"], default=None,
+                    help="V1(alpha) averaged over the order of the chunks (default) or in their stored order (the values "
+                         "before 2026-11-04); default $GAIN_CHUNK_ORDER, else average")
+    ap.add_argument("--n-bootstraps", type=int, default=N_BOOT, help="number of draws (paper: 1000)")
     a = ap.parse_args()
     code_dir, data, out = (os.path.abspath(p) for p in (a.code_dir, a.data_root, a.out_dir))
     os.makedirs(out, exist_ok=True)
     sys.path.insert(0, code_dir)
+    import compute
+    order = compute.resolve_chunk_order(a.chunk_order)
+    os.environ[compute.CHUNK_ORDER_ENV] = order            # read by compute here and in the pcam.py / nlp.py subprocesses
+    if a.n_bootstraps != N_BOOT:
+        N_BOOT = a.n_bootstraps
+        PIPE_ARGS = ["--n-bootstraps", str(N_BOOT), "--random-state", str(SEED), "--hairlines", str(HAIR), "--plugin-estimate"]
+    with open(os.path.join(out, "CHUNK_ORDER.txt"), "a") as fh:
+        fh.write(f"chunk_order={order} n_bootstraps={N_BOOT} only={a.only} code_dir={code_dir}\n")
+    print(f"chunk_order={order} n_bootstraps={N_BOOT}", flush=True)
     import matplotlib; matplotlib.use("Agg")
     import warnings; warnings.filterwarnings("ignore")
     for name in a.only:
