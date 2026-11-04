@@ -1,0 +1,1 @@
+Early configurations of this benchmark (2025 to January 2026, `Simbayes` dataset, objective parameters `n_repeats` and `study_size`); not used by the paper, and the current objective no longer accepts their parameters. Analysed with the root script `learning_ranking.py`.
