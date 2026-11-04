@@ -6,6 +6,8 @@ import numpy as np, pandas as pd
 V = os.path.expandvars("$WORK/paper_style_figs/v3")
 S, R = f"{V}/final_sim_v5/tables", f"{V}/final_real_v5c/tables"
 R_NLP = f"{V}/final_real_dedup/tables"  # Yelp gains with one run per seed (CE, 2026-11-03)
+# BERT and XLM-RoBERTa re-run on the PCam protocol, Qwen3-0.6B as published (regen_v3.py fig5_yelp_aligned)
+R_NLP_ALIGNED = f"{V}/final_yelp_aligned/tables"
 PCAM = {"densenet121": "DenseNet121", "mobilenet_v2": "MobileNetV2", "wide_resnet101_2": "WideResNet101\\_2", "vit_b_16": "ViT-B/16"}
 NLP = {"bert": "BERT", "roberta": "XLM-RoBERTa", "qwen3-0.6b": "Qwen3-0.6B"}
 tt = lambda x: "\\texttt{" + x + "}"
@@ -68,11 +70,11 @@ out.append(table("Sample gains $G^{\\text{test}}_K$ of \\autoref{fig:avg_test_sa
 K = [5, 10, 20]
 # Figure 5 (middle, right)
 pc = pd.read_parquet(f"{R}/pcam_accuracy.parquet"); pc = pc[(pc.N == 500) & (pc.cv_procedure == "MCCV")]
-y = pd.read_parquet(f"{R_NLP}/nlp_delta.parquet"); y = y[y.N == 1250]
+y = pd.read_parquet(f"{R_NLP_ALIGNED}/nlp_delta_aligned_with_qwen.parquet"); y = y[y.N == 1250]
 c1, c2 = cells(pc, ["model"], K), cells(y, ["model"], K)
 rows = [["\\texttt{PCam}, $n_{\\text{tr}}=400$", tt(PCAM[m])] + [c1[(m,)][k] for k in K] for m in PCAM if (m,) in c1] + ["mid"] + \
        [["\\texttt{Yelp}, $n_{\\text{tr}}=1{,}000$", tt(NLP[m])] + [c2[(m,)][k] for k in K] for m in NLP if (m,) in c2]
-out.append(table("Sample gains of \\autoref{fig:all_data_test_sample_gains} (middle and right): accuracy; \\texttt{PCam}: $50$ seeds; \\texttt{Yelp}: $100$ single-split seeds ($50$ for \\texttt{Qwen3-0.6B}), and on the $K$-split side the seeds scored on the benchmarking set, $20$ for \\texttt{BERT} and \\texttt{XLM-RoBERTa} and $50$ for \\texttt{Qwen3-0.6B}.",
+out.append(table("Sample gains of \\autoref{fig:all_data_test_sample_gains} (middle and right): accuracy; \\texttt{PCam}: $50$ seeds; \\texttt{Yelp}: $50$ seeds; the single split is the first of the $20$ splits of each seed for \\texttt{BERT} and \\texttt{XLM-RoBERTa}, a separate run with the same seed for \\texttt{Qwen3-0.6B}.",
                  "tab:ci-fig5", ["Dataset", "Network"], rows, K))
 # Figure F.1
 f1 = pd.read_parquet(f"{R}/figF1.parquet")

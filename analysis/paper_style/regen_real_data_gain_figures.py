@@ -26,7 +26,7 @@ import shutil
 import subprocess
 import sys
 
-FIGS = ["fig5_pcam", "fig5_yelp", "figF1", "figK1", "figL1"]
+FIGS = ["fig5_pcam", "fig5_yelp", "fig5_yelp_aligned", "figF1", "figK1", "figL1"]
 N_BOOT, SEED, HAIR, HAIR_FACET = 1000, 0, 20, 30                                   # v3
 PIPE_ARGS = ["--n-bootstraps", str(N_BOOT), "--random-state", str(SEED), "--hairlines", str(HAIR),   # v3
              "--plugin-estimate"]                     # v5 (CE, 2026-10-31): thick line = estimate on all seeds
@@ -61,6 +61,42 @@ def fig5_yelp(code_dir, data, out):
     dirs = [os.path.join(data, "nlp", d) for d in ("yelp_runs_a", "yelp_runs_b", "yelp_qwen3_0.6b")]
     run_pipeline(code_dir, "nlp.py", ["--data-dirs", *dirs] + PIPE_ARGS + ["--save-gains", os.path.join(out, "tables")], work, plots)
     shutil.copy(os.path.join(plots, "aggregated_test_gain_k_1000_delta_linear.pdf"), out)
+
+
+def fig5_yelp_aligned(code_dir, data, out):
+    """Figure 5, Yelp panel, and Figure 7 from the runs of benchmark_nlp/nlpfinetuning_aligned.py (2026-11-03): BERT and
+    XLM-RoBERTa, n_tr = 1,000 and 3,000, seeds 0-49, the single split being the first split of each 20-split run (paired),
+    with Qwen3-0.6B as published (its rows of the fig5_yelp gain table). nlp.py also writes the Table G.1 rows
+    (work/nlp_aligned/results/pairwise_ttest_nlp.csv)."""
+    import pandas as pd, seaborn as sns, nlp, pipeline_common as C, plot as P
+    work = os.path.join(out, "work", "nlp_aligned"); plots = os.path.join(work, "plots")
+    # quasi-oracle of Figure 7 and Table G.1: all the splits of every seed (CE, 2026-11-04) or the first split only
+    qo = os.environ.get("YELP_QUASI_ORACLE", "all-splits")
+    run_pipeline(code_dir, "nlp.py", ["--data-dirs", os.path.join(data, "nlp", "yelp_aligned"), "--models", "bert", "roberta",
+                                      "--study-sizes", "1250", "3750", "--quasi-oracle", qo] + PIPE_ARGS
+                 + ["--save-gains", os.path.join(out, "tables_aligned")], work, plots)
+    qwen_table = os.path.join(out, "tables", "nlp_delta.parquet")
+    if not os.path.exists(qwen_table):
+        fig5_yelp(code_dir, data, out)
+    old = pd.read_parquet(qwen_table)
+    res = pd.concat([pd.read_parquet(os.path.join(out, "tables_aligned", "nlp_delta.parquet")),
+                     old[old["model"] == "qwen3-0.6b"]], ignore_index=True)
+    _save_table(res, out, "nlp_delta_aligned_with_qwen")
+    # the plotting call of nlp.py, on the combined table
+    P.set_paper_style()
+    P.GAIN_DISPLAY["hairlines"] = HAIR
+    tab10 = sns.color_palette("tab10", n_colors=10)
+    combined = os.path.join(work, "plots_with_qwen")
+    os.makedirs(combined, exist_ok=True)
+    C.plot_sample_gain_by_train_size(res, study_sizes=[1250], models_to_analyze=nlp.DEFAULT_MODELS,
+                                     model_display_names=nlp.MODEL_DISPLAY_NAMES,
+                                     model_color_map={"bert": tab10[0], "roberta": tab10[1], "qwen3-0.6b": tab10[2]},
+                                     title_prefix="Yelp", plots_dir=combined)
+    os.makedirs(os.path.join(out, "aligned"), exist_ok=True)
+    shutil.copy(os.path.join(combined, "aggregated_test_gain_k_1000_delta_linear.pdf"), os.path.join(out, "aligned"))
+    for f in os.listdir(plots):
+        if f.startswith(("retrieval_best_", "violin_plot_study_size_3750")) and f.endswith(".pdf"):
+            shutil.copy(os.path.join(plots, f), os.path.join(out, "aligned"))
 
 
 def figF1(code_dir, data, out):

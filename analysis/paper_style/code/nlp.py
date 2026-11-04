@@ -90,6 +90,22 @@ def load_nlp_data(directories: list[str]) -> pd.DataFrame:
 
     data = pd.concat(dfs, ignore_index=True, sort=True)
     gc.collect()
+    # Runs of benchmark_nlp/nlpfinetuning_aligned.py (2026-11-03) label `study_size` with n_tr and record the study set
+    # in `study_pool_size`: relabel them by the study set, as the older runs, give the fold scores the older column
+    # names, and keep one run per (model, study set, seed, split count), the latest file.
+    if "study_pool_size" in data.columns and data["study_pool_size"].notna().any():
+        if data["study_pool_size"].isna().any():
+            raise ValueError("data mixes runs of nlpfinetuning_aligned.py with older Yelp runs; load them separately")
+        data["study_size"] = data["study_pool_size"].astype(int)
+        data = data.rename(columns={"test_accuracy": "study_test_eval_accuracy",
+                                    "val_accuracy": "validation_eval_accuracy"})
+        _key = ["model", "study_size", "seed", "n_splits"]
+        _n0 = len(data)
+        data = data[data["_source_file"] == data.groupby(_key)["_source_file"].transform("max")].reset_index(drop=True)
+        data["aligned_protocol"] = True
+        print(f"Runs of nlpfinetuning_aligned.py: {_n0} -> {len(data)} rows; seeds per (model, study set): "
+              f"{data.groupby(_key[:2])['seed'].nunique().to_dict()}")
+        return data
     # One run per (model, size, seed, split count), chosen deterministically (CE, 2026-11-02): the Yelp K = 20 runs of
     # seeds 0-19 exist twice (a run without benchmark scores and a later run with them); keep the run with the most
     # benchmark scores, ties broken by the latest file name, and drop exact copies of a file found in two folders.
@@ -149,6 +165,40 @@ def _infer_cross_validation(data: pd.DataFrame) -> pd.Series:
     )
 
 
+def _pairwise_ttest_table(data_nocv_base, data_cv, *, test_size, K, pair=("bert", "roberta"), out="results",
+                          all_splits=False):
+    """Table G.1 rows: paired t-test of the per-seed benchmarking-set scores of the single-split models (mean D and
+    standard deviation s_D of the same per-seed differences), and the share of seeds in which the single split and
+    K-split CV rank the higher-mean network first. With *all_splits* (runs of nlpfinetuning_aligned.py, every split
+    benchmark-scored), the per-seed score is the mean over all the splits of the seed. Written to
+    results/pairwise_ttest_nlp.csv."""
+    from scipy import stats
+    rows = []
+    for n, sub in data_nocv_base[data_nocv_base["model"].isin(pair)].groupby("study_size"):
+        src = data_cv[(data_cv["study_size"] == n) & data_cv["model"].isin(pair)] if all_splits else sub
+        bench = src.pivot_table(index="seed", columns="model", values="benchmark_accuracy", aggfunc="mean").dropna()
+        if not set(pair) <= set(bench.columns) or len(bench) < 2:
+            continue
+        hi, lo = pair if bench[pair[0]].mean() >= bench[pair[1]].mean() else pair[::-1]
+        d = bench[hi] - bench[lo]
+        t, p = stats.ttest_rel(bench[hi], bench[lo])
+        single = sub.pivot_table(index="seed", columns="model", values="objective_score_test").dropna()
+        cv = data_cv[(data_cv["study_size"] == n) & (data_cv["n_splits"] == K) & data_cv["model"].isin(pair)]
+        cv = cv.pivot_table(index="seed", columns="model", values="objective_score_test").dropna()
+        rows.append({"n_tr": int(round(n * (1 - test_size))), "highest_mean": hi, "lowest_mean": lo,
+                     "mean_diff": d.mean(), "std_diff": d.std(ddof=1), "t_stat": t, "p_value": p,
+                     "n_seeds": len(d), "single_split_retrieval": (single[hi] > single[lo]).mean(),
+                     "n_seeds_single": len(single), f"K{K}_cv_retrieval": (cv[hi] > cv[lo]).mean(),
+                     "n_seeds_cv": len(cv)})
+    table = pd.DataFrame(rows)
+    if not table.empty:
+        print("\nPaired t-test on the single-split benchmarking-set scores (Table G.1):")
+        print(table.to_string(index=False))
+        os.makedirs(out, exist_ok=True)
+        table.to_csv(os.path.join(out, "pairwise_ttest_nlp.csv"), index=False)
+    return table
+
+
 def _plot_yelp_pairwise_score_distributions(
     data_nocv_base: pd.DataFrame,
     data_cv: pd.DataFrame,
@@ -156,8 +206,10 @@ def _plot_yelp_pairwise_score_distributions(
     study_size: int,
     target_splits: list[int],
     plots_dir: str,
+    oracle_df: pd.DataFrame | None = None,
 ) -> None:
-    """Create the score-distribution panel used in the main pairwise figure."""
+    """Create the score-distribution panel used in the main pairwise figure. The quasi-oracle lines average the
+    benchmark scores of *oracle_df* (default: the single-split runs)."""
     # This is a 2-model split-violin (BERT vs XLM-RoBERTa); the palette and
     # oracle annotations below are defined for exactly these two. Other models
     # (e.g. Qwen3-0.6B) are handled in the bar/retrieval panels, not here.
@@ -214,8 +266,9 @@ def _plot_yelp_pairwise_score_distributions(
         linewidth=0, ax=ax, legend=False,
     )
 
+    _oracle_src = data_nocv_base if oracle_df is None else oracle_df
     oracle = (
-        data_nocv_base[data_nocv_base["study_size"] == study_size]
+        _oracle_src[_oracle_src["study_size"] == study_size]
         .groupby("model")["benchmark_accuracy"]
         .mean()
     )
@@ -300,6 +353,8 @@ def parse_args(argv=None):
     parser.add_argument("--plugin-estimate", action="store_true",
                         help="also compute the estimate on the original seeds; the figures draw it as the thick line")
     parser.add_argument("--test-size", type=float, default=0.2)
+    parser.add_argument("--quasi-oracle", choices=["first-split", "all-splits"], default="all-splits",
+                        help="runs of nlpfinetuning_aligned.py: benchmark scores averaged for the quasi-oracle ranking")
     parser.add_argument("--models", nargs="+", default=DEFAULT_MODELS)
     parser.add_argument("--study-sizes", nargs="+", type=int,
                         default=DEFAULT_STUDY_SIZES)
@@ -328,6 +383,7 @@ def main(
     hairlines=None,
     plugin_estimate=False,
     save_gains=None,
+    quasi_oracle="all-splits",  # CE, 2026-11-04: the quasi-oracle of the aligned runs averages all the splits
 ):
     if hairlines:
         P.GAIN_DISPLAY["hairlines"] = hairlines
@@ -348,6 +404,12 @@ def main(
 
     if data.empty:
         raise RuntimeError("No data loaded — check data_dirs.")
+    aligned = "aligned_protocol" in data.columns
+    # Quasi-oracle score of the aligned runs: the benchmark score averaged over the first split of every seed (the
+    # single-split seeds of Section 5) or over all the splits of every seed (all-splits), every split being scored.
+    all_splits = aligned and quasi_oracle == "all-splits"
+    if aligned:
+        print(f"Quasi-oracle score: {quasi_oracle}")
 
     print(f"Seeds: {len(data['seed'].unique())}")
     print(f"Models: {sorted(data['model'].unique()) if 'model' in data.columns else 'no model column'}")
@@ -407,7 +469,12 @@ def main(
 
     # ── 3. Separate CV and no-CV; filter to target study sizes ──────────────
     data_nlp_cv   = data_nlp[data_nlp['cross_validation'] == True].copy()
-    data_nlp_nocv = data_nlp[data_nlp['cross_validation'] == False].copy()
+    if aligned:
+        # Runs of nlpfinetuning_aligned.py: the single split is the first split of each K-split run, scored on the
+        # outer chunks, so both sides of the gain come from the same seeds (paired, as for PCam).
+        data_nlp_nocv = data_nlp_cv[data_nlp_cv['n_splits'] == 1].copy()
+    else:
+        data_nlp_nocv = data_nlp[data_nlp['cross_validation'] == False].copy()
 
     study_sizes_available = sorted(data_nlp['study_size'].unique())
     print(f"Study sizes: {study_sizes_available}")
@@ -541,7 +608,11 @@ def main(
         data_nocv_base=data_nlp_nocv_base,
         df_nocv_k=df_nocv_k,
         data_cv=data_nlp_cv,
-        gt_source_df=data_nlp,
+        # Aligned runs: the quasi-oracle score is the benchmarking-set score averaged over the single-split seeds, as
+        # Section 5 defines it (on the first split, objective_score_bench is that split's score); the older runs
+        # average over all their runs.
+        gt_source_df=(data_nlp_cv.assign(objective_score_bench=data_nlp_cv['benchmark_accuracy']) if all_splits
+                      else data_nlp_nocv_base if aligned else data_nlp),
         models_to_analyze=models_to_analyze,
         study_sizes=study_sizes,
         target_splits=[5, 10, 20],
@@ -558,12 +629,14 @@ def main(
         test_size=test_size,
         y_as_percent=True,
     )
+    _pairwise_ttest_table(data_nlp_nocv_base, data_nlp_cv, test_size=test_size, K=20, all_splits=all_splits)
     _plot_yelp_pairwise_score_distributions(
         data_nocv_base=data_nlp_nocv_base,
         data_cv=data_nlp_cv,
         study_size=3750,
         target_splits=[5, 10, 20],
         plots_dir=plots_dir,
+        oracle_df=data_nlp_cv if all_splits else None,
     )
 
     # ── Export τ̂ + sample-gain@K=20 table for cross-pipeline scatter ─────
@@ -694,6 +767,7 @@ if __name__ == '__main__':
             hairlines=args.hairlines,
             plugin_estimate=args.plugin_estimate,
             save_gains=args.save_gains,
+            quasi_oracle=args.quasi_oracle,
         )
 
 # %%
