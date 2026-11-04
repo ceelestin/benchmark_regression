@@ -1,6 +1,8 @@
 #!/bin/bash
 # ============================================================================
-# Jean-Zay SLURM job array for the 1000-seed ranking benchmark.
+# Jean-Zay SLURM job array for the pre-registered redundancy holdout
+# (configs/k200_threshold_validation_holdout_50_*.yml, 3 configs x 10 seed-chunks;
+# Table D.1 and Figure 6 of the paper).
 #
 # Each array task runs benchopt on ONE seed-chunk config (see make_chunks.py)
 # on ONE full cpu_p1 node (40 cores), with 40 single-core benchopt workers.
@@ -40,7 +42,7 @@ export NUMEXPR_NUM_THREADS=1
 
 cd "$WORK/benchmark_regression"
 
-MANIFEST=configs/chunks/manifest.txt
+MANIFEST=configs/chunks_holdout1/manifest.txt
 CFG=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$MANIFEST")
 NAME=$(basename "$CFG" .yml)
 
