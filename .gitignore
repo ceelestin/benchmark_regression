@@ -1,0 +1,25 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Run outputs and logs: benchopt writes outputs/, the SLURM launchers write logs/
+outputs/
+logs/
+slurm_output/
+*.parquet
+core-*
+core.[0-9]*
+
+# Data and figure roots of the analysis scripts (see analysis/paper_style/code/datapaths.py)
+/data/
+/figs/
+plots/
+results/
+
+# Outputs of the analysis scripts (analysis/out_<name>/)
+analysis/out_*/
+
+# Seed chunks written by make_chunks.py with its default --out-dir; the chunks of the paper's
+# runs are tracked in configs/chunks_<design>/
+configs/chunks/
+configs/probe_*.yml
