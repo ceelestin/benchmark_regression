@@ -14,14 +14,14 @@
 #SBATCH --job-name=deriv_clf
 #SBATCH --partition=cpu_p1
 #SBATCH --qos=qos_cpu-t3                 # <= 20 h walltime (default CPU QoS)
-#SBATCH --account=sth@cpu                # <<< EDIT: your-project@cpu
+#SBATCH --account=<project>@cpu          # <<< EDIT: your IDRIS project (idracctinfo lists it)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=40               # a full cpu_p1 node
 #SBATCH --hint=nomultithread
 #SBATCH --time=06:00:00                  # ~1.5 h expected per K=200 task, 4x margin
 #SBATCH --array=0-22%23                  # 2 x 10 K=200 chunks (3 seeds) + 3 fixed-split chunks (10 seeds)
-#SBATCH --output=logs/rank_%A_%a.out
+#SBATCH --output=logs/rank_%A_%a.out     # logs/ must exist: mkdir -p logs before sbatch
 #SBATCH --error=logs/rank_%A_%a.err
 
 set -euo pipefail
@@ -52,7 +52,7 @@ fi
 echo "[$(date '+%F %T')] task ${SLURM_ARRAY_TASK_ID} | ${CFG} | node ${SLURMD_NODENAME}"
 
 # benchopt runs solvers in the *current* env; `outputs/` is symlinked to
-# $SCRATCH (see JEANZAY_README.md), so `--output $NAME` lands the parquet there (benchopt >= 1.10: `-o` is the objective filter).
+# $SCRATCH (see docs/jean-zay.md), so `--output $NAME` lands the parquet there (benchopt >= 1.10: `-o` is the objective filter).
 benchopt run . --config "$CFG" \
     --no-plot --no-cache --no-timeout \
     -j 40 --output "$NAME"
