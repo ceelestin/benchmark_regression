@@ -80,8 +80,8 @@ DEFAULT_FAMILIES = ["ExtraTrees"]
 #                recovered (e.g. n_estimators 200 > 20 > 2).
 DEFAULT_RANKING_MODES = ["pairwise", "full"]
 
-# A green for the ExtraTrees family, echoing the paper figure palette.
-FAMILY_COLORS = {"ExtraTrees": "#4E9D63", "Ridge": "#E08A3C"}
+# The learners' colours of the other figures of the paper (ExtraTrees C0, Ridge C3; CE, 2026-11-04).
+FAMILY_COLORS = {"ExtraTrees": "#1f77b4", "Ridge": "#d62728"}
 
 # Columns we actually need from the (large) parquet files.
 _NEEDED_COLUMNS = [
@@ -527,7 +527,7 @@ def plot_ranking_gain_violin(gain_df, split_counts, family, mode="pairwise",
     draw) has no violin and no line, only its dot.
     """
     ks = [k for k in split_counts if k in gain_df["K"].unique()]
-    color = FAMILY_COLORS.get(family, "#4E9D63")
+    color = FAMILY_COLORS.get(family, "#1f77b4")
     order = [str(k) for k in ks]
     gdf = gain_df.copy()
     gdf["K_str"] = gdf["K"].astype(int).astype(str)
@@ -568,7 +568,7 @@ def plot_ranking_gain_bars(summary, split_counts, family, mode="pairwise",
     its 95% bootstrap interval (bar) vs number of splits K, from
     :func:`gain_summary`. A K with a zero-width interval (K = 1) has no bar."""
     ks = [k for k in split_counts if k in summary.index]
-    color = FAMILY_COLORS.get(family, "#4E9D63")
+    color = FAMILY_COLORS.get(family, "#1f77b4")
     summary = summary.reindex(ks)
     x = np.arange(len(ks))
     has_bar = (summary["ci_high"] > summary["ci_low"]).to_numpy()
