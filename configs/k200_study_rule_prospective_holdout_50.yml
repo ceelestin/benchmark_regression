@@ -1,0 +1,96 @@
+# Earlier redundancy design (May 2026): 3 families x 3 noise levels x 3 training sizes x 8 learners = 216
+# configurations, d = 20, ShuffleSplit K = 200, test fraction 0.2, seeds 1000-1049.
+# Produced benchopt_run_2026-05-04_12h45m52.parquet (one benchopt run, not chunked). Paper: Table F.2 ("earlier
+# design repeated by the fresh-seed confirmation"); the confirmation itself is paper_rerun_may_design_*.yml
+# (Appendix D.2). The comment below is the original one; the rule it states uses the former redundancy
+# score, not the one of the paper.
+#
+
+# K=200 prospective holdout for the study-only sample-gain rule.
+#
+# Purpose:
+#   1. Compute the study-only rule from the first 20 splits.
+#   2. Continue to 200 splits to test whether the pre-registered rule predicts
+#      the observed extra-split/sample gain.
+#   3. Stress generalization with new seeds, more features, shifted noise
+#      levels, and train sizes outside the previous grid.
+#
+# Pre-registered rule to test after the run:
+#   R_rule =
+#     study_covariance
+#     * study_squared_error_cov_all_oof_intersection
+#     / study_squared_error_var_all_oof_intersection
+#     * study_oof_intersection_mean_size_all
+#
+# Expected deduction:
+#   low R_rule  -> high split/sample gain
+#   high R_rule -> low split/sample gain
+#
+# Expected size:
+#   3 dataset families * 3 noise levels * 50 seeds
+#   * 3 train sizes * 1 fixed_split setting
+#   * 8 solver variants * 200 splits
+#   = 2,160,000 output rows.
+
+objective:
+  - Regression:
+      n_splits: [200]
+      procedure: ["ShuffleSplit"]
+      train_size: [50, 300, 2000]
+      test_size: [0.2]
+      fixed_split: [False]
+
+dataset:
+  - sim_linear:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [0.1, 0.7, 1.5]
+      seed: [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029, 1030, 1031, 1032, 1033, 1034, 1035, 1036, 1037, 1038, 1039, 1040, 1041, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049]
+      fixed: [False]
+
+  - sim_interactions:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [0.1, 0.7, 1.5]
+      seed: [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029, 1030, 1031, 1032, 1033, 1034, 1035, 1036, 1037, 1038, 1039, 1040, 1041, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049]
+      fixed: [False]
+
+  - sim_nonlinear:
+      n_samples: [150000]
+      n_features: [20]
+      noise: [0.1, 0.7, 1.5]
+      seed: [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029, 1030, 1031, 1032, 1033, 1034, 1035, 1036, 1037, 1038, 1039, 1040, 1041, 1042, 1043, 1044, 1045, 1046, 1047, 1048, 1049]
+      fixed: [False]
+
+solver:
+  - Ridge:
+      alpha: [1613]
+
+  - ExtraTrees_noHPO:
+      n_estimators: [200]
+
+  - RandomForest:
+      n_estimators: [200]
+      max_depth: [100]
+
+  - DecisionTree:
+      max_depth: [100]
+      min_samples_leaf: [1]
+
+  - HistGradientBoosting:
+      max_iter: [100]
+      learning_rate: [0.1]
+      max_leaf_nodes: [31]
+      max_depth: [20]
+
+  - KNeighbors:
+      n_neighbors: [20]
+      weights: ["uniform"]
+
+  - SVR:
+      C: [10.0]
+      epsilon: [0.1]
+      gamma: ["scale"]
+
+  - MLP:
+      hidden_layer_sizes: [[32]]
