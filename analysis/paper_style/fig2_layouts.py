@@ -12,7 +12,7 @@ ROW = 10.5     # points: G^test_10 one row below the tick numbers
 def _base(cv, order="average"):
     v1 = cv[f"V1_{order}"].to_numpy()
     lo = float(v1[cv.alpha.to_numpy() <= 12].min())
-    return dict(x_right=12.04, major_ticks=[1, 3, 10, 12], y_lim_bottom=lo * 0.92)   # no 6: it sat over G^test_10 (CE, 2026-11-04)
+    return dict(x_right=12.04, major_ticks=[1, 3, 10, 12], y_lim_bottom=lo * 0.92)   # no 6: it sat over G^test_10
 
 
 def auto(cv):
@@ -44,7 +44,7 @@ def final_k10(cv):
 
 def one_row(cv):
     """final_k10 with the three G^test labels on one row: G^test_20 moved 4 pt to the right so that it clears
-    G^test_10 (the tick 6, which G^test_10 used to sit under, is gone; CE, 2026-11-04)."""
+    G^test_10 (the tick 6, which G^test_10 used to sit under, is gone)."""
     lay = final_k10(cv)
     lay.pop("crossing_label_row", None)
     lay.update(crossing_label_dx={20: 4.0}, figsize=(3.2, 2.76 - ROW / 72))

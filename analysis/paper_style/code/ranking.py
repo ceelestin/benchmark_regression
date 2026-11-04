@@ -352,7 +352,7 @@ def isotonic_fit(y, weights):
 
 
 def threshold_crossing_N(N_grid, pi, alpha: float, weights=None) -> float:
-    """Smallest study size at which retrieval reaches *alpha* (paper eq. H.2).
+    """Smallest study size at which retrieval reaches *alpha* (paper eq. O.2).
 
     The retrieval probability is monotone non-decreasing in N in theory, but
     the empirical proportions *pi* are noisy and need not be. We replace them by
@@ -601,7 +601,7 @@ def plot_ranking_gain_bars(summary, split_counts, family, mode="pairwise",
 def analyze_family(data, family, split_counts, alpha, n_bootstraps,
                    plots_dir, results_dir, ranking_mode="pairwise",
                    n_gain_bootstraps=N_GAIN_BOOTSTRAPS):
-    """Run the full Appendix-H analysis for one family and emit plots + CSVs.
+    """Run the full Appendix-O analysis for one family and emit plots + CSVs.
 
     *n_bootstraps* seed resamples give the bands of the retrieval curves,
     *n_gain_bootstraps* paired resamples the intervals of the gain.
