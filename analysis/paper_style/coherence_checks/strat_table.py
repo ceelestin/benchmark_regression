@@ -5,8 +5,11 @@ Per network x metric, on the benchmark-adjusted fold score delta_k = test_k - be
   V20 = Var_seeds(mean_k delta_k)     20-split CV
 for unstratified (u) and stratified (s) splitting; ratios with 95% seed-bootstrap intervals (1,000 draws)."""
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/pcam/stratandnewmetrics")
+D = datapaths.data_path("pcam", "stratandnewmetrics")
 cols = ["model", "study_size", "seed", "fold", "stratified", "benchmark_accuracy"] + [f"{a}_{m}" for a in ("test", "benchmark") for m in ("accuracy", "nll", "brier") if f"{a}_{m}" != "benchmark_accuracy"]
 d = pd.concat([pd.read_parquet(f, columns=cols) for f in glob.glob(f"{D}/*.parquet")], ignore_index=True)
 d = d[d.study_size == 500]

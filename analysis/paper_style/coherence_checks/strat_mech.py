@@ -1,8 +1,11 @@
 """Item 6: is ViT-B/16 near a constant predictor at n_tr = 400? Benchmark (oracle) scores per network, and the spread
 of fold-1 test accuracy across seeds (a constant predictor's test accuracy is the class share of the fold)."""
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/pcam/stratandnewmetrics")
+D = datapaths.data_path("pcam", "stratandnewmetrics")
 cols = ["model", "study_size", "seed", "fold", "stratified", "test_accuracy", "benchmark_accuracy", "benchmark_nll", "benchmark_brier", "test_nll", "val_accuracy"]
 d = pd.concat([pd.read_parquet(f, columns=cols) for f in glob.glob(f"{D}/*.parquet")], ignore_index=True)
 d = d[d.study_size == 500]

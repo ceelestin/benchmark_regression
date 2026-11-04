@@ -39,13 +39,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+import datapaths
 import plot as P
 
-ANALYSIS_DIR = os.path.expanduser(
-    "~/Documents/Run outputs/Regression/orchestrator_analysis/analysis")
-DEFAULT_OUT = os.path.expanduser(
-    "~/Documents/Papiers/Miens/Crossing the Validation Crisis/NeurIPS 2026 - Rebuttal/"
-    "proposed_figures_study_only_statistic")
+# The configuration tables written by this repository's analysis scripts (analysis/out_omega*/,
+# analysis/out_pcam_consistency/).
+ANALYSIS_DIR = datapaths.repo_path("analysis")
+DEFAULT_OUT = "plots/study_only_statistic"
 T, K = 0.2, 20
 THRESHOLDS = (7, 8, 10)
 N_BOOT = 2000

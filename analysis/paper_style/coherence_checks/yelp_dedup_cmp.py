@@ -1,10 +1,11 @@
 """Item 13 side check: Yelp gains, current pipeline (v5c) vs deterministic deduplication."""
-import os
+import os, sys
 import pandas as pd
-V = os.path.expandvars("$WORK/paper_style_figs/v3")
+# usage: python yelp_dedup_cmp.py OUT_BEFORE OUT_AFTER (the --out-dir of two fig5_yelp runs of
+# regen_real_data_gain_figures.py, before and after the loader kept one run per seed)
 out = []
-for tag, d in (("current", "final_real_v5c"), ("dedup", "final_real_dedup")):
-    r = pd.read_parquet(f"{V}/{d}/tables/nlp_delta.parquet")
+for tag, d in (("current", sys.argv[1]), ("dedup", sys.argv[2])):
+    r = pd.read_parquet(f"{d}/tables/nlp_delta.parquet")
     est = r[r.bootstrap_iter < 0]; dr = r[r.bootstrap_iter >= 0]
     for (m, n), g in est.groupby(["model", "N"]):
         e = g.set_index("K").sample_gain

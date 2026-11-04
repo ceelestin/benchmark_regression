@@ -3,9 +3,12 @@
 (ii) all 20 splits of each seed (every split's model is benchmark-scored in these runs): per-seed mean over the splits.
 Also the collapse counts (benchmark accuracy < 0.25) and the retrieval shares (single split, K = 5, 10, 20)."""
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
 from scipy import stats
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/nlp/yelp_aligned")
+D = datapaths.data_path("nlp", "yelp_aligned")
 d = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(f"{D}/*.parquet"))], ignore_index=True)
 d = d.sort_values(["model", "study_size", "seed", "fold"])
 for n, g in d.groupby("study_size"):

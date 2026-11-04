@@ -32,6 +32,7 @@ import numpy as np
 import pandas as pd
 
 import compute
+import datapaths
 import mse_gain_figures as T
 import plot as P
 import paper_style_figs as H  # the repo copy of paper_style_figs_v4h.py
@@ -169,16 +170,26 @@ def draw(df, path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-dir", required=True)
-    ap.add_argument("--sim-gain-dir", default=f"{V}/final_sim_v5")
-    ap.add_argument("--pcam-tau", default=f"{V}/final_real_v5c/work/pcam/results/tau_gain_pcam.parquet")
-    ap.add_argument("--pcam-gain", default=f"{V}/final_real_v5c/tables/pcam_accuracy.parquet")
+    ap.add_argument("--data-root", default=None,
+                    help="run outputs: outputs/ and paper_runs/ under it (default: $DATA_ROOT, else data/ at the repository root)")
+    ap.add_argument("--sim-gain-dir", default=datapaths.figs_path("sim"), help="--out-dir of paper_style_figs.py")
+    ap.add_argument("--real-dir", default=datapaths.figs_path("real"),
+                    help="--out-dir of regen_real_data_gain_figures.py (fig5_pcam, and the Yelp runs unless given below)")
+    ap.add_argument("--yelp-aligned-dir", default=None, help="--out-dir of its fig5_yelp_aligned run (default: --real-dir)")
+    ap.add_argument("--yelp-dir", default=None, help="--out-dir of its fig5_yelp run, for Qwen3-0.6B (default: --real-dir)")
+    ap.add_argument("--pcam-tau", default=None, help="default: <real-dir>/work/pcam/results/tau_gain_pcam.parquet")
+    ap.add_argument("--pcam-gain", default=None, help="default: <real-dir>/tables/pcam_accuracy.parquet")
     a = ap.parse_args()
+    H.OUT, H.JULY = H.run_locations(a.data_root)
     os.makedirs(a.out_dir, exist_ok=True)
-    yelp = yelp_rows([(f"{V}/final_yelp_aligned/work/nlp_aligned/results/tau_gain_nlp.parquet",
-                       f"{V}/final_yelp_aligned/tables_aligned/nlp_delta.parquet", ["bert", "roberta"]),
-                      (f"{V}/final_real_dedup/work/nlp/results/tau_gain_nlp.parquet",
-                       f"{V}/final_real_dedup/tables/nlp_delta.parquet", ["qwen3-0.6b"])])
-    df = pd.concat([simulated_rows(a.sim_gain_dir), pcam_rows(a.pcam_tau, a.pcam_gain), yelp], ignore_index=True)
+    ya, yq = a.yelp_aligned_dir or a.real_dir, a.yelp_dir or a.real_dir
+    pcam_tau = a.pcam_tau or f"{a.real_dir}/work/pcam/results/tau_gain_pcam.parquet"
+    pcam_gain = a.pcam_gain or f"{a.real_dir}/tables/pcam_accuracy.parquet"
+    yelp = yelp_rows([(f"{ya}/work/nlp_aligned/results/tau_gain_nlp.parquet",
+                       f"{ya}/tables_aligned/nlp_delta.parquet", ["bert", "roberta"]),
+                      (f"{yq}/work/nlp/results/tau_gain_nlp.parquet",
+                       f"{yq}/tables/nlp_delta.parquet", ["qwen3-0.6b"])])
+    df = pd.concat([simulated_rows(a.sim_gain_dir), pcam_rows(pcam_tau, pcam_gain), yelp], ignore_index=True)
     df["rho_delta"] = df.tau_te / df.sigma2_te_K
     df["icc_gain"] = K / (1 + (K - 1) * df.rho_delta)
     assert df.G20.notna().all() and len(df) == 33, (len(df), df[df.G20.isna()])

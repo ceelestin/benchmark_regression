@@ -1,10 +1,11 @@
 """LaTeX snippets of the Yelp re-run for the paper (Table G.1 rows, Table O.2 rows, Table E.2 rows) and the numbers
 quoted in the text, from the final outputs of regen_v3.py fig5_yelp_aligned. Writes paper_snippets.json."""
 import glob, json, os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
-V = os.path.expandvars("$WORK/paper_style_figs/v3")
-OUT = sys.argv[1] if len(sys.argv) > 1 else f"{V}/final_yelp_aligned"
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/nlp/yelp_aligned")
+OUT = sys.argv[1] if len(sys.argv) > 1 else datapaths.figs_path("real")  # --out-dir of regen_real_data_gain_figures.py
+D = datapaths.data_path("nlp", "yelp_aligned")
 NEW = lambda x: "{\\NEWon " + x + "}"
 snip = {}
 # Table G.1

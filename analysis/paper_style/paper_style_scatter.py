@@ -25,12 +25,13 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedLocator, NullFormatter, ScalarFormatter
 from scipy.stats import spearmanr
 
+import datapaths
 import plot as P
 
 K, T = 20, 0.2
-REG = os.path.expandvars("$WORK/benchmark_regression/analysis")
+REG = datapaths.repo_path("analysis")  # outputs of this repository's analysis scripts (out_omega*/)
 OMEGA_HOLDOUT = "out_omega_ci95"  # Figure D.2: holdout gains with 95% bootstrap intervals (out_omega: 90%, before 2026-11-02)
-PCAM = os.path.expandvars("$WORK/benchmark_pcam/analysis")
+PCAM = datapaths.pcam_repo_path("analysis")  # analysis outputs of the benchmark_pcam checkout
 BLUES = ["#86b6ef", "#3987e5", "#1c5cab", "#0d366b"]
 BINS = [(0, 100, "50-100"), (101, 750, "300-750"), (751, 3000, "1,000-3,000"), (3001, 10**9, "5,000-10,000")]
 PCAM_COLOR = "#E5AE38"

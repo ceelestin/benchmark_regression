@@ -22,8 +22,10 @@ from scipy.stats import pearsonr, spearmanr
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from derivation_levers_analysis import CONFIG_KEYS  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "paper_style", "code"))  # datapaths.py
+import datapaths  # noqa: E402
 
-GLOB = os.path.expandvars("$SCRATCH/ranking_outputs/k200_threshold_validation_holdout_50_*__c*.parquet")
+GLOB = datapaths.data_path("outputs", "k200_threshold_validation_holdout_50_*__c*.parquet")
 CG = "objective_study_prediction_cov_all_oof_intersection"
 RHO = "objective_study_squared_error_rho_all_oof_intersection"
 MBAR = "objective_study_oof_intersection_mean_size_all"

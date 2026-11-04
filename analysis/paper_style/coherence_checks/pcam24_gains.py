@@ -1,7 +1,10 @@
 """Item 9: PCam n_tr = 24 gains (paper estimator, plug-in on all seeds + 200 bootstrap draws) vs App M's claims."""
 import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
-T = os.path.expandvars("$WORK/paper_style_figs/v3/item9_pcam24/tables")
+T = datapaths.figs_path("pcam24", "tables")
 OM = {"accuracy": {"densenet121": .065, "mobilenet_v2": .052, "vit_b_16": .073, "wide_resnet101_2": .033},
       "nll": {"densenet121": .061, "mobilenet_v2": .043, "vit_b_16": .085, "wide_resnet101_2": .031},
       "brier": {"densenet121": .077, "mobilenet_v2": .054, "vit_b_16": .085, "wide_resnet101_2": .039}}

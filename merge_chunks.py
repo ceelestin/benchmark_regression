@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """Recombine per-seed chunk parquets into one parquet per base config.
 
-After the SLURM array finishes, ``$SCRATCH/ranking_outputs`` holds many small
+After the SLURM array finishes, ``outputs/`` (benchopt's output folder) holds many small
 ``<base>__cNN.parquet`` files. This streams them (one chunk at a time, so memory
 stays low) into a single ``<base>.parquet`` per base config, recreating the
-familiar few-files layout the analysis (`ranking.py`) expects.
+familiar few-files layout (one parquet per config).
 
 Requires only ``pyarrow`` (already a benchopt dependency).
 
 Example
 -------
     python merge_chunks.py \\
-        --in-dir  "$SCRATCH/ranking_outputs" \\
-        --out-dir "$SCRATCH/ranking_merged"
+        --in-dir  outputs \\
+        --out-dir "$DATA_ROOT/merged"
 """
 import argparse
 import glob

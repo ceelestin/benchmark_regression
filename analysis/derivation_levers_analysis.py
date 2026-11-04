@@ -4,10 +4,10 @@
 
 Usage (login node, benchcv venv):
     python analysis/derivation_levers_analysis.py --loss neg_mse \
-        --glob "$SCRATCH/ranking_outputs/derivation_redundancy_levers_[sfr]*__c*.parquet" \
+        --glob "$DATA_ROOT/outputs/derivation_redundancy_levers_[sfr]*__c*.parquet" \
         --out-dir analysis/out_derivation_mse
     python analysis/derivation_levers_analysis.py --loss neg_nll \
-        --glob "$SCRATCH/ranking_outputs/derivation_redundancy_levers_classification_*__c*.parquet" \
+        --glob "$DATA_ROOT/outputs/derivation_redundancy_levers_classification_*__c*.parquet" \
         --out-dir analysis/out_classification_nll
 
 Per CONFIGURATION (family x dataset noise x train_size x procedure x fixed_split x solver

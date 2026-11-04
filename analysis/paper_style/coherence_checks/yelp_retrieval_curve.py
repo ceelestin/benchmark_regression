@@ -1,8 +1,11 @@
 """Share of seeds in which a single split, with its test fold extended by m - 1 outer chunks, ranks BERT above
 XLM-RoBERTa (n_tr = 1,000 and 3,000), for m = 1, 2, 5, 10, 20, 61."""
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/nlp/yelp_aligned")
+D = datapaths.data_path("nlp", "yelp_aligned")
 d = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(f"{D}/*.parquet"))], ignore_index=True)
 f1 = d[d.fold == 1]
 for n, g in f1.groupby("study_size"):

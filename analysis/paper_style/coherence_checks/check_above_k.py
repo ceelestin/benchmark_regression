@@ -1,7 +1,10 @@
 """Problem 2: verify the gains above K in Figure 6 and the noise-injection grid's implied fold-error correlation."""
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
-A = os.path.expandvars("$WORK/benchmark_regression/analysis")
+A = datapaths.repo_path("analysis")
 d = pd.concat([pd.read_csv(f"{A}/out_omega/omega_{s}_neg_mse.csv").assign(design=s) for s in ("derivation", "holdout1", "holdout2", "holdout3")], ignore_index=True)
 print("Figure 6 simulated configs:", len(d), "| G_paper(K=20) > 20:", int((d.G_paper > 20).sum()), "| max:", round(d.G_paper.max(), 1))
 print((d[d.G_paper > 20].groupby(["design", "solver_name"]).size()).to_string())

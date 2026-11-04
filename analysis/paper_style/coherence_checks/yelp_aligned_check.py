@@ -1,8 +1,10 @@
 """Sanity checks of the runs of nlpfinetuning_aligned.py: completeness, scores, collapsed splits, outer chunks,
 redundancy columns, recorded runtimes (Table E.2)."""
 import glob, os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
-R = os.path.expandvars(sys.argv[1] if len(sys.argv) > 1 else "$WORK/benchmark_nlp/results_aligned")
+R = sys.argv[1] if len(sys.argv) > 1 else datapaths.nlp_repo_path("results_aligned")
 fs = sorted(glob.glob(f"{R}/yelp_results_CV_*.parquet"))
 d = pd.concat([pd.read_parquet(f).assign(_f=os.path.basename(f)) for f in fs], ignore_index=True)
 print(f"{len(fs)} files, {len(d)} rows")

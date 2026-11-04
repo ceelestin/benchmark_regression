@@ -24,6 +24,7 @@ import pandas as pd
 import seaborn as sns
 
 import compute
+import datapaths
 import gain_relationships as G
 import pipeline_common as C
 import plot as P
@@ -32,69 +33,11 @@ import plot as P
 # Default configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Default input: the June 2026 run of the main design on R^2 (four learners, n_tr = 1,000, K = 200, seeds 0-999),
+# which configs/paper_main_gain_mse_k200.yml repeats with the mean squared error recorded. Pass other runs with
+# --data-paths.
 DEFAULT_DATA_PATHS = [
-    # # ## '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear_100seeds_run_2026-04-04_11h03m49.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear_1000seeds_run_2026-04-15_00h41m43.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear-noisy_100seeds_run_2026-04-21_13h34m09.parquet',
-    # # ## '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear-noisy_1000seeds_run_2026-04-21_19h04m07.parquet',
-    # # ## '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear-full_100seeds_run_2026-04-27_17h43m22.parquet',
-    # # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear_100seeds_MLP_run_2026-04-28_12h36m54.parquet',
-    # # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear-noisy_100seeds_MLP_run_2026-04-28_14h53m46.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear-full_1000seeds_MLP_run_2026-04-28_19h04m46.parquet',
-    
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear-full_100seeds_run_2026-04-29_12h25m18.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear-full_100seeds_K20_run_2026-04-29_15h16m17.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear-full_1000seeds_K20_run_2026-04-30_01h00m50.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_linear-full_100seeds_K20_newdiags_run_2026-04-30_14h29m40.parquet',
-
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_run_2026-05-01_13h01m00.parquet', # same as below but with 100 seeds
-    # # '/home/ceve/Documents/Run outputs/Regression/data/1000seeds_K20_benchopt_run_2026-05-01_18h34m53.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/followup_benchopt_run_2026-05-02_07h15m13.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/100seeds_K200_benchopt_run_2026-05-02_12h44m20.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/newsolvers_benchopt_run_2026-05-02_18h56m38.parquet',
-
-    # # '/home/ceve/Documents/Run outputs/Regression/data/testredundancy_benchopt_run_2026-05-04_12h45m52.parquet',
-
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_run_2026-06-05_03h27m19.parquet', # linear_1000_full_N1000.yml
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_run_2026-06-06_02h59m46.parquet', # linear_1000_full_N300.yml
-    # # '/home/ceve/Documents/Run outputs/Regression/data/benchopt_run_2026-06-06_01h38m42.parquet', # linear_1000_full_N100.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/benchopt_run_2026-06-05_03h53m16.parquet', # linear_1000_full_N1000_noise0.yml
-
-    # # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-23_20h11m43.parquet', # ExtraTrees, 50 seeds
-    # # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-23_20h29m43.parquet',
-    # # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-23_21h21m19.parquet', # MLP, 50 seeds
-    # # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-23_21h22m28.parquet'
-    # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-23_21h44m24.parquet', # MLP, 1000 seeds, HPO
-    # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-23_21h50m22.parquet',
-    # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-23_22h24m34.parquet', # ExtraTrees, 1000 seeds, HPO
-    # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-23_22h27m00.parquet',
-    # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-27_12h40m37.parquet', # ExtraTrees, 1000 seeds, HPO, n_estimators=200
-    # '/home/ceve/Documents/Run outputs/Regression/data/hpo/benchopt_run_2026-07-27_12h47m49.parquet',
-    
-    # # '/home/ceve/Documents/Run outputs/Regression/data/newmetrics/benchopt_run_2026-07-24_10h02m05.parquet', # newmetrics, 100 seeds, half1
-    # # '/home/ceve/Documents/Run outputs/Regression/data/newmetrics/benchopt_run_2026-07-24_10h01m27.parquet', # newmetrics, 100 seeds, half2 
-    # '/home/ceve/Documents/Run outputs/Regression/data/newmetrics/benchopt_run_2026-07-24_10h46m24.parquet', # newmetrics, 1000 seeds, half1
-    # '/home/ceve/Documents/Run outputs/Regression/data/newmetrics/benchopt_run_2026-07-24_10h42m52.parquet', # newmetrics, 1000 seeds, half2 
-    
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-24_13h28m44.parquet', # WRONG fixed, 1000 seeds, half1 
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-24_13h25m39.parquet', # WRONG fixed, 1000 seeds, half2 
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_19h28m24.parquet', # fixed, N=1000, half1 
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_19h31m36.parquet', # fixed, N=1000, half2 
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_19h48m06.parquet', # fixed, N=100, half1 
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_19h46m34.parquet', # fixed, N=100, half2 
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_19h57m34.parquet', # not fixed, N=100, half1 
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_19h55m50.parquet', # not fixed, N=100, half2 
-        
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_21h00m32.parquet', # new methodo, fixed, N=100
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_21h01m05.parquet', # new methodo, not fixed, N=100
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_21h17m23.parquet', # new methodo, fixed, N=1000
-    # '/home/ceve/Documents/Run outputs/Regression/data/fixed/benchopt_run_2026-07-27_21h17m36.parquet', # new methodo, not fixed, N=1000
-
-    # '/home/ceve/Documents/Run outputs/Regression/data/smalldata/benchopt_run_2026-07-31_19h07m06.parquet', # smalldata, half1
-    # '/home/ceve/Documents/Run outputs/Regression/data/smalldata/benchopt_run_2026-07-31_19h02m17.parquet', # smalldata, half2
-    # '/home/ceve/Documents/Run outputs/Regression/data/smalldata/benchopt_run_2026-07-31_21h05m17.parquet', # smalldata2, half1
-    # '/home/ceve/Documents/Run outputs/Regression/data/smalldata/benchopt_run_2026-07-31_21h07m56.parquet', # smalldata2, half2
-        
+    datapaths.data_path("paper_runs", "benchopt_run_2026-06-05_03h53m16.parquet"),
 ]
 
 DEFAULT_PLOTS_DIR = "plots/simulated"

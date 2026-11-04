@@ -1,9 +1,10 @@
 """Item 13 side check: which duplicated Yelp run feeds the K-split side in nlp.py (Jean-Zay file order)."""
 import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
-sys.path.insert(0, os.path.expandvars("$WORK/paper_style_figs/v3/code"))
 import nlp
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/nlp")
+D = datapaths.data_path("nlp")
 dirs = [os.path.join(D, x) for x in sorted(os.listdir(D))]
 files = nlp._find_parquet_files(dirs)
 fb = [f for f in files if "cv_models_bert_nsplits_20_seeds_0-0_sizes_1250_" in f]

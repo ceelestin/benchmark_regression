@@ -6,20 +6,24 @@ paper gain). Reference band from the simulated sim_classification configurations
 100-1000 (analysis/out_omega/). Checks A1 coverage >= 70 %, A2 |median log offset| <= 0.2,
 A3 Spearman <= -0.5.
 
-Usage (Jean-Zay): python analysis/pcam_consistency_check.py [--k 5] [--gain accuracy|nll]
+Usage: python analysis/pcam_consistency_check.py [--k 5] [--gain accuracy|nll]
 """
 import argparse
 import glob
 import os
+import sys
 
 import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "paper_style", "code"))  # datapaths.py
+import datapaths  # noqa: E402
+
 T = 0.2
-PCAM = os.path.expandvars("$WORK/benchmark_pcam")
+PCAM = datapaths.pcam_repo_path()  # the benchmark_pcam checkout ($BENCHMARK_PCAM, else ../benchmark_pcam)
 SETS = {  # name -> (parquet glob, gains dir)
-    "pcam_100seeds": (os.path.expandvars("$SCRATCH/pcam_calib100_links/*.parquet"),
+    "pcam_100seeds": (datapaths.data_path("pcam", "calib100", "*.parquet"),
                       f"{PCAM}/analysis/out_calibration_100seeds"),
     "pcam_round3": (f"{PCAM}/results_output_pcam/pcam_results_CV_shuffle_split_unstrat_*_nsplits_20_seeds_"
                     "1[0-4][0-9]-1[0-4][0-9]_sizes_[138]00_2026092[4-9]_*.parquet", f"{PCAM}/analysis/out_round3"),

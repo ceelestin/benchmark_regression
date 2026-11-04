@@ -45,19 +45,18 @@ import numpy as np
 import pandas as pd
 
 import compute
+import datapaths
 import plot as P
 import simulated as SIM
 
-RUNS = os.path.expanduser("~/Documents/Run outputs/Regression/data")
-EXTRACT = f"{RUNS}/mse_paper_figs/orchestrator_mse_runs_extract.parquet"
-JULY_RESAMPLED = f"{RUNS}/fixed/benchopt_run_2026-07-27_21h01m05.parquet"
+# Inputs under the data root (see datapaths.py): an extract of the chunked runs and the July 2026 runs.
+EXTRACT = datapaths.data_path("mse_paper_figs", "orchestrator_mse_runs_extract.parquet")
+JULY_RESAMPLED = datapaths.data_path("paper_runs", "benchopt_run_2026-07-27_21h01m05.parquet")
 JULY_FIXED = {
-    "orchestrator": f"{RUNS}/fixed/benchopt_run_2026-07-27_20h48m32.parquet",
-    "corrected": f"{RUNS}/fixed/benchopt_run_2026-07-27_21h00m32.parquet",
+    "orchestrator": datapaths.data_path("paper_runs", "benchopt_run_2026-07-27_20h48m32.parquet"),
+    "corrected": datapaths.data_path("paper_runs", "benchopt_run_2026-07-27_21h00m32.parquet"),
 }
-DEFAULT_OUT = os.path.expanduser(
-    "~/Documents/Papiers/Miens/Crossing the Validation Crisis/NeurIPS 2026 - Rebuttal/"
-    "proposed_figures_mse_gain")
+DEFAULT_OUT = "plots/mse_gain"
 
 _TAB10 = plt.get_cmap("tab10").colors
 FAMILY_COLOR = {"ExtraTrees": _TAB10[0], "GradientBoosting": _TAB10[1], "MLP": _TAB10[2],

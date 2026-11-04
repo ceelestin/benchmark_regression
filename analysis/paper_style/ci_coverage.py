@@ -10,6 +10,7 @@ import numpy as np, pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import paper_style_figs as F
 import compute
+import datapaths
 
 class Identity:                                   # "resampling" that returns the sample itself -> plug-in estimate
     def choice(self, a, size=None, replace=True):
@@ -48,7 +49,7 @@ for m in (50, 200):
 d = pd.DataFrame(rows)
 d["covered"] = (d.lo <= d.ref) & (d.ref <= d.hi)
 d["miss_low"] = d.hi < d.ref; d["miss_high"] = d.lo > d.ref
-out = os.path.expandvars("$WORK/paper_style_figs/v3/ci_coverage.csv"); d.to_csv(out, index=False)
+out = datapaths.figs_path("ci_coverage.csv"); os.makedirs(os.path.dirname(out), exist_ok=True); d.to_csv(out, index=False)
 print(d.groupby(["m", "learner", "K"])[["covered", "miss_low", "miss_high"]].mean().round(2).to_string())
 print(d.groupby("m")[["covered", "miss_low", "miss_high"]].agg(["mean", "sum", "count"]).to_string())
 d["rel_err_est"] = d.est / d.ref - 1; d["rel_err_bmean"] = d.boot_mean / d.ref - 1

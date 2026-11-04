@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fold-common split of the fold-driven variance (derivation experiment, job 49236).
-Usage: python analysis/fold_common_split.py   (reads $SCRATCH/ranking_merged/...shufflesplit.parquet,
+Usage: python analysis/fold_common_split.py   (reads $DATA_ROOT/merged/...shufflesplit.parquet,
 writes analysis/out_derivation_mse/foldcommon_split.csv)
 
 Result 2026-09-22: the within-study fold-common variance is <= 4% of the per-sample fold variance for
@@ -15,13 +15,15 @@ fold variance includes the fold-common shift). Solve for sig_c^2, then
   f_err   = (fv - sig_c^2) / (sv + fv - sig_c^2)                    (interaction only; target of G_err)
   f_total = ((fv - sig_c^2)/m + sig_c^2) / (sv/m + (fv - sig_c^2)/m + sig_c^2)   (procedure estimand)
 """
-import os, numpy as np, pandas as pd, pyarrow.parquet as pq
+import os, sys, numpy as np, pandas as pd, pyarrow.parquet as pq
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "paper_style", "code"))  # datapaths.py
+import datapaths  # noqa: E402
 from scipy.stats import spearmanr
 P = "objective_"
 cols = ["dataset_name", "p_dataset_noise", "p_obj_train_size", "p_dataset_seed", "solver_name", "idx_rep",
         P+"neg_mse_test", P+"neg_mse_bench", P+"split_test_size", P+"study_target_var",
         P+"study_oof_anova_squared_error_sample_var", P+"study_oof_anova_squared_error_fold_var"]
-df = pq.read_table(os.path.expandvars("$SCRATCH/ranking_merged/derivation_redundancy_levers_shufflesplit.parquet"), columns=cols).to_pandas()
+df = pq.read_table(datapaths.data_path("merged", "derivation_redundancy_levers_shufflesplit.parquet"), columns=cols).to_pandas()
 df["q"] = -df[P+"neg_mse_test"] / df[P+"study_target_var"]
 df["b"] = -df[P+"neg_mse_bench"] / df[P+"study_target_var"]
 key = ["p_dataset_noise", "p_obj_train_size", "solver_name"]
@@ -65,4 +67,4 @@ for K in (20, 200):
         print(f"K={K:3d}  f_{src:5s} -> G_{tgt:3s}: Spearman {spearmanr(pred, obs).statistic:+.2f} | median log(pred/obs) {lr.median():+.2f} | IQR {lr.quantile(.25):+.2f}..{lr.quantile(.75):+.2f}")
 print("\nmedians by lever: fold-common share of fv, f_anova, f_err, G_err_200 obs / pred(anova) / pred(err), G_raw_200 obs / pred(tot)")
 print(o.groupby("lev")[["sig_c2_share", "f_anova", "f_err", "G_err_200", "Gp_anova_200", "Gp_err_200", "G_raw_200", "Gp_tot_200"]].median().round(2).to_string())
-o.to_csv(os.path.expandvars("$WORK/benchmark_regression/analysis/out_derivation_mse/foldcommon_split.csv"), index=False)
+o.to_csv(datapaths.repo_path("analysis", "out_derivation_mse", "foldcommon_split.csv"), index=False)

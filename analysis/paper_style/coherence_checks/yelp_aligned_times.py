@@ -1,8 +1,11 @@
 """Table E.2 rows of the Yelp re-run: recorded training and evaluation runtimes (hours, as the older Yelp rows) per
 model, both sizes together, and the scheduler's GPU-hours of the two arrays (sacct, one GPU per task)."""
 import glob, os, subprocess
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import pandas as pd
-R = os.path.expandvars("$WORK/benchmark_nlp/results_aligned")
+R = datapaths.nlp_repo_path("results_aligned")
 d = pd.concat([pd.read_parquet(f) for f in sorted(glob.glob(f"{R}/yelp_results_CV_*.parquet"))], ignore_index=True)
 d["eval"] = d[["val_runtime", "test_runtime", "benchmark_runtime"]].sum(axis=1) + d["hidden_runtime"].fillna(0)
 t = d.groupby("model").agg(train=("train_runtime", "sum"), eval=("eval", "sum"), seeds=("seed", "nunique"),

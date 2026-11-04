@@ -32,6 +32,7 @@ import pyarrow.parquet as pq
 from matplotlib.ticker import MaxNLocator
 
 import compute
+import datapaths
 import mse_gain_figures as T          # the spec's template: COLS, display_name(); gains() copied below (v3)
 import plot as P
 import simulated as SIM
@@ -64,8 +65,14 @@ def gains(data, n_bootstraps, test_size, random_state=SEED, plugin=False):
     res.attrs = {}
     return res
 
-OUT = os.path.expandvars("$WORK/benchmark_regression/outputs")
-JULY = os.path.expandvars("$SCRATCH/paper_runs/benchopt_run_2026-{}.parquet")
+def run_locations(root=None):
+    """The benchopt outputs of the chunked runs, and the pattern of the July 2026 single-file runs, under the data root
+    (--data-root, else $DATA_ROOT, else data/ at the repository root; see code/datapaths.py)."""
+    return (datapaths.data_path("outputs", root=root),
+            datapaths.data_path("paper_runs", "benchopt_run_2026-{}.parquet", root=root))
+
+
+OUT, JULY = run_locations()
 # v4e (CE, 2026-10-30): the four simulated-data learners take matplotlib C0-C3 (ExtraTrees C0, RandomFeatures C1, MLP C2, Ridge C3).
 COLOR = {"ExtraTrees": "#1f77b4", "GradientBoosting": "#ff7f0e", "MLP": "#2ca02c", "Ridge": "#d62728",
          "RandomFeatures": "#ff7f0e", "MLP_GridSearch": "#8c564b", "MLP_RandomSearch": "#e377c2",
@@ -149,8 +156,11 @@ def draw(df, names, xtk, path, title, title_xy=(0.03, 0.97), save=True, **extra)
 
 
 def main():
+    global OUT, JULY
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-dir", required=True)
+    ap.add_argument("--data-root", default=None,
+                    help="run outputs: outputs/ and paper_runs/ under it (default: $DATA_ROOT, else data/ at the repository root)")
     ap.add_argument("--n-bootstraps", type=int, default=N_BOOT)
     ap.add_argument("--from-results", default=None, help="load sample_gain_bootstrap_<group>.parquet from this dir instead of computing")
     ap.add_argument("--plugin-groups", nargs="*", default=[],
@@ -159,6 +169,7 @@ def main():
     ap.add_argument("--y-top", choices=["quantile", "mean"], default="mean")
     ap.add_argument("--groups", nargs="*", default=["n1000", "n100", "small"], help="groups to compute (others are loaded; none = redraw only)")
     a = ap.parse_args()
+    OUT, JULY = run_locations(a.data_root)
     os.makedirs(a.out_dir, exist_ok=True)
     P.set_paper_style()
     P.GAIN_DISPLAY["y_top"] = a.y_top

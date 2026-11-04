@@ -5,7 +5,7 @@
 (2) Small-budget appendix: at each training budget (5-100), how often the redundancy of a single run is
     defined after k splits, and how often a single run orders the two algorithms whose mean redundancies
     are furthest apart in the same way as their means (same seed = same study set).
-Usage (Jean-Zay): python analysis/paper_appendix_redundancy_checks.py --dir $SCRATCH/paper_runs
+Usage: python analysis/paper_appendix_redundancy_checks.py --dir $DATA_ROOT/paper_runs
 """
 import argparse
 import glob

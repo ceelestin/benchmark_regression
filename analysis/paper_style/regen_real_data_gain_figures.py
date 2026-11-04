@@ -225,14 +225,17 @@ def figL1(code_dir, data, out):
 def main():
     ap = argparse.ArgumentParser()
     here = os.path.dirname(os.path.abspath(__file__))
-    ap.add_argument("--code-dir", default=os.path.join(here, "..", "code"))
-    ap.add_argument("--data-root", default=os.path.join(here, "data"))
+    ap.add_argument("--code-dir", default=os.path.join(here, "code"))
+    ap.add_argument("--data-root", default=None,
+                    help="run outputs: pcam/ and nlp/ under it (default: $DATA_ROOT, else data/ at the repository root)")
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--only", nargs="+", choices=FIGS, default=FIGS)
     a = ap.parse_args()
-    code_dir, data, out = (os.path.abspath(p) for p in (a.code_dir, a.data_root, a.out_dir))
+    code_dir, out = (os.path.abspath(p) for p in (a.code_dir, a.out_dir))
     os.makedirs(out, exist_ok=True)
     sys.path.insert(0, code_dir)
+    import datapaths
+    data = datapaths.data_root(a.data_root)
     import matplotlib; matplotlib.use("Agg")
     import warnings; warnings.filterwarnings("ignore")
     for name in a.only:

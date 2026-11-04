@@ -4,7 +4,8 @@ import glob, os, sys
 import numpy as np, pandas as pd, pyarrow.parquet as pq
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import paper_style_figs as F
-f = glob.glob(os.path.expandvars("$SCRATCH/paper_runs/benchopt_run_2026-07-24_10h46m*.parquet"))[0]
+import datapaths
+f = glob.glob(datapaths.data_path("paper_runs", "benchopt_run_2026-07-24_10h46m*.parquet"))[0]
 names = pq.read_schema(f).names
 for lab, cols in (("R2", ("objective_score_test", "objective_score_bench", "objective_outer_scores")),
                   ("MSE", ("objective_neg_mse_test", "objective_neg_mse_bench", "objective_outer_neg_mse"))):

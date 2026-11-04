@@ -6,11 +6,12 @@ ANOVA rho_delta = tau / sigma2 (tau = B - W/K, sigma2 = W + tau) on the first K 
   D. the implied rho (K/G_true - 1)/(K - 1) of the decomposition CSVs, by design (all four designs of Figure 6).
 Read-only."""
 import glob, os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
 import pyarrow.parquet as pq
 
 K = 20
-W_ = os.path.expandvars("$WORK"); S_ = os.path.expandvars("$SCRATCH")
 pd.set_option("display.width", 250); pd.set_option("display.max_rows", 500)
 
 
@@ -23,7 +24,7 @@ def anova(P):
 part = sys.argv[1] if len(sys.argv) > 1 else "ABCD"
 
 if "A" in part:
-    D = f"{W_}/benchmark_pcam/results_output_pcam"
+    D = datapaths.pcam_repo_path("results_output_pcam")
     LOSS = {"accuracy": ("test_accuracy", "benchmark_accuracy"), "nll": ("test_nll", "benchmark_nll"),
             "brier": ("test_brier", "benchmark_brier")}
     rows = []
@@ -90,20 +91,20 @@ def sim_rho(pattern, label):
 
 
 if "B" in part:
-    R = f"{S_}/ranking_outputs"
+    R = datapaths.data_path("outputs")
     b1 = sim_rho(f"{R}/k200_threshold_validation_holdout_50_*__c*.parquet", "B. holdout1 (k200_threshold_validation_holdout_50)")
     b1.assign(design="holdout1").to_csv("rho_holdout1.csv", index=False)
-    b3 = sim_rho(f"{S_}/holdout3_in/holdout3_largegain_sim_[lin]*__c*.parquet", "B. holdout3 (regression)")
+    b3 = sim_rho(datapaths.data_path("holdout3_in", "holdout3_largegain_sim_[lin]*__c*.parquet"), "B. holdout3 (regression)")
     b3.assign(design="holdout3").to_csv("rho_holdout3.csv", index=False)
 
 if "C" in part:
-    hp = sorted(glob.glob(f"{W_}/benchmark_regression/outputs/hpo_mse_*__c*.parquet"))
+    hp = sorted(glob.glob(datapaths.data_path("outputs", "hpo_mse_*__c*.parquet")))
     print("HPO files in outputs:", len(hp), sorted({os.path.basename(f).split("__c")[0] for f in hp}))
-    c = sim_rho(f"{W_}/benchmark_regression/outputs/hpo_mse_*__c*.parquet", "C. HPO (Appendix I)")
+    c = sim_rho(datapaths.data_path("outputs", "hpo_mse_*__c*.parquet"), "C. HPO (Appendix I)")
     c.to_csv("rho_hpo.csv", index=False)
 
 if "D" in part:
-    A = f"{W_}/benchmark_regression/analysis"
+    A = datapaths.repo_path("analysis")
     print("== D. implied rho (K/G_true - 1)/(K - 1) from the decomposition CSVs, K = 20, mean squared error")
     for s in ("derivation", "holdout1", "holdout2", "holdout3"):
         f = f"{A}/out_decomp_{s}/decomposition_neg_mse_stat_squared_error.csv"

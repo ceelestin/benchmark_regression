@@ -23,27 +23,29 @@ import pandas as pd
 import seaborn as sns
 
 import compute
+import datapaths
 import plot as P
 
 # %% ──────────────────────────────────────────────────────────────────────────
 # Default configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
+# The 12 runs of Figure O.1, under <data root>/ranking/ (see datapaths.py), with the config of each.
 DEFAULT_DATA_PATHS = [
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-05-31_05h37m39.parquet', # ranking_100seeds.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-01_17h39m30.parquet', # ranking_100seeds_2.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-02_01h44m44.parquet', # ranking_100seeds_3.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-02_01h59m30.parquet', # ranking_100seeds_4.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-05-31_05h37m39.parquet"),  # ranking_100seeds.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-01_17h39m30.parquet"),  # ranking_100seeds_2.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-02_01h44m44.parquet"),  # ranking_100seeds_3.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-02_01h59m30.parquet"),  # ranking_100seeds_4.yml
 
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-03_03h41m16.parquet', # ranking_100-300seeds.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-03_03h19m37.parquet', # ranking_100-300seeds_2.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-03_14h09m10.parquet', # ranking_100-300seeds_3.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-03_14h29m46.parquet', # ranking_100-300seeds_4.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-03_03h41m16.parquet"),  # ranking_100-300seeds.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-03_03h19m37.parquet"),  # ranking_100-300seeds_2.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-03_14h09m10.parquet"),  # ranking_100-300seeds_3.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-03_14h29m46.parquet"),  # ranking_100-300seeds_4.yml
 
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-03_21h11m35.parquet', # ranking_300-500seeds.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-03_20h49m15.parquet', # ranking_300-500seeds_2.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-04_01h55m39.parquet', # ranking_300-500seeds_3.yml
-    '/home/ceve/Documents/Run outputs/Regression/data/ranking/benchopt_run_2026-06-04_02h56m57.parquet', # ranking_300-500seeds_4.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-03_21h11m35.parquet"),  # ranking_300-500seeds.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-03_20h49m15.parquet"),  # ranking_300-500seeds_2.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-04_01h55m39.parquet"),  # ranking_300-500seeds_3.yml
+    datapaths.data_path("ranking", "benchopt_run_2026-06-04_02h56m57.parquet"),  # ranking_300-500seeds_4.yml
 ]
 
 DEFAULT_PLOTS_DIR = "plots/ranking"

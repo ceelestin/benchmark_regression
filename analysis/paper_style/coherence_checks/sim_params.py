@@ -1,8 +1,11 @@
 """Item 7 (CE, 2026-11-02): dataset parameters actually used by the simulated runs behind the paper's figures."""
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import pandas as pd, pyarrow.parquet as pq
-OUT = os.path.expandvars("$WORK/benchmark_regression/outputs")
-JULY = os.path.expandvars("$SCRATCH/paper_runs/benchopt_run_2026-{}.parquet")
+OUT = datapaths.data_path("outputs")
+JULY = datapaths.data_path("paper_runs", "benchopt_run_2026-{}.parquet")
 src = {
     "Fig 4/5 main k200 (n1000)": glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet") + glob.glob(f"{OUT}/paper_main_gain_mse_k200_mlp64x64__c*.parquet") + glob.glob(f"{OUT}/paper_main_gain_mse_k200_rff50__c*.parquet"),
     "HPO (App I)": glob.glob(f"{OUT}/hpo_mse_*__c*.parquet"),

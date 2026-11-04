@@ -1,7 +1,10 @@
 """Item 11: Yelp K = 20 runs: seeds, duplicates and recorded runtimes (hours) vs Table E.2."""
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import pandas as pd
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/nlp")
+D = datapaths.data_path("nlp")
 rows = []
 for f in glob.glob(f"{D}/**/*.parquet", recursive=True):
     d = pd.read_parquet(f, columns=["model_arg_choice", "study_set_size", "n_splits_cv", "seed", "fold_index", "train_runtime",

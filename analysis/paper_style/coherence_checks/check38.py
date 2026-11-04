@@ -1,6 +1,9 @@
 """Figure 6's configurations with G_true > 20 at K = 20 (MSE): which design, which are in the noise-injection grid."""
 import os, pandas as pd
-A = os.path.expandvars("$WORK/benchmark_regression/analysis")
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
+A = datapaths.repo_path("analysis")
 x = pd.concat([pd.read_csv(f"{A}/out_decomp_{s}/decomposition_neg_mse_stat_squared_error.csv").assign(design=s)
                for s in ("derivation", "holdout1", "holdout2", "holdout3")])
 print(x.columns.tolist()[:40])

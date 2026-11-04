@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 
 import compute
+import datapaths
 import plot as P
 import nlp
 import pcam
@@ -37,8 +38,7 @@ DEFAULT_PLOTS_DIR = "plots/replicability"
 RESULTS_DIR = "results"
 
 # PCam — original benchmark data (study_size -> reported train size N)
-PCAM_DATA_DIR = "/home/ceve/Documents/Run outputs/PCam/results_output_pcam"
-# PCAM_DATA_DIR = "/home/ceve/Documents/Run outputs/PCam/stratandnewmetrics"
+PCAM_DATA_DIR = datapaths.data_path("pcam", "results_output_pcam")
 PCAM_PAIRS = [
     ("densenet121", "mobilenet_v2"),
     ("densenet121", "wide_resnet101_2"),

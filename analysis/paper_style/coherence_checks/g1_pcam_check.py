@@ -1,8 +1,11 @@
 """Table G.1 PCam rows: is D-bar the mean of the same per-seed differences whose standard deviation is s_D?"""
 import glob, itertools, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
 from scipy import stats
-D = os.path.expandvars("$SCRATCH/pcam_nocv_jan/results_output_pcam")
+D = datapaths.data_path("pcam", "nocv_jan")
 fs = sorted(glob.glob(f"{D}/*.parquet"))
 d0 = pd.read_parquet(fs[0]); print(d0.columns.tolist()); print(d0.iloc[0].to_dict())
 d = pd.concat([pd.read_parquet(f) for f in fs], ignore_index=True)

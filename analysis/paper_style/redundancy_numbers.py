@@ -1,7 +1,9 @@
 """Redundancy (t * rho on the squared error, OOF intersection) for the App I / App M text pass (2026-10-30)."""
-import glob, os
+import glob, os, sys
 import numpy as np, pandas as pd, pyarrow.parquet as pq
-O = os.path.expandvars("$WORK/benchmark_regression/outputs"); J = os.path.expandvars("$SCRATCH/paper_runs/benchopt_run_2026-{}.parquet")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "code"))
+import datapaths
+O = datapaths.data_path("outputs"); J = datapaths.data_path("paper_runs", "benchopt_run_2026-{}.parquet")
 RHO = "objective_study_squared_error_rho_all_oof_intersection"   # as analysis/paper_appendix_redundancy_checks.py
 C = ["solver_name", "p_dataset_seed", "idx_rep", "p_obj_train_size", "p_obj_test_size", RHO]
 def load(files, solver=None):
@@ -23,4 +25,4 @@ print("== App M (small budgets), after 5 splits")
 sm = pd.concat([load([J.format(t) for t in ("07-31_19h02m17", "07-31_21h05m17", "07-31_19h07m06", "07-31_21h07m56")]),
                 load(sorted(glob.glob(f"{O}/small_budget_mlp64_rff50__c*.parquet")))])
 w = red(sm, 5).unstack(0).round(3); print(w.to_string())
-w.to_csv(os.path.expandvars("$WORK/paper_style_figs/v3/results_v4d/small_redundancy_k5.csv"))
+out = datapaths.figs_path("small_redundancy_k5.csv"); os.makedirs(os.path.dirname(out), exist_ok=True); w.to_csv(out)  # read by text_numbers_v5.py

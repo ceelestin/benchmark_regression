@@ -1,7 +1,10 @@
 """Item 8: seeds per Yelp run set (CE copy real_data/data/nlp)."""
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import pandas as pd, pyarrow.parquet as pq
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/nlp")
+D = datapaths.data_path("nlp")
 rows = []
 for f in glob.glob(f"{D}/**/*.parquet", recursive=True):
     names = pq.read_schema(f).names

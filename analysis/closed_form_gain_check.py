@@ -22,7 +22,7 @@ from the per-sample OOF ANOVA of the squared error emitted by objective.py
 import os, numpy as np, pandas as pd
 from scipy.stats import spearmanr
 import sys
-out_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.expandvars("$WORK/benchmark_regression/analysis/out_derivation_mse")
+out_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), "out_derivation_mse")
 c = pd.read_csv(os.path.join(out_dir, "candidates.csv"))
 c["scheme"] = np.where(c["p_obj_fixed_split"].astype(str) == "True", "fixed", c["p_obj_procedure"])
 c["lev"] = c["solver"] + c["lever"].fillna("").map(lambda s: " " + s if s else "")

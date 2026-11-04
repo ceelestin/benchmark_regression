@@ -3,16 +3,16 @@ import glob, os, sys
 import numpy as np, pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import paper_style_figs as F
-V = os.path.expandvars("$WORK/paper_style_figs/v3")
+import datapaths
 est = lambda r: r[r.bootstrap_iter < 0]
 # (a) App M
-m = est(pd.read_parquet(f"{V}/final_sim_v5/tables/figM1.parquet"))
+m = est(pd.read_parquet(datapaths.figs_path("sim", "tables", "figM1.parquet")))
 t = m[m.K.isin([5, 20])].pivot_table(index=["N", "solver_disp"], columns="K", values="sample_gain")
 t["ratio"] = t[20] / t[5]; print(t.round(2).unstack("solver_disp").to_string())
 print("ratio range", round(t.ratio.min(), 2), round(t.ratio.max(), 2), "| G20 range", round(t[20].min(), 2), round(t[20].max(), 2))
 sm = t.reset_index(); print("G20 N<=10:", round(sm[sm.N <= 10][20].min(), 2), round(sm[sm.N <= 10][20].max(), 2))
 print(sm[sm.N >= 20].groupby("solver_disp")[20].agg(["min", "max"]).round(2).to_string())
-w = pd.read_csv(f"{V}/results_v4d/small_redundancy_k5.csv", index_col=0)
+w = pd.read_csv(datapaths.figs_path("small_redundancy_k5.csv"), index_col=0)  # written by redundancy_numbers.py
 w = w[[c for c in w.columns if "64, 64" not in c]].rename(columns=lambda c: F.T.display_name(c)); w.index = w.index.astype(int)
 kap = {}
 for (n, l), r in t.iterrows():

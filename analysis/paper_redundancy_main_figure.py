@@ -7,7 +7,7 @@ Optionally overlays the PCam round-3 configurations (4 networks x 3 sizes x accu
 redundancy = t * seed-mean rho after k splits on the metric's per-sample loss (benchmark_pcam
 analysis/out_round3_redundancy/redundancy_vs_gain.csv) and the same variance-equivalent gain G_paper_20 as the
 simulated points (benchmark_pcam analysis/out_round3/candidates_<metric>.csv).
-Usage: python analysis/paper_redundancy_main_figure.py [--k 3] [--pcam-dir $WORK/benchmark_pcam/analysis]
+Usage: python analysis/paper_redundancy_main_figure.py [--k 3] [--pcam-dir ../benchmark_pcam/analysis]
 """
 import argparse
 import os

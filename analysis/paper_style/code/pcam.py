@@ -24,6 +24,7 @@ import seaborn as sns
 from matplotlib.ticker import FixedLocator
 
 import compute
+import datapaths
 import pipeline_common as C
 import plot as P
 
@@ -31,10 +32,10 @@ import plot as P
 # Default configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
-DEFAULT_DATA_DIR = '/home/ceve/Documents/Run outputs/PCam/results_output_pcam'
-# DEFAULT_DATA_DIR = '/home/ceve/Documents/Run outputs/PCam/stratandnewmetrics'
-# DEFAULT_DATA_DIR = '/home/ceve/Documents/Run outputs/PCam/redundancy'
-DEFAULT_PLOTS_DIR = "plots/pcam/rebuttal"
+# The K-split PCam runs of Figures 2, 5 (middle) and I.1, under the data root (see datapaths.py); the stratified runs
+# of Appendices J and K are in pcam/stratandnewmetrics (pass it with --data-dir).
+DEFAULT_DATA_DIR = datapaths.data_path("pcam", "results_output_pcam")
+DEFAULT_PLOTS_DIR = "plots/pcam"
 DEFAULT_MODELS = ['densenet121', 'mobilenet_v2', 'wide_resnet101_2', 'vit_b_16']
 DEFAULT_STUDY_SIZES = [30, 100, 300, 500, 800]
 

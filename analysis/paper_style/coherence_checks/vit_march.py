@@ -1,6 +1,9 @@
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import pandas as pd
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/pcam/results_output_pcam")
+D = datapaths.data_path("pcam", "results_output_pcam")
 fs = [f for f in glob.glob(f"{D}/*.parquet") if "shuffle_split" in f]
 d = pd.concat([pd.read_parquet(f, columns=["model", "study_size", "seed", "fold", "benchmark_accuracy", "benchmark_loss"]) for f in fs], ignore_index=True)
 g = d.groupby(["model", "study_size"]).benchmark_accuracy

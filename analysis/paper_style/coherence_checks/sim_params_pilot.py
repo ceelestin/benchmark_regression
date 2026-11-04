@@ -1,6 +1,9 @@
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import pandas as pd, pyarrow.parquet as pq
-OUT = os.path.expandvars("$WORK/benchmark_regression/outputs")
+OUT = datapaths.data_path("outputs")
 for pat in ("pilot_persample_k20", "pilot_r2lin_k20"):
     fs = sorted(glob.glob(f"{OUT}/{pat}*.parquet"))
     if not fs: print(pat, "no files"); continue

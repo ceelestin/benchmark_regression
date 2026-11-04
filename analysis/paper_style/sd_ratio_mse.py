@@ -1,7 +1,9 @@
 """App J: SD ratio frozen / reshuffled of the 20-fit benchmarking score on the MSE, n_tr = 100 (CE, 2026-10-30)."""
-import glob, os
+import glob, os, sys
 import numpy as np, pandas as pd
-J = os.path.expandvars("$SCRATCH/paper_runs/benchopt_run_2026-{}.parquet"); O = os.path.expandvars("$WORK/benchmark_regression/outputs")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "code"))
+import datapaths
+J = datapaths.data_path("paper_runs", "benchopt_run_2026-{}.parquet"); O = datapaths.data_path("outputs")
 C = ["solver_name", "p_dataset_seed", "idx_rep", "objective_neg_mse_test", "objective_neg_mse_bench"]
 def per_seed(files):
     d = pd.concat(pd.read_parquet(f, columns=C) for f in files); d = d[d.idx_rep < 20]

@@ -24,6 +24,7 @@ import seaborn as sns
 from matplotlib.ticker import PercentFormatter
 
 import compute
+import datapaths
 import pipeline_common as C
 import plot as P
 
@@ -31,11 +32,12 @@ import plot as P
 # Default configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
+# The first Yelp runs (BERT and XLM-RoBERTa in two folders, Qwen3-0.6B in a third), under the data root (see
+# datapaths.py). The BERT and XLM-RoBERTa runs on the PCam protocol are in nlp/yelp_aligned (pass it with --data-dirs).
 DEFAULT_DATA_DIRS = [
-    '/home/ceve/Documents/Run outputs/NLP/data/nlp(1)/results_output/parquet',
-    '/home/ceve/Documents/Run outputs/NLP/data/nlp/results_output/parquet',
-
-    '/home/ceve/Documents/Run outputs/NLP/data/Qwen3-0.6B',
+    datapaths.data_path("nlp", "yelp_runs_a"),
+    datapaths.data_path("nlp", "yelp_runs_b"),
+    datapaths.data_path("nlp", "yelp_qwen3_0.6b"),
 ]
 
 DEFAULT_PLOTS_DIR = "plots/nlp"

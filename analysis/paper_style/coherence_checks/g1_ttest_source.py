@@ -1,10 +1,10 @@
 """Which data reproduce Table G.1's Yelp paired t-test columns (D-bar, s_D, t, p)?"""
 import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
 from scipy import stats
-V = os.path.expandvars("$WORK/paper_style_figs/v3")
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/nlp")
-sys.path.insert(0, f"{V}/code")
+D = datapaths.data_path("nlp")
 import nlp
 d = nlp.load_nlp_data([os.path.join(D, x) for x in ("yelp_runs_a", "yelp_runs_b")])
 d = d[d.model.isin(["bert", "roberta"])].copy()

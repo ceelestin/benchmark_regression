@@ -15,7 +15,7 @@ runs, number of valid runs, joined with the order-averaged paper gain G_paper at
 derivation_levers_analysis.py run with the same loss). ShuffleSplit, non-fixed splits, study-trained.
 
 Usage: python analysis/omega_gain_relation.py --set holdout3 --gain-loss neg_mse \
-          --glob "$SCRATCH/ranking_outputs/holdout3_largegain_sim_[lin]*__c*.parquet" \
+          --glob "$DATA_ROOT/outputs/holdout3_largegain_sim_[lin]*__c*.parquet" \
           --gains analysis/out_holdout3_mse/gains.csv --out-dir analysis/out_omega
 """
 import argparse

@@ -1,6 +1,9 @@
 import glob, os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import pandas as pd
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/nlp")
+D = datapaths.data_path("nlp")
 d = pd.concat([pd.read_parquet(f, columns=["model_arg_choice", "study_set_size", "n_splits_cv", "seed", "fold_index", "skipped_benchmark", "benchmark_eval_accuracy", "hidden_test_accuracies"]).assign(dir=os.path.relpath(f, D).split(os.sep)[0]) for f in glob.glob(f"{D}/**/*.parquet", recursive=True)], ignore_index=True)
 for (k, m, s), g in d.groupby(["n_splits_cv", "model_arg_choice", "study_set_size"]):
     hb = g[g.benchmark_eval_accuracy.notna()]

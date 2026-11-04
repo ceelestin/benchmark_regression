@@ -1,9 +1,9 @@
 """Structure of the Qwen3-0.6B Yelp runs: CV and single-split rows, seeds, benchmark scores, outer chunks."""
 import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "code"))  # code/datapaths.py
+import datapaths
 import numpy as np, pandas as pd
-V = os.path.expandvars("$WORK/paper_style_figs/v3")
-D = os.path.expandvars("$WORK/paper_style_figs/real_data/data/nlp/yelp_qwen3_0.6b")
-sys.path.insert(0, f"{V}/code")
+D = datapaths.data_path("nlp", "yelp_qwen3_0.6b")
 import nlp
 print(sorted(os.listdir(D))[:5], len(os.listdir(D)))
 d = nlp.load_nlp_data([D])
