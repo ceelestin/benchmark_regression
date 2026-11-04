@@ -10,6 +10,13 @@ slurm_output/
 core-*
 core.[0-9]*
 
+# Result files: tables, figures and logs are not tracked (the scripts regenerate them)
+*.csv
+*.pdf
+*.png
+*.log
+*.ipynb
+
 # Data and figure roots of the analysis scripts (see analysis/paper_style/code/datapaths.py)
 /data/
 /figs/

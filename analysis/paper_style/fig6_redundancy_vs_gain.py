@@ -3,13 +3,14 @@
 
 Both keys sit in a light, discreet box (white face, alpha 0.9, thin grey edge, small padding, slightly rounded
 corners), so that the key markers cannot be read as data points; the boxes are checked not to cover any point. The
-Yelp points (accuracy) are drawn with --yelp fig6_yelp_points.csv.
+Yelp points (accuracy) are drawn with --yelp fig6_yelp_points.csv, which fig6_yelp_points.py writes.
 Data:
   simulated: this repository's analysis/out_omega/omega_{derivation,holdout1,holdout2,holdout3}_neg_mse.csv
              (663 configurations, gain on the MSE, omega = t * rho_e_mean_3, t = 0.2; G_paper: V1 averaged over the
              order of the outer chunks);
   PCam:      benchmark_pcam analysis/out_round3_redundancy/redundancy_vs_gain.csv (omega3) merged with
-             analysis/out_round3/candidates_{accuracy,nll,brier}.csv (G_paper_20): 36 configurations;
+             analysis/out_round3/candidates_{accuracy,nll,brier}.csv (G_paper_20): 36 configurations; benchmark_pcam's
+             analysis/pcam_redundancy_vs_gain.py and analysis/pcam_gain_analysis.py write them from the runs;
   Yelp:      fig6_yelp_points.csv of fig6_yelp_points.py (the same two PCam functions on the 200 yelp_aligned parquets), accuracy
              rows only: BERT and XLM-RoBERTa at n_tr 1,000 and 3,000, 50 seeds; redundancy on the 0-1 loss.
 Same figure size as the published PDF (MediaBox 238.79 x 224.40 pt): the page is cropped to the tight box of the figure

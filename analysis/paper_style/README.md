@@ -33,6 +33,7 @@ python regen_real_data_gain_figures.py --out-dir ../../figs/real
 # figures and tables built on the gain tables or on other analyses
 python fig5_common_axis.py --sim-tables ../../figs/sim/tables --real-tables ../../figs/real/tables --out-dir ../../figs/fig5
 python fig2_pedagogical.py --out-dir ../../figs/fig2
+python fig6_yelp_points.py    # writes fig6_yelp_points.csv here; needs the PCam round-3 tables (see the table below)
 python fig6_redundancy_vs_gain.py --yelp fig6_yelp_points.csv --out ../../figs/fig6/redundancy_vs_gain_all_k3.pdf
 python figD1_rho_delta.py --out-dir ../../figs/figD1
 python ci_appendix.py > ../../figs/ci_tables.tex
@@ -47,7 +48,7 @@ per-process CPU-time limit; `--from-results` assembles the parts.
 | `regen_real_data_gain_figures.py` | Figures 5 (middle, right), 7, I.1, J.1 and K.1; gain tables for Tables E.2, E.5, E.6, E.7; the Yelp rows of Table M.1 (`work/nlp_aligned/results/pairwise_ttest_nlp.csv`) |
 | `fig5_common_axis.py` | Figure 5: its three panels redrawn from the tables of the two scripts above, with one y range and the same ticks |
 | `fig2_pedagogical.py`, `fig2_layouts.py` | Figure 2 (PCam MobileNetV2, n_tr = 400, MCCV) with the order-averaged single-split curve |
-| `fig6_redundancy_vs_gain.py`, `fig6_yelp_points.py`, `fig6_yelp_points.csv` | Figure 6 (redundancy after 3 splits against G_20), from the simulated configuration tables (`analysis/out_omega/`), the PCam round-3 tables of benchmark_pcam and the Yelp points (`fig6_yelp_points.py` computes them with the PCam functions of benchmark_pcam) |
+| `fig6_redundancy_vs_gain.py`, `fig6_yelp_points.py` | Figure 6 (redundancy after 3 splits against G_20), from the simulated configuration tables (`analysis/out_omega/`), the PCam round-3 tables of benchmark_pcam (`analysis/out_round3/candidates_<loss>.csv` and `analysis/out_round3_redundancy/redundancy_vs_gain.csv`, written by its `analysis/pcam_gain_analysis.py` and `analysis/pcam_redundancy_vs_gain.py`) and the Yelp points (`fig6_yelp_points.py` computes them with the PCam functions of benchmark_pcam and writes `fig6_yelp_points.csv`) |
 | `figD1_rho_delta.py` | Figure D.1 (fold-error correlation against G_20, 33 configurations) and its table |
 | `ci_appendix.py` | Tables E.1 to E.8 (LaTeX, to stdout) |
 | `ci_coverage.py` | coverage of the 95% percentile intervals (Appendix E; groups of 50 and 200 seeds) |

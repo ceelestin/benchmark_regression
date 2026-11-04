@@ -15,8 +15,10 @@ CSVs the figure reads, then applies the same functions to the Yelp re-run (BERT,
 50 seeds; K = 20). Yelp gains are on accuracy (as in the paper), so the redundancy is on the 0-1 error; NLL and Brier
 are written too, for reference only.
 Reads the round-3 PCam runs and analysis outputs of the benchmark_pcam checkout ($BENCHMARK_PCAM, else
-../benchmark_pcam) and the Yelp runs under the data root (nlp/yelp_aligned); writes fig6_yelp_points.csv next to
-this script.
+../benchmark_pcam): analysis/out_round3/candidates_<metric>.csv and analysis/out_round3_redundancy/
+redundancy_vs_gain.csv, which its pcam_gain_analysis.py and pcam_redundancy_vs_gain.py write from the runs (not
+tracked); and the Yelp runs under the data root (nlp/yelp_aligned). Writes fig6_yelp_points.csv next to this script
+(not tracked), which fig6_redundancy_vs_gain.py --yelp reads.
 """
 import os
 import sys
