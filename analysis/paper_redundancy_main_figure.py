@@ -10,6 +10,7 @@ simulated points (benchmark_pcam analysis/out_round3/candidates_<metric>.csv).
 Usage: python analysis/paper_redundancy_main_figure.py [--k 3] [--pcam-dir $WORK/benchmark_pcam/analysis]
 """
 import argparse
+import os
 
 import matplotlib
 matplotlib.use("Agg")
@@ -86,6 +87,7 @@ def main():
     ax.tick_params(colors=MUTED, labelsize=6.5)
     fig.tight_layout(pad=0.3)
     out = f"analysis/out_redundancy_triage_holdout1/paper/redundancy_vs_gain_all_k{k}"
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     fig.savefig(out + ".pdf"); fig.savefig(out + ".png", dpi=220)
     print("wrote", out, "| n", len(d), "| Spearman", round(float(r), 3), "| sizes", sorted(n.unique()))
 

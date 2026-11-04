@@ -7,6 +7,7 @@ asymmetric reading of Table D.1: above omega_k = 0.10 no configuration reaches G
 Usage: python analysis/paper_redundancy_config_figure.py [--k 3] [--out ...pdf]
 """
 import argparse
+import os
 
 import matplotlib
 matplotlib.use("Agg")
@@ -61,6 +62,7 @@ def main():
     ax.tick_params(colors=MUTED, labelsize=7)
     ax.legend(frameon=False, fontsize=6.5, loc="upper right", bbox_to_anchor=(1.0, 0.86), labelcolor=INK)
     fig.tight_layout()
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     fig.savefig(out); fig.savefig(out.replace(".pdf", ".png"), dpi=200)
     r = spearmanr(x, g).statistic
     print("wrote", out, "| Spearman", round(float(r), 3), "| bins", st.round(2).to_dict())
