@@ -80,8 +80,7 @@ produce them. Expected layout:
   ranking/        benchopt_run_2026-05-31_05h37m39.parquet ... benchopt_run_2026-06-04_02h56m57.parquet: the 12 runs
                   of configs/ranking_*.yml
   pcam/
-    results_output_pcam/  PCam K-split runs (benchmark_pcam: rebuttal_shufflesplit.txt, rebuttal_vit.txt,
-                          rebuttal_repeatedkfold.txt)
+    results_output_pcam/  PCam K-split runs (benchmark_pcam: mccv_cnns.txt, mccv_vit.txt, repeated_kfold_cnns.txt)
     stratandnewmetrics/   PCam stratified and unstratified runs with Brier score and NLL
                           (benchmark_pcam: stratification*_newmetrics_full*.txt)
     nocv_jan/             PCam single-split runs (benchmark_pcam: configs_adapted_100seeds_5study.txt), Table M.1
@@ -110,9 +109,9 @@ gives the order in which to run them. Configs are in `configs/` here, or in the 
 |---|---|---|
 | Figure 1 | OpenML dataset sizes | not in this repository |
 | Table 1, Figure 3 | (literature table, diagram) | none |
-| Figure 2 | PCam K-split runs (benchmark_pcam `rebuttal_shufflesplit.txt`) | `fig2_pedagogical.py` (layout in `fig2_layouts.py`) |
+| Figure 2 | PCam K-split runs (benchmark_pcam `mccv_cnns.txt`) | `fig2_pedagogical.py` (layout in `fig2_layouts.py`) |
 | Figure 4, Figure 5 (left), Table E.1 | `paper_main_gain_mse_k200.yml`, `paper_main_gain_mse_k200_rff50.yml` | `paper_style_figs.py`; the three panels of Figure 5 share one axis in `fig5_common_axis.py`; intervals `ci_appendix.py` |
-| Figure 5 (middle), Table E.2 | benchmark_pcam `rebuttal_shufflesplit.txt`, `rebuttal_vit.txt` | `regen_real_data_gain_figures.py --only fig5_pcam` |
+| Figure 5 (middle), Table E.2 | benchmark_pcam `mccv_cnns.txt`, `mccv_vit.txt` | `regen_real_data_gain_figures.py --only fig5_pcam` |
 | Figure 5 (right), Figure 7, Table E.2 | benchmark_nlp `aligned_bert.txt`, `aligned_roberta.txt`; Qwen3-0.6B: `qwen_0.6b_1000.txt`, `qwen_0.6b_1000_nocv.txt` | `regen_real_data_gain_figures.py --only fig5_yelp_aligned` |
 | Figure 6 | noise-injection grid `derivation_redundancy_levers_*.yml`; pre-registered holdout `k200_threshold_validation_holdout_50_*.yml`; unstable-learner designs `holdout2_largegain_*.yml`, `holdout3_largegain_*.yml`; PCam: benchmark_pcam `redundancy_round3_50seeds_3sizes.txt`; Yelp: the aligned runs | `analysis/derivation_levers_analysis.py` then `analysis/omega_gain_relation.py` (tables `analysis/out_omega/`); Yelp points `fig6_yelp_points.py`; figure `fig6_redundancy_vs_gain.py` |
 | Figure D.1 | runs of Figure 4; `linear_1000_K20_new_unfixed.yml`, `paper_ntr100_k20_resampled_rff50.yml`; the PCam and Yelp runs of Figure 5 | `figD1_rho_delta.py` |
@@ -122,12 +121,12 @@ gives the order in which to run them. Configs are in `configs/` here, or in the 
 | Table F.2 | the runs above; `timing_*.yml` re-measure 5% of the July runs | `submit_timing.slurm`; `coherence_checks/yelp_times.py`, `coherence_checks/yelp_aligned_times.py` |
 | Figure G.1, Tables G.1 and E.3 | `hpo_mse_MLP_gridsearch.yml`, `hpo_mse_MLP_randomsearch.yml`, `config_hpo_test_gridsearch.yml`, `config_hpo_test_randomsearch.yml` (ExtraTrees); fixed parameters from `paper_main_gain_mse_k200.yml` | `paper_style_figs.py`; redundancy `redundancy_numbers.py`, `analysis/paper_appendix_redundancy_checks.py`; text `text_numbers_v5.py` |
 | Figure H.1, Table E.4 | `linear_1000_K20_new_fixed.yml`, `linear_1000_K20_new_unfixed.yml` (Ridge, ExtraTrees, MLP); `paper_ntr100_k20_fixed_redrawn_rff50.yml`, `paper_ntr100_k20_resampled_rff50.yml` (RandomFeatures) | `paper_style_figs.py`; standard-deviation ratios `sd_ratio_mse.py` |
-| Figure I.1, Table E.5 | benchmark_pcam `rebuttal_shufflesplit.txt`, `rebuttal_repeatedkfold.txt` | `regen_real_data_gain_figures.py --only figF1` |
+| Figure I.1, Table E.5 | benchmark_pcam `mccv_cnns.txt`, `repeated_kfold_cnns.txt` | `regen_real_data_gain_figures.py --only figF1` |
 | Table J.1, Figure J.1, Table E.6 | benchmark_pcam `stratification*_newmetrics_full*.txt` | `coherence_checks/strat_table.py` (Table J.1); `regen_real_data_gain_figures.py --only figK1` |
 | Figure K.1, Table E.7 | the same PCam runs; for the text: `linear_1000_half1_K20_N1000.yml` (Ridge, R^2 and MSE), `paper_main_gain_mse_k200*.yml` (MAE), `pilot_persample_k20.yml` (R^2 recentred) | `regen_real_data_gain_figures.py --only figL1`; `appL_r2.py`, `text_numbers_v5.py`, `analysis/persample_r2_centering.py` |
 | Figure L.1, Table E.8 | `linear_1000_half{1,2}_K20_smalldata{,2}.yml`, `small_budget_mlp64_rff50.yml`; PCam at n_tr = 24: benchmark_pcam `redundancy_smalldata.txt` | `paper_style_figs.py`; text `text_numbers_v5.py`, `redundancy_numbers.py`, `coherence_checks/fold_geometry.py`, `coherence_checks/pcam24_*.py` |
 | Table M.1 | PCam: benchmark_pcam `configs_adapted_100seeds_5study.txt` (single split) and the K-split runs; Yelp: the aligned runs | Yelp rows: `code/nlp.py` via `regen_real_data_gain_figures.py --only fig5_yelp_aligned`, `coherence_checks/yelp_paper_snippets.py`; PCam rows: `coherence_checks/g1_pcam_check.py` |
-| Table N.1 | benchmark_pcam `rebuttal_shufflesplit.txt` | `code/replicability.py` |
+| Table N.1 | benchmark_pcam `mccv_cnns.txt` | `code/replicability.py` |
 | Figure O.1 | `ranking_100seeds*.yml`, `ranking_100-300seeds*.yml`, `ranking_300-500seeds*.yml` | `code/ranking.py` |
 
 Other numbers of the text come from `coherence_checks/` (see its README), `redundancy_numbers.py` and
