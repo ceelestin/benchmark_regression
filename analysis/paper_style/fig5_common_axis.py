@@ -54,9 +54,31 @@ def common_axis(s, p, y):
     return (1 - 0.05 * (top - 1), top), ticks
 
 
-def draw_all(s, p, y, out, ylim=None, yticks=None):
+# Panel geometry in points (2026-11-04). The left panel keeps the margins of the previous version (y label and
+# values on the left: 51.46 pt, x label below: 43.74 pt, 9.55 pt above the axes); the middle
+# and right panels drop the y label and values and keep 12 pt on the left. All axes are AX_W wide, so that at the
+# page scale of the other gain figures (0.32 \linewidth for 238.8 pt) the three fill 0.98 \linewidth.
+AX_B, TOP, RIGHT = 43.74, 9.55, 13.5
+LEFT_L, LEFT_R = 51.46, 12.0
+AX_W = (0.98 * 238.8 / 0.32 - (LEFT_L + 2 * LEFT_R + 3 * RIGHT)) / 3
+AX_H = 171.11 * AX_W / 173.84      # same aspect as the previous axes (the panels grow in height too)
+FIG_H = AX_B + AX_H + TOP
+
+
+def _panel(left_pt, hide):
+    P.GAIN_DISPLAY["figsize"] = ((left_pt + AX_W + RIGHT) / 72, FIG_H / 72)
+    P.GAIN_DISPLAY["axes_box_pt"] = (left_pt, AX_B, AX_W, AX_H)
+    P.GAIN_DISPLAY["hide_ylabel"] = hide
+
+
+def draw_all(s, p, y, out, ylim=None, yticks=None, shared_layout=False):
     os.makedirs(out, exist_ok=True)
     P.GAIN_DISPLAY["ylim"], P.GAIN_DISPLAY["yticks"] = ylim, yticks
+    if shared_layout:
+        print(f"panel axes width {AX_W:.2f} pt; figure widths {LEFT_L + AX_W + RIGHT:.2f} and "
+              f"{LEFT_R + AX_W + RIGHT:.2f} pt; subfigure widths {(LEFT_L + AX_W + RIGHT) * 0.32 / 238.8:.5f} and "
+              f"{(LEFT_R + AX_W + RIGHT) * 0.32 / 238.8:.5f} \\linewidth")
+        _panel(LEFT_L, False)
     # simulated (paper_style_figs.main: draw(main_[K <= 20], base, K20, ..., f(1000)))
     P.set_paper_style()
     P.GAIN_DISPLAY["y_top"] = "mean"
@@ -64,6 +86,8 @@ def draw_all(s, p, y, out, ylim=None, yticks=None):
     print("sim ylim", fig.axes[0].get_ylim()); plt.close(fig)
     # PCam (pcam.py main, Plot 1, accuracy, unstratified, MCCV; hairlines 20 from regen's PIPE_ARGS)
     P.set_paper_style()
+    if shared_layout:
+        _panel(LEFT_R, True)
     P.GAIN_DISPLAY["hairlines"] = 20
     work = f"{out}/_work_pcam"; os.makedirs(work, exist_ok=True)
     C.plot_sample_gain_by_train_size(p, study_sizes=[500], models_to_analyze=pcam.DEFAULT_MODELS,
@@ -82,6 +106,8 @@ def draw_all(s, p, y, out, ylim=None, yticks=None):
                                      title_prefix="Yelp", plots_dir=work)
     os.replace(f"{work}/{NAMES['yelp']}", f"{out}/{NAMES['yelp']}")
     P.GAIN_DISPLAY["ylim"] = P.GAIN_DISPLAY["yticks"] = None
+    P.GAIN_DISPLAY["figsize"] = P.GAIN_DISPLAY["axes_box_pt"] = None
+    P.GAIN_DISPLAY["hide_ylabel"] = False
 
 
 def main():
@@ -90,11 +116,13 @@ def main():
     ap.add_argument("--real-tables", required=True)
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--common-axis", choices=["on", "off"], default="on")
+    ap.add_argument("--shared-layout", choices=["on", "off"], default="on",
+                    help="on: middle and right panels without y label and values, same wider axes box for all three")
     a = ap.parse_args()
     s, p, y = panels(a.sim_tables, a.real_tables)
     if a.common_axis == "on":
         ylim, ticks = common_axis(s, p, y)
-        draw_all(s, p, y, a.out_dir, ylim, ticks)
+        draw_all(s, p, y, a.out_dir, ylim, ticks, shared_layout=a.shared_layout == "on")
     else:
         draw_all(s, p, y, a.out_dir)
 

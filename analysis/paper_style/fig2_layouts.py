@@ -12,7 +12,7 @@ ROW = 10.5     # points: G^test_10 one row below the tick numbers
 def _base(cv, order="average"):
     v1 = cv[f"V1_{order}"].to_numpy()
     lo = float(v1[cv.alpha.to_numpy() <= 12].min())
-    return dict(x_right=12.04, major_ticks=[1, 3, 6, 12], y_lim_bottom=lo * 0.92)
+    return dict(x_right=12.04, major_ticks=[1, 3, 10, 12], y_lim_bottom=lo * 0.92)   # no 6: it sat over G^test_10 (CE, 2026-11-04)
 
 
 def auto(cv):

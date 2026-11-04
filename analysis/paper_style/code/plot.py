@@ -56,6 +56,13 @@ GAIN_DISPLAY = {
     # share the same axis: ylim = (bottom, top), yticks = list. None = per-figure axis, as before.
     "ylim": None,
     "yticks": None,
+    # (2026-11-04, Figure 5) figure size of a gain panel when the caller passes none, and whether the panel drops
+    # its y label and y tick values (the middle and right panels of Figure 5 share the left panel's axis).
+    "figsize": None,
+    "hide_ylabel": False,
+    # (left, bottom, width, height) of the axes in points inside a figure of exactly GAIN_DISPLAY["figsize"]; the
+    # figure is then saved at that size (no tight bbox), so that panels drawn separately line up.
+    "axes_box_pt": None,
 }
 
 
@@ -545,7 +552,12 @@ def plot_sample_gain_vs_splits(
         errorbar = None
     central_df, rep_df = _estimate_and_replicates(results_df)
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=figsize if figsize is not None else GAIN_DISPLAY.get("figsize"))
+    if GAIN_DISPLAY.get("axes_box_pt") is not None:
+        fig.set_layout_engine("none")
+        fw, fh = fig.get_size_inches() * 72
+        l, b, w, h = GAIN_DISPLAY["axes_box_pt"]
+        ax.set_position([l / fw, b / fh, w / fw, h / fh])
 
     sns.lineplot(
         data=central_df if use_hair else rep_df,
@@ -601,6 +613,9 @@ def plot_sample_gain_vs_splits(
         ax.set_ylim(*GAIN_DISPLAY["ylim"])
     if GAIN_DISPLAY.get("yticks") is not None:
         ax.yaxis.set_major_locator(FixedLocator(GAIN_DISPLAY["yticks"]))
+    if GAIN_DISPLAY.get("hide_ylabel"):
+        ax.set_ylabel("")
+        ax.tick_params(axis="y", which="both", labelleft=False)
 
     if title_text is not None:
         # clip_on keeps the in-axes "fake title" from expanding the tight-bbox
@@ -673,7 +688,8 @@ def plot_sample_gain_vs_splits(
         _style_legend_halo(ax.get_legend(), title=legend_title)
 
     if output_path is not None:
-        save_figure(fig, output_path, format="pdf", bbox_inches="tight")
+        save_figure(fig, output_path, format="pdf",
+                    bbox_inches=None if GAIN_DISPLAY.get("axes_box_pt") is not None else "tight")
 
     return fig
 
