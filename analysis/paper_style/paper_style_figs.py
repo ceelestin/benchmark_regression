@@ -3,7 +3,9 @@
 
 Figures written to --out-dir:
   aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_full.pdf        Figure 4 (n_tr = 1,000, K up to 200)
-  aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_K20.pdf         Figure 5 (left)
+  aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_K20.pdf         Figure 5 (left; the paper's panel is redrawn
+                                                                        with the axis of the other two panels by
+                                                                        fig5_common_axis.py)
   aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_K20_hpo.pdf     Figure G.1 (fixed parameters, grid and random search)
   aggregated_test_gain_k_100_sim_linear_mse_fixedsplit_overlay_K20.pdf  Figure H.1 (frozen and resampled splits)
   small_label_gain_vs_K_N30_mse.pdf, small_label_gain_vs_K_N100_mse.pdf Figure L.1 (small budgets)
@@ -11,16 +13,22 @@ It also writes the bootstrap results of each group of runs (sample_gain_bootstra
 read by ci_appendix.py (tables/fig4, figI1, figJ1, figM1.parquet, for Tables E.1, E.3, E.4 and E.8; the names follow
 the LaTeX labels of those tables) and a K = 1 / 20 / 200 summary (summary_K1_K20_K200.csv).
 
-Estimator: the paper's variance-equivalent test sample gain (code/compute.py) on the benchmark-adjusted MSE. Thick
-line: the estimate on all seeds; thin lines: 20 of the 1,000 bootstrap resamples of the seeds (random_state 0).
-groups() lists the runs of each group under the data root; configs/README.md gives the config of every run.
+Estimator: the paper's variance-equivalent test sample gain (code/compute.py) on the benchmark-adjusted MSE, with the
+single-split curve averaged exactly over the order of the outer chunks (chunk_order 'average', the default;
+--chunk-order stored gives the values of the stored chunk order). Thick line: the estimate on all seeds; thin lines:
+20 of the 1,000 bootstrap resamples of the seeds (random_state 0). _group_loaders() lists the runs of each group
+under the data root; configs/README.md gives the config of every run. The shared code is ./code next to this script,
+or $PAPER_STYLE_CODE.
 
 The figures are built in two passes, so that the stored bootstrap draws do not change when the estimate is added:
   python paper_style_figs.py --out-dir A --groups n1000 n100 small hpo_ridge hpo_rff small_mlp32 \
       mlp32_n1000 mlp32_n100 frozen_redrawn                                # bootstrap draws of every group
   python paper_style_figs.py --out-dir B --from-results A --groups \
       --plugin-groups n1000 n100 small hpo_ridge hpo_rff small_mlp32 mlp32_n1000 mlp32_n100 frozen_redrawn
-The second pass computes the estimate on all seeds of every group and draws the figures in B.
+The second pass computes the estimate on all seeds of every group and draws the figures in B. To stay under a
+per-process CPU-time limit, the draws of a group can be computed in ranges, --bootstrap-range START STOP, each written
+as sample_gain_bootstrap_<group>.part<START>-<STOP>.parquet; --from-results assembles the parts, and the parts
+concatenated are identical to one run.
 """
 from __future__ import annotations
 
@@ -30,7 +38,7 @@ import math
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "code"))
+sys.path.insert(0, os.environ.get("PAPER_STYLE_CODE") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "code"))
 
 import matplotlib
 matplotlib.use("Agg")
@@ -49,8 +57,9 @@ import simulated as SIM
 N_BOOT, SEED, HAIR = 1000, 0, 20      # bootstrap draws, their random_state, thin lines per curve
 
 
-def gains(data, n_bootstraps, test_size, random_state=SEED, plugin=False):
-    """mse_gain_figures.gains with a random_state; plugin=True adds the estimate on all seeds (bootstrap_iter = -1)."""
+def gains(data, n_bootstraps, test_size, random_state=SEED, plugin=False, chunk_order=None, bootstrap_range=None):
+    """mse_gain_figures.gains with a random_state, the order of the outer chunks (chunk_order) and a range of draws
+    (bootstrap_range); plugin=True adds the estimate on all seeds (bootstrap_iter = -1)."""
     data_cv = data[data["procedure"].isin(["ShuffleSplit", "RepeatedKFold"])].sort_values(
         ["objective_name", "solver_name", "dataset_name", "idx_rep"]).copy()
     nocv_base = data_cv[data_cv["idx_rep"] == 0].copy()
@@ -70,9 +79,12 @@ def gains(data, n_bootstraps, test_size, random_state=SEED, plugin=False):
         n_bootstraps=n_bootstraps, method="absolute", test_size=test_size, nocv_cache=cache,
         models_to_analyze=None, study_sizes=sorted(data_cv["train_size"].unique()),
         size_col="train_size", dataset_col="dataset_type", extra_cv_cols=["fixed_split"],
-        compute_train_size=False, random_state=random_state, plugin_estimate=plugin)
+        compute_train_size=False, random_state=random_state, plugin_estimate=plugin,
+        chunk_order=chunk_order, bootstrap_range=bootstrap_range)
     res.attrs = {}
     return res
+
+
 
 def run_locations(root=None):
     """The benchopt outputs of the chunked runs, and the pattern of the July 2026 single-file runs, under the data root
@@ -114,42 +126,71 @@ def prepare(frames):
     return data
 
 
-def groups():
+def _group_loaders():
+    """The groups of runs as loaders (nothing is read until called). Each group has its own random generator, so that
+    adding a group does not change the bootstrap draws of the others."""
     g = {}
-    # Each group has its own random generator, so that adding a group does not change the bootstrap draws of the others.
     # n_tr = 1,000 (Figures 4, 5 left and G.1): paper_main_gain_mse_k200{,_mlp64x64,_rff50}, hpo_mse_MLP_*, and the July
     # runs of config_hpo_test_{grid,random}search.yml (ExtraTrees grid and random search).
-    g["n1000"] = read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")), drop={MLP32}) \
+    g["n1000"] = lambda: read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")), drop={MLP32}) \
         + read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200_mlp64x64__c*.parquet"))) \
         + read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200_rff50__c*.parquet"))) \
         + read(sorted(glob.glob(f"{OUT}/hpo_mse_MLP_*__c*.parquet"))) \
         + read([JULY.format("07-27_12h40m37"), JULY.format("07-27_12h47m49")])
     # n_tr = 100 (Figure H.1): the July runs of linear_1000_K20_new_fixed_samedata.yml (frozen split, same data) and
     # linear_1000_K20_new_unfixed.yml (resampled), and paper_ntr100_k20_{fixed,resampled}_{mlp64x64,rff50}.
-    g["n100"] = read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")], drop={MLP32}) \
+    g["n100"] = lambda: read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")], drop={MLP32}) \
         + read(sorted(glob.glob(f"{OUT}/paper_ntr100_k20_*_mlp64x64__c*.parquet"))) \
         + read(sorted(glob.glob(f"{OUT}/paper_ntr100_k20_*_rff50__c*.parquet")))
     # Small budgets (Figure L.1): the July runs of linear_1000_half1_K20_smalldata{,2}.yml (Ridge, ExtraTrees) and
     # small_budget_mlp64_rff50.
-    g["small"] = read([JULY.format("07-31_19h07m06"), JULY.format("07-31_21h07m56")]) \
+    g["small"] = lambda: read([JULY.format("07-31_19h07m06"), JULY.format("07-31_21h07m56")]) \
         + read(sorted(glob.glob(f"{OUT}/small_budget_mlp64_rff50__c*.parquet")))
     # Ridge grid / random search (Figure G.1), in its own group so that the draws of the n1000 curves do not change.
-    g["hpo_ridge"] = read(sorted(glob.glob(f"{OUT}/hpo_mse_Ridge_*__c*.parquet")))
+    g["hpo_ridge"] = lambda: read(sorted(glob.glob(f"{OUT}/hpo_mse_Ridge_*__c*.parquet")))
     # MLP (32) of the July small-budget runs (linear_1000_half2_K20_smalldata{,2}.yml) for Figure L.1, in its own group
     # so that the draws of the other small-budget curves do not change.
-    g["small_mlp32"] = read([JULY.format("07-31_19h02m17"), JULY.format("07-31_21h05m17")], drop={"GradientBoosting[n_estimators=200]"})
+    g["small_mlp32"] = lambda: read([JULY.format("07-31_19h02m17"), JULY.format("07-31_21h05m17")], drop={"GradientBoosting[n_estimators=200]"})
     # One MLP throughout the paper, the one-hidden-layer MLP (32 units) of the redundancy experiments; its runs at
     # n_tr = 1,000 (paper_main_gain_mse_k200) and n_tr = 100 (July runs) get their own groups so that the draws of the
     # other curves do not change. MLP [64, 64] rows are dropped from every figure.
-    g["mlp32_n1000"] = [f[f.solver_name == MLP32] for f in read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")))]
-    g["mlp32_n100"] = [f[f.solver_name == MLP32] for f in read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")])]
+    g["mlp32_n1000"] = lambda: [f[f.solver_name == MLP32] for f in read(sorted(glob.glob(f"{OUT}/paper_main_gain_mse_k200__c*.parquet")))]
+    g["mlp32_n100"] = lambda: [f[f.solver_name == MLP32] for f in read([JULY.format("07-27_20h48m32"), JULY.format("07-27_21h01m05")])]
     # Frozen arm of Figure H.1: runs that redraw the data at every seed, as the resampled arm does (the July run of
     # linear_1000_K20_new_fixed.yml for Ridge / ExtraTrees / MLP (32), paper_ntr100_k20_fixed_redrawn_rff50 for
     # RandomFeatures), in its own group.
-    g["frozen_redrawn"] = read([JULY.format("07-27_21h00m32")], drop={"GradientBoosting[n_estimators=200]"}) \
+    g["frozen_redrawn"] = lambda: read([JULY.format("07-27_21h00m32")], drop={"GradientBoosting[n_estimators=200]"}) \
         + read(sorted(glob.glob(f"{OUT}/paper_ntr100_k20_fixed_redrawn_rff50__c*.parquet")))
-    g["hpo_rff"] = read(sorted(glob.glob(f"{OUT}/hpo_mse_RandomFeatures_*__c*.parquet")))    # Figure G.1, own group
+    g["hpo_rff"] = lambda: read(sorted(glob.glob(f"{OUT}/hpo_mse_RandomFeatures_*__c*.parquet")))    # Figure G.1, own group
     return g
+
+
+def groups(only=None):
+    """The groups of runs, read (only those named in *only*; None = all)."""
+    return {k: f() for k, f in _group_loaders().items() if only is None or k in only}
+
+
+def each_group(names):
+    """(name, frames) for the groups in *names*, in the order of _group_loaders, one group in memory at a time."""
+    for k, f in _group_loaders().items():
+        if k in names:
+            yield k, f()
+
+
+def load_draws(d, name, n_bootstraps):
+    """sample_gain_bootstrap_<name>.parquet, or its parts (--bootstrap-range runs) concatenated in order."""
+    f = f"{d}/sample_gain_bootstrap_{name}.parquet"
+    if os.path.exists(f):
+        return pd.read_parquet(f)
+    parts = sorted(glob.glob(f"{d}/sample_gain_bootstrap_{name}.part*-*.parquet"))
+    if not parts:
+        raise SystemExit(f"no draws for group {name} in {d}")
+    rng_ = [tuple(int(v) for v in os.path.basename(p).split(".part")[1].split(".")[0].split("-")) for p in parts]
+    order = sorted(range(len(parts)), key=lambda i: rng_[i])
+    edges = [rng_[i] for i in order]
+    if edges[0][0] != 0 or edges[-1][1] != n_bootstraps or any(a[1] != b[0] for a, b in zip(edges, edges[1:])):
+        raise SystemExit(f"group {name}: parts {edges} do not cover 0..{n_bootstraps} contiguously")
+    return pd.concat([pd.read_parquet(parts[i]) for i in order], ignore_index=True)
 
 
 def disp(res, mlp_label="MLP"):
@@ -184,9 +225,25 @@ def main():
     ap.add_argument("--hpo-learners", nargs="+", default=["MLP", "ExtraTrees"], help="learners of Figure G.1")
     ap.add_argument("--y-top", choices=["quantile", "mean"], default="mean")
     ap.add_argument("--groups", nargs="*", default=["n1000", "n100", "small"], help="groups to compute (others are loaded; none = redraw only)")
+    ap.add_argument("--chunk-order", choices=compute.CHUNK_ORDERS, default=None,
+                    help="V1(alpha) averaged over the order of the chunks (default) or in their stored order; default $GAIN_CHUNK_ORDER, else average")
+    ap.add_argument("--bootstrap-range", nargs=2, type=int, default=None, metavar=("START", "STOP"),
+                    help="compute only these draws of --groups, write them as parts and stop (no figures)")
     a = ap.parse_args()
     OUT, JULY = run_locations(a.data_root)
+    a.chunk_order = compute.resolve_chunk_order(a.chunk_order)
     os.makedirs(a.out_dir, exist_ok=True)
+    with open(f"{a.out_dir}/CHUNK_ORDER.txt", "a") as fh:                                           # provenance
+        fh.write(f"chunk_order={a.chunk_order} n_bootstraps={a.n_bootstraps} groups={a.groups} "
+                 f"plugin_groups={a.plugin_groups} bootstrap_range={a.bootstrap_range}\n")
+    if a.bootstrap_range is not None:                                                               # one range of draws
+        lo, hi = a.bootstrap_range
+        for name, frames in each_group(a.groups):
+            if name in a.groups:
+                r = gains(prepare(frames), a.n_bootstraps, 0.20, chunk_order=a.chunk_order, bootstrap_range=(lo, hi))
+                r.to_parquet(f"{a.out_dir}/sample_gain_bootstrap_{name}.part{lo:05d}-{hi:05d}.parquet", index=False)
+                print("draws", name, lo, hi, len(r), flush=True)
+        return
     P.set_paper_style()
     P.GAIN_DISPLAY["y_top"] = a.y_top
     res = {}
@@ -194,28 +251,29 @@ def main():
     swap = lambda r, m32: pd.concat([r[r["solver_name"] != M6464], m32], ignore_index=True)       # MLP (32) rows replace MLP [64, 64]
     for name in ("n1000", "n100", "small", "hpo_ridge", "hpo_rff", "small_mlp32", "mlp32_n1000", "mlp32_n100", "frozen_redrawn"):
         if name not in a.groups:
-            res[name] = pd.read_parquet(f"{a.from_results}/sample_gain_bootstrap_{name}.parquet")
+            res[name] = load_draws(a.from_results, name, a.n_bootstraps)                            # or its parts
     # The thick line is the estimate on all seeds. It is computed separately (no draws) and stored as
     # sample_gain_plugin_<group>.parquet; the stored draws are unchanged, since computing the estimate does not use the
     # random generator. It is merged into the groups loaded with --from-results (see the module docstring).
     if a.plugin_groups:
-        for name, frames in groups().items():
+        for name, frames in each_group(a.plugin_groups):                                        # one group in memory at a time
             if name in a.plugin_groups:
-                pe = gains(prepare(frames), 0, 0.20, plugin=True)
+                pe = gains(prepare(frames), 0, 0.20, plugin=True, chunk_order=a.chunk_order)
                 pe.to_parquet(f"{a.out_dir}/sample_gain_plugin_{name}.parquet", index=False)
                 print("plugin", name, len(pe), flush=True)
+                del frames
     for name in list(res):
         for d_ in (a.from_results, a.out_dir):
             f_ = f"{d_}/sample_gain_plugin_{name}.parquet" if d_ else None
             if f_ and os.path.exists(f_):
                 res[name] = pd.concat([res[name], pd.read_parquet(f_)], ignore_index=True)
                 break
-    for name, frames in groups().items():
+    for name, frames in each_group(a.groups):                                                    # one group in memory at a time
         if name not in a.groups:
             continue
         data = prepare(frames)
         print(name, data.groupby(["train_size", "fixed_split", "solver_name"]).seed.nunique().to_string(), flush=True)
-        r = gains(data, a.n_bootstraps, 0.20)
+        r = gains(data, a.n_bootstraps, 0.20, chunk_order=a.chunk_order)
         r.to_parquet(f"{a.out_dir}/sample_gain_bootstrap_{name}.parquet", index=False)
         res[name] = r
     f = lambda t: f"$y = X\\beta$, $n_{{\\mathrm{{tr}}}}={t}$"

@@ -2,15 +2,19 @@
 """Real-data sample-gain figures of the paper (PCam and Yelp) and the gain tables behind their intervals.
 
 Every figure uses the paper's estimator (code/compute.py: variance-equivalent test sample gain on benchmark-adjusted
-scores) and draws the estimate on all seeds as the thick line and 20 of 1,000 bootstrap resamples of the seeds
-(random_state 0) as thin lines. Keys of --only, what each writes to --out-dir, and the runs it reads under the data root:
+scores, with the single-split curve averaged exactly over the order of the outer chunks; --chunk-order stored, or
+$GAIN_CHUNK_ORDER=stored, gives the values of the stored chunk order) and draws the estimate on all seeds as the thick
+line and 20 of 1,000 bootstrap resamples of the seeds (random_state 0) as thin lines (--n-bootstraps changes the number
+of draws, for checks). The chunk order used is passed to the pcam.py / nlp.py subprocesses in $GAIN_CHUNK_ORDER and
+appended to OUT/CHUNK_ORDER.txt. Keys of --only, what each writes to --out-dir, and the runs it reads under the data root:
 
   fig5_pcam                    Figure 5 (middle)  aggregated_test_gain_k_400_delta_linear_accuracy_stratFalse.pdf
                                                   (pcam.py on pcam/results_output_pcam; its plots also hold Figure 2)
   fig5_yelp                    first Yelp runs    aggregated_test_gain_k_1000_delta_linear.pdf
                                                   (nlp.py on nlp/yelp_runs_a, nlp/yelp_runs_b, nlp/yelp_qwen3_0.6b)
   fig5_yelp_aligned            Figure 5 (right),  aligned/aggregated_test_gain_k_1000_delta_linear.pdf,
-                               Figure 7           aligned/retrieval_best_*.pdf, aligned/violin_plot_study_size_3750.pdf
+                               Figure 7           aligned/retrieval_best_*.pdf (Wilson intervals, code/nlp.py),
+                                                  aligned/violin_plot_study_size_3750.pdf
                                                   (nlp.py on nlp/yelp_aligned, with the Qwen3-0.6B rows of fig5_yelp)
   figF1 (pcam_cv_procedures)   Figure I.1         aggregated_test_gain_k_300_delta_linear_cv_procedures.pdf
                                                   (pcam/results_output_pcam)
@@ -232,6 +236,7 @@ def figL1(code_dir, data, out):
 
 
 def main():
+    global N_BOOT, PIPE_ARGS
     ap = argparse.ArgumentParser()
     here = os.path.dirname(os.path.abspath(__file__))
     ap.add_argument("--code-dir", default=os.path.join(here, "code"))
@@ -240,12 +245,25 @@ def main():
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--only", nargs="+", choices=FIGS + list(ALIASES), default=FIGS,
                     help="figures to draw (default: all; see the module docstring)")
+    ap.add_argument("--chunk-order", choices=["stored", "average"], default=None,
+                    help="V1(alpha) averaged over the order of the chunks (default) or in their stored order; "
+                         "default $GAIN_CHUNK_ORDER, else average")
+    ap.add_argument("--n-bootstraps", type=int, default=N_BOOT, help="number of draws (paper: 1000)")
     a = ap.parse_args()
     code_dir, out = (os.path.abspath(p) for p in (a.code_dir, a.out_dir))
     os.makedirs(out, exist_ok=True)
     sys.path.insert(0, code_dir)
     import datapaths
     data = datapaths.data_root(a.data_root)
+    import compute
+    order = compute.resolve_chunk_order(a.chunk_order)
+    os.environ[compute.CHUNK_ORDER_ENV] = order            # read by compute here and in the pcam.py / nlp.py subprocesses
+    if a.n_bootstraps != N_BOOT:
+        N_BOOT = a.n_bootstraps
+        PIPE_ARGS = ["--n-bootstraps", str(N_BOOT), "--random-state", str(SEED), "--hairlines", str(HAIR), "--plugin-estimate"]
+    with open(os.path.join(out, "CHUNK_ORDER.txt"), "a") as fh:
+        fh.write(f"chunk_order={order} n_bootstraps={N_BOOT} only={a.only} code_dir={code_dir}\n")
+    print(f"chunk_order={order} n_bootstraps={N_BOOT}", flush=True)
     import matplotlib; matplotlib.use("Agg")
     import warnings; warnings.filterwarnings("ignore")
     for name in dict.fromkeys(ALIASES.get(n, n) for n in a.only):

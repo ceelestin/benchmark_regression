@@ -536,6 +536,67 @@ def _bootstrap_binary_mean_ci(
     )
 
 
+def _binomial_ci(successes: int, n: int, method: str = "wilson", conf: float = 0.95) -> tuple[float, float]:
+    """Closed-form interval for a proportion of *n* independent binary outcomes (fig7_v6, item 34).
+
+    ``wilson``: Wilson score interval; ``clopper-pearson``: exact (conservative) interval. Unlike the percentile
+    bootstrap of a 0/1 mean, neither collapses to a point at 0 or n successes, and neither depends on a random draw.
+    """
+    from scipy import stats
+    if n <= 0:
+        return (np.nan, np.nan)
+    p = successes / n
+    if method == "wilson":
+        z = stats.norm.ppf(0.5 + conf / 2)
+        den = 1 + z * z / n
+        centre = (p + z * z / (2 * n)) / den
+        half = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / den
+        return (float(max(0.0, centre - half)), float(min(1.0, centre + half)))
+    if method == "clopper-pearson":
+        a = 1 - conf
+        lo = 0.0 if successes == 0 else stats.beta.ppf(a / 2, successes, n - successes + 1)
+        hi = 1.0 if successes == n else stats.beta.ppf(1 - a / 2, successes + 1, n - successes)
+        return (float(lo), float(hi))
+    raise ValueError(f"unknown interval method {method!r}")
+
+
+def _binary_mean_ci(correct_values: pd.Series, *, method: str, n_bootstraps: int, random_state: int,
+                    conf: float = 0.95) -> tuple[float, float] | None:
+    """Interval for the share of seeds with a correct pick: percentile bootstrap (as published) or closed form."""
+    if method == "bootstrap":
+        return _bootstrap_binary_mean_ci(correct_values, n_bootstraps=n_bootstraps, random_state=random_state)
+    values = correct_values.dropna().astype(bool)
+    if values.empty:
+        return None
+    return _binomial_ci(int(values.sum()), int(values.size), method=method, conf=conf)
+
+
+def _binary_curve_ci(raw_correct: pd.DataFrame, *, x_col: str, method: str, n_bootstraps: int, random_state: int,
+                     correct_col: str = "correct_pick", conf: float = 0.95) -> pd.DataFrame:
+    """Pointwise interval along a retrieval curve (one interval per *x_col* value, seeds as the unit)."""
+    if method == "bootstrap":
+        return _bootstrap_binary_curve_ci(raw_correct, x_col=x_col, correct_col=correct_col,
+                                          n_bootstraps=n_bootstraps, random_state=random_state)
+    if raw_correct.empty:
+        return pd.DataFrame(columns=[x_col, "ci_low", "ci_high"])
+    rows = []
+    for x, grp in raw_correct.groupby(x_col):
+        v = grp[correct_col].dropna().astype(bool)
+        lo, hi = _binomial_ci(int(v.sum()), int(v.size), method=method, conf=conf)
+        rows.append({x_col: x, "ci_low": lo, "ci_high": hi})
+    return pd.DataFrame(rows).sort_values(x_col).reset_index(drop=True)
+
+
+def _paired_mcnemar(a: pd.Series, b: pd.Series) -> tuple[int, int, float]:
+    """Exact McNemar test of two paired binary outcomes (same seeds): discordant counts and two-sided p-value."""
+    from scipy import stats
+    j = pd.concat([a.rename("a"), b.rename("b")], axis=1).dropna().astype(bool)
+    n10 = int((j["a"] & ~j["b"]).sum())
+    n01 = int((~j["a"] & j["b"]).sum())
+    p = stats.binomtest(n10, n10 + n01, 0.5).pvalue if n10 + n01 else 1.0
+    return n10, n01, float(p)
+
+
 def plot_standard_variance_diagnostics(
     data_nocv_base: pd.DataFrame,
     df_nocv_k: pd.DataFrame,
@@ -677,8 +738,20 @@ def run_retrieval_analysis(
     test_size: float = 0.2,
     retrieval_n_bootstraps: int = 100,
     retrieval_bootstrap_seed: int = 0,
+    retrieval_ci_method: str = "bootstrap",
+    retrieval_cv_strip: bool = False,
+    retrieval_figsize: tuple[float, float] | None = None,
+    retrieval_ylim: dict | tuple[float, float] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Run the shared retrieval analysis and emit retrieval plots."""
+    """Run the shared retrieval analysis and emit retrieval plots.
+
+    fig7_v6 (item 34): *retrieval_ci_method* is ``bootstrap`` (percentile bootstrap over seeds, as published),
+    ``wilson`` or ``clopper-pearson`` (closed-form, over the same seeds); *retrieval_cv_strip* draws the CV
+    estimates in a strip of their own instead of at arbitrary positions of the multiplier axis; with
+    *retrieval_figsize* (inches) the figure is saved at exactly that size. The ties and paired McNemar tests between
+    split counts are printed. fig7_v7 (item 34): *retrieval_ylim* fixes the y range of the published layout, either
+    one (low, high) pair or a dict {study size: (low, high)}.
+    """
     if cv_colors_retrieval is None:
         cv_colors_retrieval = sns.color_palette("mako", n_colors=len(target_splits))
 
@@ -741,6 +814,7 @@ def run_retrieval_analysis(
 
                 cv_lines = {}
                 cv_ci_lines = {}
+                cv_correct = {}
                 for split in target_splits:
                     split_data = subset_cv[subset_cv["n_splits"] == split]
                     pivot = split_data.pivot_table(
@@ -750,14 +824,20 @@ def run_retrieval_analysis(
                     ).dropna()
                     if not pivot.empty and best_model in pivot.columns and worst_model in pivot.columns:
                         correct = pivot[best_model] > pivot[worst_model]
+                        cv_correct[split] = correct
                         cv_lines[split] = float(correct.mean())
-                        ci = _bootstrap_binary_mean_ci(
+                        ci = _binary_mean_ci(
                             correct,
+                            method=retrieval_ci_method,
                             n_bootstraps=retrieval_n_bootstraps,
                             random_state=retrieval_bootstrap_seed + split,
                         )
                         if ci is not None:
                             cv_ci_lines[split] = ci
+                        n_tie = int(np.isclose(pivot[best_model], pivot[worst_model], rtol=0, atol=1e-12).sum())
+                        print(f"N={study_size} CV K={split}: {int(correct.sum())}/{len(correct)} correct, "
+                              f"{n_tie} ties (counted as failures), {retrieval_ci_method} 95% CI "
+                              f"[{ci[0]:.3f}, {ci[1]:.3f}]" if ci is not None else "")
 
                 subset_nocv = df_retrieval_all[
                     (df_retrieval_all[size_col] == study_size)
@@ -776,14 +856,37 @@ def run_retrieval_analysis(
                             .rename("correct_pick")
                             .reset_index()
                         )
-                        raw_curve_ci = _bootstrap_binary_curve_ci(
+                        raw_curve_ci = _binary_curve_ci(
                             raw_correct,
                             x_col="multiplier",
+                            method=retrieval_ci_method,
                             n_bootstraps=retrieval_n_bootstraps,
                             random_state=retrieval_bootstrap_seed,
                         )
+                        ties = (pivot_nocv[best_model] - pivot_nocv[worst_model]).abs() < 1e-12
+                        ties_by_m = ties.groupby(level="multiplier").sum()
+                        print(f"N={study_size} single split: ties (counted as failures) at multipliers "
+                              f"{ties_by_m[ties_by_m > 0].astype(int).to_dict()}")
+                        # Paired comparisons (same seeds; the K-split runs are nested and their first split is
+                        # the single split): exact McNemar test on the discordant seeds.
+                        single1 = raw_correct[raw_correct["multiplier"] == 1].set_index("seed")["correct_pick"]
+                        for a, b in [(max(cv_correct), "single"), (max(cv_correct), min(cv_correct))]:
+                            if a == b or a not in cv_correct:
+                                continue
+                            sb = single1 if b == "single" else cv_correct[b]
+                            n10, n01, pval = _paired_mcnemar(cv_correct[a], sb)
+                            print(f"N={study_size} paired McNemar, CV K={a} vs "
+                                  f"{'single split' if b == 'single' else f'CV K={b}'}: discordant {n10}/{n01}, "
+                                  f"exact p = {pval:.4f}")
 
-                fig = P.plot_retrieval_curve(
+                out_path = (f"{plots_dir}/retrieval_best_{best_model}_vs_{worst_model}"
+                            f"_N{study_size}{file_suffix}.pdf")
+                plot_fn = P.plot_retrieval_curve_cv_strip if retrieval_cv_strip else P.plot_retrieval_curve
+                extra = {"figsize": retrieval_figsize} if retrieval_cv_strip else {}
+                ylim_n = retrieval_ylim.get(study_size) if isinstance(retrieval_ylim, dict) else retrieval_ylim
+                if ylim_n is not None and not retrieval_cv_strip:
+                    extra["y_lim"] = ylim_n
+                fig = plot_fn(
                     curve_data=curve,
                     cv_lines=cv_lines,
                     best_model=model_display_names.get(best_model, best_model),
@@ -793,10 +896,8 @@ def run_retrieval_analysis(
                     curve_ci_data=raw_curve_ci,
                     cv_ci_lines=cv_ci_lines,
                     y_as_percent=y_as_percent,
-                    output_path=(
-                        f"{plots_dir}/retrieval_best_{best_model}_vs_{worst_model}"
-                        f"_N{study_size}{file_suffix}.pdf"
-                    ),
+                    output_path=out_path,
+                    **extra,
                 )
                 plt.close(fig)
 

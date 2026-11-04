@@ -8,19 +8,21 @@ import argparse, os, sys
 import numpy as np, pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "code"))
 import datapaths
+# The table folders are options; the defaults are the outputs of paper_style_figs.py and regen_real_data_gain_figures.py
+# under the figure root ($FIGS_DIR/sim and $FIGS_DIR/real, 1,000 draws each, order-averaged estimator).
 _ap = argparse.ArgumentParser(description=__doc__)
 _ap.add_argument("--sim-tables", default=datapaths.figs_path("sim", "tables"),
                  help="tables/ of paper_style_figs.py --out-dir (default: $FIGS_DIR/sim/tables)")
 _ap.add_argument("--real-tables", default=datapaths.figs_path("real", "tables"),
                  help="tables/ of regen_real_data_gain_figures.py --out-dir (default: $FIGS_DIR/real/tables)")
-_ap.add_argument("--yelp-tables", default=None, help="tables/ of its fig5_yelp run, if separate (default: --real-tables)")
-_ap.add_argument("--yelp-aligned-tables", default=None,
+_ap.add_argument("--nlp-tables", default=None, help="tables/ of its fig5_yelp run, if separate (default: --real-tables)")
+_ap.add_argument("--nlp-aligned-tables", default=None,
                  help="tables/ of its fig5_yelp_aligned run, if separate (default: --real-tables)")
 _a = _ap.parse_args()
 S, R = _a.sim_tables, _a.real_tables
-R_NLP = _a.yelp_tables or R  # Yelp gains with one run per seed
+R_NLP = _a.nlp_tables or R  # Yelp gains with one run per seed
 # BERT and XLM-RoBERTa re-run on the PCam protocol, Qwen3-0.6B as published (fig5_yelp_aligned)
-R_NLP_ALIGNED = _a.yelp_aligned_tables or R
+R_NLP_ALIGNED = _a.nlp_aligned_tables or R
 PCAM = {"densenet121": "DenseNet121", "mobilenet_v2": "MobileNetV2", "wide_resnet101_2": "WideResNet101\\_2", "vit_b_16": "ViT-B/16"}
 NLP = {"bert": "BERT", "roberta": "XLM-RoBERTa", "qwen3-0.6b": "Qwen3-0.6B"}
 tt = lambda x: "\\texttt{" + x + "}"

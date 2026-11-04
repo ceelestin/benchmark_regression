@@ -7,7 +7,10 @@ Provides:
   - expand_hidden_scores    expand list column to one-row-per-k DataFrame
   - build_nocv_combined_df  merge expanded hidden scores with base study scores
   - build_nocv_cache        pre-process no-CV data into numpy arrays (simulated path)
-  - sample_gain_bootstrap   main bootstrap loop (DataFrame mode or Cache mode)
+  - v1_alpha_curve / v1_alpha_curve_long  order-averaged single-split curve (closed form)
+  - sample_gain_bootstrap   main bootstrap loop (DataFrame mode or Cache mode);
+                            chunk_order="average" (default since 2026-11-04) / "stored": V1(alpha)
+                            order or averaged exactly over it, v1_alpha_curve), bootstrap_range
   - agg_ci                  group-wise mean ± 95% CI
   - compute_tau             inter-fold covariance estimator (ANOVA decomposition)
   - sample_gain_at_splits   mean sample gain at one or more split counts
@@ -18,11 +21,169 @@ Provides:
 from __future__ import annotations
 
 import itertools
+import os
 import warnings
 from typing import Literal
 
 import numpy as np
 import pandas as pd
+
+
+# ---------------------------------------------------------------------------
+# Order of the outer chunks in the single-split curve V1(alpha)  (2026-11-04; default "average" since CE's
+# go of 2026-11-04: every sample gain of the paper uses the order-averaged curve; "stored" reproduces the
+# values before, also through $GAIN_CHUNK_ORDER=stored)
+# ---------------------------------------------------------------------------
+
+CHUNK_ORDERS = ("stored", "average")
+CHUNK_ORDER_ENV = "GAIN_CHUNK_ORDER"
+
+
+def resolve_chunk_order(chunk_order: str | None = None) -> str:
+    """``chunk_order`` if given, else ``$GAIN_CHUNK_ORDER`` if set, else ``'average'`` (the paper's estimator).
+
+    The environment variable lets the drivers switch scripts they run as subprocesses
+    (pcam.py, nlp.py) without new command-line flags.
+    """
+    if chunk_order is None:
+        chunk_order = os.environ.get(CHUNK_ORDER_ENV) or "average"
+    if chunk_order not in CHUNK_ORDERS:
+        raise ValueError(f"chunk_order must be one of {CHUNK_ORDERS}, got {chunk_order!r}")
+    return chunk_order
+
+
+def v1_alpha_curve(x0: np.ndarray, X: np.ndarray) -> np.ndarray:
+    """Single-split variance curve V1(alpha), alpha = 1..n+1, averaged exactly over the order of the n chunks.
+
+    *x0* (s,): benchmark-adjusted error of each run's single split on its test fold; *X* (s, n): its errors on
+    the n outer chunks (chunk score minus the same benchmark score). The error on alpha test-fold-sized sets is
+    (x0 + sum_{j in S} X_j) / alpha with |S| = m = alpha - 1; its variance across runs (ddof = 1) is a quadratic
+    form in the covariance matrix C of [x0, X], so its expectation over a uniformly random S is
+
+        [C00 + 2 m c0 + m d + m (m - 1) o] / alpha^2,
+
+    c0 the mean of C0j, d the mean of Cjj, o the mean of Cjl (j != l) -- the closed form of ``v1_alpha_curve``
+    in benchmark_pcam/analysis/pcam_gain_analysis.py and benchmark_regression/analysis/
+    derivation_levers_analysis.py. Here the four averages are computed from the centred columns and their row
+    sums, without forming C (O(s n) instead of O(s n^2)); the result is the same up to rounding.
+    """
+    x0 = np.asarray(x0, dtype=float)
+    X = np.asarray(X, dtype=float)
+    s = x0.shape[0]
+    n = X.shape[1] if X.ndim == 2 else 0
+    m = np.arange(0, n + 1, dtype=float)
+    if s < 2:
+        return np.full(n + 1, np.nan)
+    x0c = x0 - x0.mean()
+    C00 = float(x0c @ x0c) / (s - 1)
+    if n == 0:
+        return np.array([C00])
+    Xc = X - X.mean(axis=0)
+    rs = Xc.sum(axis=1)                       # row sums of the centred chunks
+    c0 = float(x0c @ rs) / (s - 1) / n
+    tr = float(np.einsum("ij,ij->", Xc, Xc)) / (s - 1)
+    d = tr / n
+    o = (float(rs @ rs) / (s - 1) - tr) / (n * (n - 1)) if n > 1 else 0.0
+    return (C00 + 2 * m * c0 + m * d + m * (m - 1) * o) / (m + 1) ** 2
+
+
+def v1_alpha_curve_long(df: pd.DataFrame, group_cols: list[str], score_col: str, seed_col: str = "seed",
+                        k_col: str = "k", chunk_order: str | None = None) -> pd.DataFrame:
+    """Single-split variance curve per configuration from a long table of cumulative errors (2026-11-04).
+
+    *df* holds, per run (``seed_col``) and k = 0..n (``k_col``), the benchmark-adjusted error on the test fold and
+    the first k chunks, ``score_col`` = (x0 + X_1 + ... + X_k) / (k + 1) (the ``delta_score`` of
+    pipeline_common's variance diagnostics). Returns ``group_cols + [k_col, 'variance']``: with
+    ``chunk_order='stored'`` the variance across runs at each k (``groupby().var()``, as before); with
+    ``'average'`` (default, via ``resolve_chunk_order``) the curve averaged exactly over the order of the chunks,
+    ``v1_alpha_curve`` on the per-chunk errors X_k = (k + 1) delta_k - k delta_{k-1}: the single-split side of
+    ``sample_gain_bootstrap``. Used by the pedagogical figure (Figure 2).
+    """
+    chunk_order = resolve_chunk_order(chunk_order)
+    if chunk_order == "stored":
+        return df.groupby(group_cols + [k_col])[score_col].var().reset_index(name="variance")
+    rows = []
+    for key, g in df.groupby(group_cols, sort=True):
+        key = key if isinstance(key, tuple) else (key,)
+        D = g.pivot_table(index=seed_col, columns=k_col, values=score_col, aggfunc="first").sort_index(axis=1)
+        ks = np.asarray(D.columns, dtype=int)
+        if ks.size == 0 or ks[0] != 0 or not np.array_equal(ks, np.arange(ks.size)):
+            raise ValueError(f"v1_alpha_curve_long needs k = 0, 1, ..., n for {dict(zip(group_cols, key))}")
+        D = D.to_numpy(dtype=float)
+        D = D[np.isfinite(D[:, 0])]
+        n = _common_chunks(D[:, 1:])
+        S = D[:, : n + 1] * np.arange(1, n + 2, dtype=float)[None, :]
+        v = v1_alpha_curve(D[:, 0], np.diff(S, axis=1))
+        rows.append(pd.DataFrame({**{c: [kv] * (n + 1) for c, kv in zip(group_cols, key)},
+                                  k_col: np.arange(n + 1), "variance": v}))
+    return pd.concat(rows, ignore_index=True)
+
+
+def _common_chunks(chunks: np.ndarray) -> int:
+    """Number of leading chunks scored (finite) in every row of *chunks* (rows = runs)."""
+    if chunks.ndim != 2 or chunks.shape[1] == 0:
+        return 0
+    ok = np.isfinite(chunks).all(axis=0)
+    return int(ok.argmin()) if not ok.all() else int(chunks.shape[1])
+
+
+def _oa_df_prepare(df_nocv_combined: pd.DataFrame, nocv_match_cols: list[str], score_col_nocv: str) -> dict:
+    """Per single-split configuration (``nocv_match_cols``), the arrays of the order-averaged curve (DataFrame mode).
+
+    The combined table holds, per run and k = 0..n, the benchmark-adjusted error on the test fold and the first k
+    chunks, delta_k = (x0 + X_1 + ... + X_k) / (k + 1); the per-chunk errors are recovered as
+    X_k = (k + 1) delta_k - k delta_{k-1}, x0 = delta_0. Rows (runs) are those of the table, a seed appearing as
+    many times as it has runs (as in the stored version's ``groupby().var()``).
+    """
+    out = {}
+    if "k" not in df_nocv_combined.columns:
+        raise ValueError("chunk_order='average' needs the k column of build_nocv_combined_df.")
+    for key, g in df_nocv_combined.groupby(nocv_match_cols, dropna=False, sort=False):
+        key = key if isinstance(key, tuple) else (key,)
+        g = g[["seed", "k", score_col_nocv]]
+        occ = g.groupby(["seed", "k"], dropna=False, sort=False).cumcount()
+        piv = g.assign(_occ=occ.to_numpy()).set_index(["seed", "_occ", "k"])[score_col_nocv].unstack("k")
+        ks = np.asarray(piv.columns, dtype=int)
+        if ks.size == 0 or ks[0] != 0 or not np.array_equal(ks, np.arange(ks.size)):
+            raise ValueError(f"chunk_order='average' needs k = 0, 1, ..., n for every configuration "
+                             f"(build_nocv_combined_df(include_k0=True)); {dict(zip(nocv_match_cols, key))} has k = {ks[:5]}...")
+        D = piv.to_numpy(dtype=float)
+        keep = np.isfinite(D[:, 0])
+        D = D[keep]
+        seeds = piv.index.get_level_values("seed").to_numpy()[keep]
+        n = _common_chunks(D[:, 1:])
+        if n < ks.size - 1:
+            warnings.warn(f"chunk_order='average': {dict(zip(nocv_match_cols, key))}: {n} of {ks.size - 1} chunks "
+                          "are scored in every run; the order-averaged curve uses those.", stacklevel=3)
+        S = D[:, : n + 1] * np.arange(1, n + 2, dtype=float)[None, :]
+        idx = pd.Index(seeds)
+        out[key] = {
+            "x0": D[:, 0].copy(), "X": np.diff(S, axis=1), "seeds": seeds,
+            "seed_index": idx if idx.is_unique else None,
+            "rows_of": None if idx.is_unique else {s: np.flatnonzero(seeds == s) for s in pd.unique(seeds)},
+            "k": np.arange(n + 1),
+        }
+    return out
+
+
+def _oa_df_var_series(prep: dict, boot_seeds_nocv, nocv_match_cols: list[str]) -> pd.Series:
+    """Order-averaged V1 curves of the resampled runs, as a Series shaped like the stored ``groupby().var()``."""
+    keys, vals = [], []
+    boot_seeds_nocv = np.asarray(boot_seeds_nocv)
+    for key, p in prep.items():
+        if p["seed_index"] is not None:
+            idx = p["seed_index"].get_indexer(boot_seeds_nocv)
+            idx = idx[idx >= 0]
+        else:
+            parts = [p["rows_of"][s] for s in boot_seeds_nocv if s in p["rows_of"]]
+            idx = np.concatenate(parts) if parts else np.array([], dtype=int)
+        if idx.size == 0:
+            continue          # no run of this configuration in the draw: absent, as from the stored groupby
+        curve = v1_alpha_curve(p["x0"][idx], p["X"][idx])
+        keys.extend(key + (int(k),) for k in p["k"])
+        vals.append(curve)
+    index = pd.MultiIndex.from_tuples(keys, names=list(nocv_match_cols) + ["k"])
+    return pd.Series(np.concatenate(vals) if vals else np.array([]), index=index, dtype=float)
 
 
 # ---------------------------------------------------------------------------
@@ -474,6 +635,9 @@ def build_nocv_cache(
                 "test_scores": test_arr,
                 "max_k": max_len,
                 "combination": "average",
+                # per-chunk scores (benchmark-adjusted if use_delta), NaN-padded: used only by
+                # sample_gain_bootstrap(chunk_order='average') (2026-11-04)
+                "chunks": hidden_matrix,
             }
             if seed_col in subset.columns:
                 cache[key]["seeds"] = subset[seed_col].to_numpy()[valid]
@@ -549,8 +713,27 @@ def sample_gain_bootstrap(
     paired: bool = True,
     interpolate: bool = True,
     plugin_estimate: bool = False,
+    chunk_order: str | None = None,
+    bootstrap_range: tuple[int, int] | None = None,
 ) -> pd.DataFrame:
     """Bootstrapped variance-matching analysis returning Variance-Equivalent Test Sample Gain.
+
+    *chunk_order* (2026-11-04; None = ``$GAIN_CHUNK_ORDER`` if set, else ``'average'``): how the
+    single-split curve V1(alpha) adds the alpha - 1 outer chunks to the test fold.
+    ``'stored'`` (the behaviour before 2026-11-04, kept to reproduce the earlier values): in their stored order, V1(alpha) being the variance across runs of the
+    error on the test fold and the first alpha - 1 chunks. ``'average'``: V1(alpha) averaged exactly over the
+    choice of the alpha - 1 chunks, in closed form from the covariance across runs of the per-chunk errors
+    (``v1_alpha_curve``), on the same errors and the same (resampled, paired) runs as the stored version, in
+    the estimate and in every draw. Nothing else changes: K-split side, crossing, interpolation, cap, RNG
+    draws. Needs per-chunk scores: Cache mode with ``combination='average'`` (``build_nocv_cache`` stores
+    them as ``'chunks'``), DataFrame mode with the k = 0..n table of ``build_nocv_combined_df(include_k0=True)``.
+    If the runs of a configuration do not all have the same chunks, the curve uses the leading chunks scored
+    in every run (warning).
+
+    *bootstrap_range*: ``(start, stop)`` computes only the draws ``start <= bootstrap_iter < stop``
+    of the ``n_bootstraps`` sequence, replaying the random generator through the earlier draws, so that runs
+    over consecutive ranges, concatenated, are identical to one run over all draws (to keep each process
+    under the login node's CPU-time limit). The estimate (``plugin_estimate``) is added whatever the range.
 
     *paired* (default True): each bootstrap draw resamples seeds once and uses
     the same seeds for the CV variance and for the single-split variance curve.
@@ -635,6 +818,22 @@ def sample_gain_bootstrap(
         )
     if df_mode and score_col_nocv is None:
         raise ValueError("score_col_nocv must be provided in DataFrame mode.")
+    chunk_order = resolve_chunk_order(chunk_order)
+    if cache_mode and chunk_order == "average":
+        for _key, _cache in nocv_cache.items():
+            if _cache.get("combination", "average") == "pooled":
+                raise ValueError(f"chunk_order='average' needs per-chunk scores; cache entry {_key} is 'pooled' "
+                                 "(cumulative values of a non-averageable metric): pass chunk_order='stored' "
+                                 "or set $GAIN_CHUNK_ORDER=stored for such metrics.")
+            if "chunks" not in _cache:
+                raise ValueError(f"chunk_order='average': cache entry {_key} has no 'chunks' "
+                                 "(build it with this module's build_nocv_cache).")
+    if bootstrap_range is None:
+        boot_start, boot_stop = 0, n_bootstraps
+    else:
+        boot_start, boot_stop = (int(v) for v in bootstrap_range)
+        if not 0 <= boot_start <= boot_stop <= n_bootstraps:
+            raise ValueError(f"bootstrap_range {bootstrap_range} must satisfy 0 <= start <= stop <= n_bootstraps")
 
     rng = np.random.default_rng(random_state)
     has_procedure = "procedure" in data_cv.columns
@@ -710,7 +909,20 @@ def sample_gain_bootstrap(
     all_results: list[dict] = []
     filtered_configs: dict = {}
 
-    for i_boot in ([-1] if plugin_estimate else []) + list(range(n_bootstraps)):
+    # chunk_order='average', DataFrame mode: per-chunk errors of every single-split configuration, once
+    oa_prep = (_oa_df_prepare(df_nocv_combined, nocv_match_cols, score_col_nocv)
+               if df_mode and chunk_order == "average" else None)
+
+    # bootstrap_range: advance the generator through the draws before the range, exactly as they would consume it
+    for _ in range(boot_start):
+        rng.choice(unique_seeds_cv, size=len(unique_seeds_cv), replace=True)
+        if df_mode:
+            if not pair_df:
+                rng.choice(unique_seeds_nocv, size=len(unique_seeds_nocv), replace=True)
+        else:
+            _cache_mode_rng_replay(nocv_cache, models_to_analyze, rng, paired)
+
+    for i_boot in ([-1] if plugin_estimate else []) + list(range(boot_start, boot_stop)):
         r = _IdentityResampler() if i_boot < 0 else rng
         # --- Resample ---
         boot_seeds_cv = r.choice(unique_seeds_cv, size=len(unique_seeds_cv), replace=True)
@@ -719,15 +931,20 @@ def sample_gain_bootstrap(
             .merge(data_cv, on="seed", how="left")
         )
 
+        oa_nocv_var_series = None
         if df_mode:
             boot_seeds_nocv = (
                 boot_seeds_cv if pair_df else
                 r.choice(unique_seeds_nocv, size=len(unique_seeds_nocv), replace=True)
             )
-            boot_df_nocv = (
-                pd.DataFrame({"seed": boot_seeds_nocv})
-                .merge(df_nocv_combined, on="seed", how="left")
-            )
+            if oa_prep is None:
+                boot_df_nocv = (
+                    pd.DataFrame({"seed": boot_seeds_nocv})
+                    .merge(df_nocv_combined, on="seed", how="left")
+                )
+            else:
+                boot_df_nocv = None
+                oa_nocv_var_series = _oa_df_var_series(oa_prep, boot_seeds_nocv, nocv_match_cols)
 
         # --- CV variances ---
         cv_group_cols = []
@@ -755,6 +972,7 @@ def sample_gain_bootstrap(
                 method, all_results, filtered_configs,
                 nocv_match_cols, result_extra_cols,
                 interpolate=interpolate,
+                nocv_var_series=oa_nocv_var_series,
             )
         else:
             _cache_mode_iter(
@@ -764,6 +982,7 @@ def sample_gain_bootstrap(
                 dataset_col,
                 boot_seeds=boot_seeds_cv if paired else None,
                 interpolate=interpolate,
+                chunk_order=chunk_order,
             )
 
     if filtered_configs:
@@ -801,12 +1020,18 @@ def _df_mode_iter(
     method, all_results, filtered_configs,
     nocv_match_cols, result_extra_cols,
     interpolate: bool = False,
+    nocv_var_series: pd.Series | None = None,
 ):
-    """Inner loop body for DataFrame mode bootstrap iteration."""
-    nocv_var_series = (
-        boot_df_nocv.groupby(nocv_match_cols + ["k"], dropna=False)[score_col_nocv]
-        .var()
-    )
+    """Inner loop body for DataFrame mode bootstrap iteration.
+
+    *nocv_var_series*: the single-split curves already computed (chunk_order='average');
+    None = the stored order, variance across runs of the combined score at each k.
+    """
+    if nocv_var_series is None:
+        nocv_var_series = (
+            boot_df_nocv.groupby(nocv_match_cols + ["k"], dropna=False)[score_col_nocv]
+            .var()
+        )
     cv_index_names = list(cv_var_series.index.names)
 
     # Iterate over CV variance entries
@@ -911,6 +1136,26 @@ def _df_mode_iter(
         all_results.append(entry)
 
 
+def _cache_mode_rng_replay(nocv_cache, models_to_analyze, rng, paired):
+    """Consume *rng* exactly as one ``_cache_mode_iter`` draw does after the CV-side ``choice`` (2026-11-04,
+    ``bootstrap_range``): one ``choice`` per entry that is resampled independently of the CV seeds."""
+    for cache_key, cache in nocv_cache.items():
+        if len(cache_key) in (3, 4):
+            model = cache_key[1]
+        elif len(cache_key) == 2:
+            model = cache_key[0]
+        else:
+            continue
+        if model not in models_to_analyze:
+            continue
+        n_nocv = len(cache["test_scores"])
+        if n_nocv < 2:
+            continue
+        if paired and cache.get("_seed_index") is not None:
+            continue
+        rng.choice(n_nocv, size=n_nocv, replace=True)
+
+
 def _cache_mode_iter(
     i_boot, cv_var_series, nocv_cache,
     model_col, models_to_analyze, has_procedure,
@@ -918,11 +1163,13 @@ def _cache_mode_iter(
     dataset_col,
     boot_seeds=None,
     interpolate: bool = False,
+    chunk_order: str = "stored",
 ):
     """Inner loop body for Cache mode bootstrap iteration.
 
     With *boot_seeds* (paired bootstrap), the single-split rows are those of the
     resampled seeds, in the same multiplicity as on the CV side.
+    *chunk_order*: 'stored' or 'average', see ``sample_gain_bootstrap``.
     """
     for cache_key, cache in nocv_cache.items():
         # cache_key may be:
@@ -964,22 +1211,32 @@ def _cache_mode_iter(
         max_k = cache["max_k"]
         test_scores_2d = boot_test_scores.reshape(-1, 1)
 
-        if cache.get("combination", "average") == "pooled":
-            # Hidden list already cumulative: element k is the metric pooled on
-            # test + chunks 0..k, so use it directly (no re-averaging).
-            boot_cum_values = cache["cum_values"][indices, :]  # (n, max_k)
-            combined_scores_k_ge_1 = boot_cum_values
+        if chunk_order == "average":
+            # V1(alpha) averaged exactly over the order of the chunks, on the same resampled runs
+            n_oa = cache.get("_oa_n")
+            if n_oa is None:
+                n_oa = cache["_oa_n"] = _common_chunks(cache["chunks"])
+                if n_oa < max_k:
+                    warnings.warn(f"chunk_order='average': {cache_key}: {n_oa} of {max_k} chunks are scored "
+                                  "in every run; the order-averaged curve uses those.", stacklevel=3)
+            nocv_variances = v1_alpha_curve(boot_test_scores, cache["chunks"][indices, :n_oa])
         else:
-            boot_cum_means = cache["cum_means"][indices, :]    # (n, max_k)
-            k_values = np.arange(1, max_k + 1).reshape(1, -1)
-            # combined_scores[:,j] = mean of (test + first j hidden) for each seed
-            combined_scores_k_ge_1 = (
-                boot_cum_means * k_values + test_scores_2d
-            ) / (k_values + 1)
-        # index 0 = test only (k=0), indices 1..max_k = combined with k hidden sets
-        combined_scores = np.hstack([test_scores_2d, combined_scores_k_ge_1])
+            if cache.get("combination", "average") == "pooled":
+                # Hidden list already cumulative: element k is the metric pooled on
+                # test + chunks 0..k, so use it directly (no re-averaging).
+                boot_cum_values = cache["cum_values"][indices, :]  # (n, max_k)
+                combined_scores_k_ge_1 = boot_cum_values
+            else:
+                boot_cum_means = cache["cum_means"][indices, :]    # (n, max_k)
+                k_values = np.arange(1, max_k + 1).reshape(1, -1)
+                # combined_scores[:,j] = mean of (test + first j hidden) for each seed
+                combined_scores_k_ge_1 = (
+                    boot_cum_means * k_values + test_scores_2d
+                ) / (k_values + 1)
+            # index 0 = test only (k=0), indices 1..max_k = combined with k hidden sets
+            combined_scores = np.hstack([test_scores_2d, combined_scores_k_ge_1])
 
-        nocv_variances = np.nanvar(combined_scores, axis=0, ddof=1)
+            nocv_variances = np.nanvar(combined_scores, axis=0, ddof=1)
         baseline_nocv_var = float(nocv_variances[0]) if method == "ratio" else None
 
         if pd.isna(nocv_variances[0]):
@@ -1052,7 +1309,7 @@ def _cache_mode_iter(
                     k_match_idx, target_abs, interpolate,
                 )
                 if k_match_idx is None:
-                    k_match_idx = max_k  # cap
+                    k_match_idx = max_k if chunk_order == "stored" else len(nocv_variances) - 1  # cap
 
                 entry = {
                     "bootstrap_iter": i_boot,
