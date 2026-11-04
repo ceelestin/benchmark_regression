@@ -505,7 +505,7 @@ def plot_retrieval_vs_studysize(
         fontsize=8, color="0.35",
     )
     ax.set_xscale("log")
-    ax.set_xlabel("Study Size ($N$)")
+    ax.set_xlabel("Study size ($N$)")
     ax.set_ylabel("Oracle-ranking retrieval  $\\widehat{\\pi}_K(N)$")
     ax.set_ylim(0.4, 1.02)
     leg = ax.legend(title="$K$ (splits)", fontsize=7, title_fontsize=8,
@@ -554,8 +554,8 @@ def plot_ranking_gain_violin(gain_df, split_counts, family, mode="pairwise",
                edgecolor="black", s=16, zorder=5)
 
     ax.set_yscale("log")
-    ax.set_xlabel("Number of Splits ($K$)")
-    ax.set_ylabel("Rank.-Eq. Sample Gain ($G^{\\mathrm{rank}}_{K,0.95}$)")
+    ax.set_xlabel("Number of splits ($K$)")
+    ax.set_ylabel("Rank.-eq. sample gain ($G^{\\mathrm{rank}}_{K,0.95}$)")
     if output_path:
         P.save_figure(fig, output_path)
     _show_if_interactive()

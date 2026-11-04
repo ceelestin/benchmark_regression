@@ -151,7 +151,7 @@ def draw(df, path):
     ax.set_ylabel(r"Test sample gain $G^{\mathrm{test}}_{20}$")
     ax.grid(color="0.9", lw=0.6)
     ax.legend(handles=[icc], loc="upper right", frameon=False, handlelength=2.4, fontsize=7)
-    ax.text(0.03, 0.03, f"rank corr. = ${spearmanr(df.rho_delta, df.G20)[0]:.2f}$, $n = {len(df)}$", transform=ax.transAxes,
+    ax.text(0.03, 0.03, f"Rank corr. = ${spearmanr(df.rho_delta, df.G20)[0]:.2f}$, $n = {len(df)}$", transform=ax.transAxes,
             ha="left", va="bottom", fontsize=7, color="0.3")
     # legend below the axes: one column per data set (bold header), rows sharing a colour across the columns
     title = {"simulated": "Simulated (MSE)", "PCam": "PCam (accuracy)", "Yelp": "Yelp (accuracy)"}

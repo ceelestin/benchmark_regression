@@ -135,7 +135,7 @@ def figF1(code_dir, data, out):
                                         study_sizes=[300], compute_train_size=False)
     _save_table(res, out, "figF1")                                                                        # v5
     res = res[res["K"] <= 20].copy()
-    res["procedure_display"] = res["cv_procedure"].map({"MCCV": "MCCV", "RepeatedKFold": "Repeated 5-Fold"})
+    res["procedure_display"] = res["cv_procedure"].map({"MCCV": "MCCV", "RepeatedKFold": "Repeated 5-fold"})
     cnn = ["densenet121", "mobilenet_v2", "wide_resnet101_2"]          # the figure excludes ViT
     res = res[res["model"].isin(cnn)].copy()
     P.set_paper_style()
@@ -143,7 +143,7 @@ def figF1(code_dir, data, out):
     order = [pcam.MODEL_DISPLAY_NAMES[m] for m in cnn]
     P.plot_sample_gain_facets(
         res, panel_col="model_disp", panel_order=order, style_col="procedure_display",
-        style_order=["MCCV", "Repeated 5-Fold"], dashes={"MCCV": (), "Repeated 5-Fold": (4, 2)},
+        style_order=["MCCV", "Repeated 5-fold"], dashes={"MCCV": (), "Repeated 5-fold": (4, 2)},
         palette={m: PCAM_COLORS[m] for m in order}, xticks=[1, 5, 10, 15, 20], hairlines=HAIR_FACET,
         axes_size=SINGLE_AXES, axis_label_fontsize=12,                                                  # v5: 1 x 3
         output_path=os.path.join(out, "aggregated_test_gain_k_300_delta_linear_cv_procedures.pdf"))

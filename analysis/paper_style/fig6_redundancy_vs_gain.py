@@ -196,7 +196,7 @@ def draw(sim, real, out):
     ax.set_xticks([0.00, 0.05, 0.10, 0.15, 0.20])
     ax.set_xlim(-0.035780016518425876, 0.21106687633226398)   # the published figure's limits
     ax.set_xlabel(r"Redundancy $\widehat{\omega}^{\mathrm{study}}_3$ after 3 splits", fontsize=12)
-    ax.set_ylabel(r"Test Sample Gain ($G^{\mathrm{test}}_{20}$)", fontsize=12)
+    ax.set_ylabel(r"Test sample gain ($G^{\mathrm{test}}_{20}$)", fontsize=12)
     ax.grid(True, which="major", linestyle=":", linewidth=0.7, color="#c8c8c8")
     ax.set_axisbelow(True)
     sns.despine(ax=ax)
@@ -207,8 +207,8 @@ def draw(sim, real, out):
     k1 = Key(ax)
     x0, y0, dy = 0.38, 0.945, 0.066
     k1.row(x0, y0, r"$K/(1+(K-1)\,\omega)$", "curve")
-    k1.text(VALX, y0 - 0.9 * dy, "rank corr.", ha="right", fontsize=FS - 0.9, color=MUTED)
-    rows = [(f"simulated ({len(sim)})", dict(marker="o", s=22, c=GREYS[2], linewidths=0), spearmanr(sim.w, sim.g).statistic)]
+    k1.text(VALX, y0 - 0.9 * dy, "Rank corr.", ha="right", fontsize=FS - 0.9, color=MUTED)
+    rows = [(f"Simulated ({len(sim)})", dict(marker="o", s=22, c=GREYS[2], linewidths=0), spearmanr(sim.w, sim.g).statistic)]
     for name, r in real.items():
         st = REAL[name]
         rows.append((f"{name} ({len(r)})", dict(marker=st["marker"], s=st["s"], c=st["c"], edgecolors=st["ec"], linewidths=0.7),
