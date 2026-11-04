@@ -57,10 +57,14 @@ def common_axis(s, p, y):
 # Panel geometry in points (2026-11-04). The left panel keeps the margins of the previous version (y label and
 # values on the left: 51.46 pt, x label below: 43.74 pt, 9.55 pt above the axes); the middle
 # and right panels drop the y label and values and keep 12 pt on the left. All axes are AX_W wide, so that at the
-# page scale of the other gain figures (0.32 \linewidth for 238.8 pt) the three fill 0.98 \linewidth.
+# page scale PAGE_PER_PT the three fill 0.98 \linewidth.
 AX_B, TOP, RIGHT = 43.74, 9.55, 13.5
 LEFT_L, LEFT_R = 51.46, 12.0
-AX_W = (0.98 * 238.8 / 0.32 - (LEFT_L + 2 * LEFT_R + 3 * RIGHT)) / 3
+# Page scale 0.62 (page pt per figure pt, for a 397.48 pt text width): the largest at which the direct labels still
+# sit next to their curves (scanned 0.58-0.73 on 2026-11-04; at Figure 4's 0.73 they move away). Text is 1.16 times
+# larger than at the old 0.53 (0.32 linewidth for 238.8 pt), and the axes are close to their original size.
+PAGE_PER_PT = 0.62 / 397.48       # linewidth per point of figure
+AX_W = (0.98 / PAGE_PER_PT - (LEFT_L + 2 * LEFT_R + 3 * RIGHT)) / 3
 AX_H = 171.11 * AX_W / 173.84      # same aspect as the previous axes (the panels grow in height too)
 FIG_H = AX_B + AX_H + TOP
 
@@ -76,8 +80,8 @@ def draw_all(s, p, y, out, ylim=None, yticks=None, shared_layout=False):
     P.GAIN_DISPLAY["ylim"], P.GAIN_DISPLAY["yticks"] = ylim, yticks
     if shared_layout:
         print(f"panel axes width {AX_W:.2f} pt; figure widths {LEFT_L + AX_W + RIGHT:.2f} and "
-              f"{LEFT_R + AX_W + RIGHT:.2f} pt; subfigure widths {(LEFT_L + AX_W + RIGHT) * 0.32 / 238.8:.5f} and "
-              f"{(LEFT_R + AX_W + RIGHT) * 0.32 / 238.8:.5f} \\linewidth")
+              f"{LEFT_R + AX_W + RIGHT:.2f} pt; subfigure widths {(LEFT_L + AX_W + RIGHT) * PAGE_PER_PT:.5f} and "
+              f"{(LEFT_R + AX_W + RIGHT) * PAGE_PER_PT:.5f} \\linewidth")
         _panel(LEFT_L, False)
     # simulated (paper_style_figs.main: draw(main_[K <= 20], base, K20, ..., f(1000)))
     P.set_paper_style()

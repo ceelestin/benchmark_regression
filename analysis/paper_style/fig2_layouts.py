@@ -42,5 +42,14 @@ def final_k10(cv):
     return lay
 
 
-final = final_k10
-LAYOUTS = {"auto": auto, "plain": plain, "stagger": stagger, "allrow": allrow, "final_k10": final_k10, "final": final}
+def one_row(cv):
+    """final_k10 with the three G^test labels on one row: G^test_20 moved 4 pt to the right so that it clears
+    G^test_10 (the tick 6, which G^test_10 used to sit under, is gone; CE, 2026-11-04)."""
+    lay = final_k10(cv)
+    lay.pop("crossing_label_row", None)
+    lay.update(crossing_label_dx={20: 4.0}, figsize=(3.2, 2.76 - ROW / 72))
+    return lay
+
+
+final = one_row
+LAYOUTS = {"auto": auto, "plain": plain, "stagger": stagger, "allrow": allrow, "final_k10": final_k10, "one_row": one_row, "final": final}

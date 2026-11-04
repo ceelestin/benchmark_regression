@@ -1010,6 +1010,7 @@ def plot_pedagogical_variance_diagnostic_paper_style(
     cv_label_xy: dict | None = None,
     crossing_label_row: dict | None = None,
     figsize: tuple[float, float] | None = None,
+    crossing_label_dx: dict | None = None,
 ) -> plt.Figure:
     """Cleaner paper-style version of the pedagogical variance diagnostic.
 
@@ -1017,7 +1018,8 @@ def plot_pedagogical_variance_diagnostic_paper_style(
     end of the x axis; *major_ticks* the numbered x ticks; *curve_label_xy* the (x, y) data position of the
     "Single split + extra test data" label (its bottom centre); *cv_label_xy* {K: (x, y, ha)} data positions of the
     "CV, K=..." labels; *crossing_label_row* {K: points} extra downward offset of the G^test_K label under the axis;
-    *figsize* the figure size in inches.
+    *crossing_label_dx* {K: points} horizontal offset of that label (positive: to the right); *figsize* the figure
+    size in inches.
     """
     if cv_colors is None:
         cv_colors = ["#4C78A8", "#59A14F", "#E15759"][:len(target_splits)]
@@ -1205,10 +1207,12 @@ def plot_pedagogical_variance_diagnostic_paper_style(
             label.set_color(color)
             label.set_fontsize(7.8 if x_scale == "log" else 8.5)
             label.set_path_effects(halo)
-            if crossing_label_row and crossing_label_row.get(K_split):
+            dy = (crossing_label_row or {}).get(K_split, 0)
+            dx = (crossing_label_dx or {}).get(K_split, 0)
+            if dx or dy:
                 from matplotlib.transforms import ScaledTranslation
                 label.set_transform(label.get_transform()
-                                    + ScaledTranslation(0, -crossing_label_row[K_split] / 72, fig.dpi_scale_trans))
+                                    + ScaledTranslation(dx / 72, -dy / 72, fig.dpi_scale_trans))
     ax.set_xlabel(xlabel, labelpad=7, fontsize=9.5)
     ax.set_ylabel("Estimation error variance")
     ax.grid(False)

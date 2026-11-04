@@ -28,7 +28,8 @@ import plot as P
 
 NAME = "pedagogical_variance_diagnostic_delta_mobilenet_v2_N500_MCCV_paper_style.pdf"
 XLABEL = "How many times more test data a\nsingle split needs to match CV variance"
-TARGET_PT = (235.620667, 204.666626)   # size of the previous PDF: \includegraphics[width=...] keeps the page layout
+TARGET_PT = (235.620667, 204.666626 - 10.5)   # previous PDF size, one label row (10.5 pt) shorter since the three
+                                              # G^test labels share one row; same width, so the same page scale
 
 
 def curves(data_root):
