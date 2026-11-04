@@ -35,5 +35,12 @@ def allrow(cv):
     return lay
 
 
-final = stagger
-LAYOUTS = {"auto": auto, "plain": plain, "stagger": stagger, "allrow": allrow, "final": final}
+def final_k10(cv):
+    """stagger, with "CV, K=10" just above its dashed line instead of centred on it (as in Figure 7(a))."""
+    lay = stagger(cv)
+    lay.update(cv_label_xy={10: (12.04 - 0.18, float(cv["V_10"].iloc[0]) * 1.12, "right")})
+    return lay
+
+
+final = final_k10
+LAYOUTS = {"auto": auto, "plain": plain, "stagger": stagger, "allrow": allrow, "final_k10": final_k10, "final": final}
