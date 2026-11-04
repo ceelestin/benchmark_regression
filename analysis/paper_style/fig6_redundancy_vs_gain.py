@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Figure 6 (p. 9), v7: sample gain G_20 against the redundancy after 3 splits, with the Yelp points and boxed keys.
+"""Figure 6 of the paper: sample gain G_20 against the redundancy after 3 splits, with the Yelp points and boxed keys.
 
-(paper_style_figs/v3/fig6_v7/fig6_v7.py, 2026-11-04.) Item 33 redesign, which CE approved, then (item 33 follow-up):
-  (1) both keys sit in a light, discreet box (white face, alpha 0.9, thin grey edge, small padding, slightly rounded
-      corners), so that the key markers cannot be read as data points; the boxes are checked not to cover any point;
-  (2) the Yelp points (accuracy) are drawn (--yelp yelp_points.csv).
-Data unchanged:
-  simulated: benchmark_regression analysis/out_omega/omega_{derivation,holdout1,holdout2,holdout3}_neg_mse.csv
+Both keys sit in a light, discreet box (white face, alpha 0.9, thin grey edge, small padding, slightly rounded
+corners), so that the key markers cannot be read as data points; the boxes are checked not to cover any point. The
+Yelp points (accuracy) are drawn with --yelp fig6_yelp_points.csv.
+Data:
+  simulated: this repository's analysis/out_omega/omega_{derivation,holdout1,holdout2,holdout3}_neg_mse.csv
              (663 configurations, gain on the MSE, omega = t * rho_e_mean_3, t = 0.2; G_paper: V1 averaged over the
              order of the outer chunks);
   PCam:      benchmark_pcam analysis/out_round3_redundancy/redundancy_vs_gain.csv (omega3) merged with
@@ -15,7 +14,8 @@ Data unchanged:
              rows only: BERT and XLM-RoBERTa at n_tr 1,000 and 3,000, 50 seeds; redundancy on the 0-1 loss.
 Same figure size as the published PDF (MediaBox 238.79 x 224.40 pt): the page is cropped to the tight box of the figure
 WITHOUT the key boxes (plus the usual 0.1 in), and the script asserts that the key boxes lie inside it.
-Run in analysis/paper_style with `module load pytorch-gpu/py3/2.8.0` (code/ next to this script):
+The PCam tables are read from the benchmark_pcam checkout ($BENCHMARK_PCAM, else ../benchmark_pcam next to this
+repository). Usage:
     python fig6_redundancy_vs_gain.py --yelp fig6_yelp_points.csv --out OUT/redundancy_vs_gain_all_k3.pdf
     python fig6_redundancy_vs_gain.py --out OUT/redundancy_vs_gain_all_k3.pdf          # variant without Yelp
 """
@@ -38,11 +38,12 @@ from matplotlib.ticker import FixedLocator, NullFormatter, ScalarFormatter
 from matplotlib.transforms import Bbox
 from scipy.stats import spearmanr
 
+import datapaths
 import plot as P
 
 K, T = 20, 0.2
-REG = os.path.expandvars("$WORK/benchmark_regression/analysis")
-PCAM = os.path.expandvars("$WORK/benchmark_pcam/analysis")
+REG = datapaths.repo_path("analysis")  # outputs of this repository's analysis scripts (out_omega/)
+PCAM = datapaths.pcam_repo_path("analysis")  # analysis outputs of the benchmark_pcam checkout
 BINS = [(0, 100, "50–100"), (101, 750, "300–750"), (751, 3000, "1,000–3,000"), (3001, 10**9, "5,000–10,000")]
 GREYS = ["#c6c6c6", "#9b9b9b", "#6f6f6f", "#444444"]          # sequential, light = small n_tr
 REAL = {"PCam": dict(c="#E0A21A", ec="#8a5a00", marker="s", s=30),
@@ -140,11 +141,11 @@ class Key:
 
 
 VALX = 0.984   # value column (right edge), in axes coordinates
-# axes position (figure fraction) of the published v6 PDF: constrained layout depends on how often the figure has been
-# drawn (the keys are clip_on=False texts in axes coordinates), so v7 fixes the axes where v6 had them
+# axes position (figure fraction) of the previous version of the published PDF: constrained layout depends on how often
+# the figure has been drawn (the keys are clip_on=False texts in axes coordinates), so the axes are fixed there
 AX_POS = (0.1919226996527778, 0.1998709027777778, 0.781758907493225, 0.7862390972222222)
-# page (inches, figure coordinates) of the published v6 PDF, MediaBox 238.794 x 224.400 pt: the tight box of the
-# constrained layout (3 pt pads) plus 0.1 in; with AX_POS it reproduces v6's PDF geometry to the pixel at 300 dpi
+# page (inches, figure coordinates) of that PDF, MediaBox 238.794 x 224.400 pt: the tight box of the constrained
+# layout (3 pt pads) plus 0.1 in; with AX_POS it reproduces that PDF's geometry to the pixel at 300 dpi
 PAGE = Bbox.from_bounds(3 / 72 - 0.1, 3 / 72 - 0.1, 238.7936256141 / 72, 224.39952 / 72)
 
 

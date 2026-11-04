@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Figure 6 (p. 9), item 33: Yelp points computed EXACTLY as the PCam points of the figure.
+"""Figure 6: Yelp points computed EXACTLY as the PCam points of the figure.
 
-PCam points of Figure 6 (paper_style_figs/paper_style_scatter.py, fig7):
+PCam points of Figure 6 (fig6_redundancy_vs_gain.py):
   gain       = G_paper_20 of benchmark_pcam analysis/pcam_gain_analysis.py (analyse): variance-equivalent gain on the
                benchmark-aware deltas q_k - b_k, single-split curve V1(alpha) from the first split's test fold and its
                outer chunks (hidden_test_<metric>s), averaged exactly over the order of the chunks, crossing with
@@ -14,7 +14,9 @@ benchmark_pcam fdb6873), first re-derives the 36 PCam points from the round-3 pa
 CSVs the figure reads, then applies the same functions to the Yelp re-run (BERT, XLM-RoBERTa; n_tr 1,000, 3,000;
 50 seeds; K = 20). Yelp gains are on accuracy (as in the paper), so the redundancy is on the 0-1 error; NLL and Brier
 are written too, for reference only.
-Run in analysis/paper_style with `module load pytorch-gpu/py3/2.8.0`.
+Reads the round-3 PCam runs and analysis outputs of the benchmark_pcam checkout ($BENCHMARK_PCAM, else
+../benchmark_pcam) and the Yelp runs under the data root (nlp/yelp_aligned); writes fig6_yelp_points.csv next to
+this script.
 """
 import os
 import sys
@@ -23,15 +25,17 @@ import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "code"))
+import datapaths  # noqa: E402
 # the two PCam scripts of benchmark_pcam/analysis (fdb6873), unmodified; $BENCHMARK_PCAM_ANALYSIS overrides the path
-sys.path.insert(0, os.environ.get("BENCHMARK_PCAM_ANALYSIS") or os.path.expandvars("$WORK/benchmark_pcam/analysis"))
+sys.path.insert(0, os.environ.get("BENCHMARK_PCAM_ANALYSIS") or datapaths.pcam_repo_path("analysis"))
 import pcam_gain_analysis as GA          # noqa: E402
 import pcam_redundancy_vs_gain as RV     # noqa: E402
 
-W = os.environ["WORK"]
-PCAM_GLOB = f"{W}/benchmark_pcam/results_output_pcam/pcam_results_CV_shuffle_split_unstrat_*_nsplits_20_seeds_1[0-4][0-9]-*_sizes_*.parquet"
-YELP_GLOB = f"{W}/paper_style_figs/real_data/data/nlp/yelp_aligned/yelp_results_CV_shuffle_split_unstrat_*_nsplits_20_*.parquet"
-PCAM_OUT = f"{W}/benchmark_pcam/analysis"
+PCAM_GLOB = datapaths.pcam_repo_path(
+    "results_output_pcam", "pcam_results_CV_shuffle_split_unstrat_*_nsplits_20_seeds_1[0-4][0-9]-*_sizes_*.parquet")
+YELP_GLOB = datapaths.data_path("nlp", "yelp_aligned", "yelp_results_CV_shuffle_split_unstrat_*_nsplits_20_*.parquet")
+PCAM_OUT = datapaths.pcam_repo_path("analysis")
 METRICS = ("accuracy", "nll", "brier")
 
 

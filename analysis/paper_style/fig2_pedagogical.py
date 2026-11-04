@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Figure 2 of the paper (pedagogical variance diagnostic: PCam MobileNetV2, study set 500 = n_tr 400, MCCV, accuracy,
-50 seeds), with the single-split curve averaged exactly over the order of the outer chunks (2026-11-04, CE's go for
-the order-averaged estimator everywhere): compute.v1_alpha_curve_long on the cumulative errors, the single-split side
+50 seeds), with the single-split curve averaged exactly over the order of the outer chunks (the order-averaged
+estimator of every gain of the paper): compute.v1_alpha_curve_long on the cumulative errors, the single-split side
 of compute.sample_gain_bootstrap. The K-split variances are those of the first K splits of each seed.
 
 The figure keeps the design of the previous version (x axis to 12 with ticks 1, 3, 6, 12, G^test_K marked under the
@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 import compute
+import datapaths
 import plot as P
 
 NAME = "pedagogical_variance_diagnostic_delta_mobilenet_v2_N500_MCCV_paper_style.pdf"
@@ -105,14 +106,15 @@ LAYOUT = dict(x_right=12.04, major_ticks=[1, 3, 6, 12], y_lim_bottom=None)
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-dir", required=True)
-    ap.add_argument("--data-root", default=os.path.join(HERE, "data"))
+    ap.add_argument("--data-root", default=None,
+                    help="run outputs: pcam/results_output_pcam under it (default: $DATA_ROOT, else data/ at the repository root)")
     ap.add_argument("--from-csv", action="store_true")
     ap.add_argument("--chunk-order", choices=compute.CHUNK_ORDERS, default=None)
     ap.add_argument("--variant", default="final")
     a = ap.parse_args()
     os.makedirs(a.out_dir, exist_ok=True)
     f = os.path.join(a.out_dir, "fig2_curves.csv")
-    cv = pd.read_csv(f) if a.from_csv else curves(a.data_root)
+    cv = pd.read_csv(f) if a.from_csv else curves(datapaths.data_root(a.data_root))
     if not a.from_csv:
         cv.to_csv(f, index=False)
     order = compute.resolve_chunk_order(a.chunk_order)

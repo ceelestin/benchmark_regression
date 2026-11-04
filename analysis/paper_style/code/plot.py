@@ -52,7 +52,7 @@ GAIN_DISPLAY = {
     "y_top": "mean",
     "y_top_margin": 0.08,
     "replicate_col": "bootstrap_iter",
-    # (2026-11-04, item 32) fixed y range and y ticks, so that separately drawn panels of one figure (Figure 5)
+    # Fixed y range and y ticks, so that separately drawn panels of one figure (Figure 5)
     # share the same axis: ylim = (bottom, top), yticks = list. None = per-figure axis, as before.
     "ylim": None,
     "yticks": None,
@@ -597,7 +597,7 @@ def plot_sample_gain_vs_splits(
         ax.set_ylim(top=top)
     elif ylim_top is not None:
         ax.set_ylim(top=ylim_top)
-    if GAIN_DISPLAY.get("ylim") is not None:                        # 2026-11-04: panels sharing one y axis
+    if GAIN_DISPLAY.get("ylim") is not None:                        # panels sharing one y axis
         ax.set_ylim(*GAIN_DISPLAY["ylim"])
     if GAIN_DISPLAY.get("yticks") is not None:
         ax.yaxis.set_major_locator(FixedLocator(GAIN_DISPLAY["yticks"]))
@@ -1249,7 +1249,7 @@ def plot_retrieval_curve(
         Format y-axis ticks as percentages (True) or raw fractions (False).
     output_path : str, optional
     y_lim : tuple, optional
-        fig7_v7 (item 34): fixed y range (fractions) instead of the data-driven one, e.g. to keep the published
+        Fixed y range (fractions) instead of the data-driven one, e.g. to keep the published
         range and ticks when the interval method changes.
 
     Returns
@@ -1332,7 +1332,7 @@ def plot_retrieval_curve(
         plot_min = max(0.0, min_ref - margin)
         plot_max = min(1.0, max_ref + margin)
         print(f"retrieval y range from the data: [{plot_min:.4f}, {plot_max:.4f}]")
-        if y_lim is not None:  # fig7_v7 (item 34)
+        if y_lim is not None:  # fixed y range (Figure 7)
             plot_min, plot_max = y_lim
             print(f"retrieval y range fixed to: [{plot_min:.4f}, {plot_max:.4f}]")
         ax.set_ylim(plot_min, plot_max)
@@ -1374,7 +1374,7 @@ def plot_retrieval_curve(
         label_offsets = {}
         for K_split, val, _ in cv_label_data:
             label_offsets[K_split] = gap
-        # CE, 2026-11-04: every label just above its line; only if two CV lines are closer than about one label height
+        # Every label just above its line; only if two CV lines are closer than about one label height
         # does the lower label go below its line (the K = 10 label used to be forced below, onto the K = 5 one).
         _vals = sorted((v, k) for k, v, _ in cv_label_data)
         for (v_lo, k_lo), (v_hi, _k_hi) in zip(_vals[:-1], _vals[1:]):
@@ -1415,7 +1415,7 @@ def plot_retrieval_curve_cv_strip(
     figsize: tuple[float, float] | None = None,
     output_path: str | None = None,
 ) -> plt.Figure:
-    """fig7_v6 (item 34): the retrieval curve of :func:`plot_retrieval_curve`, with the CV estimates and their
+    """The retrieval curve of :func:`plot_retrieval_curve`, with the CV estimates and their
     intervals in a strip of their own (x = K) instead of at arbitrary positions of the multiplier axis.
 
     Left: single split + extra test data against the test-size multiplier, with its pointwise interval band.

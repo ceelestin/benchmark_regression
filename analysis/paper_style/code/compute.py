@@ -30,9 +30,9 @@ import pandas as pd
 
 
 # ---------------------------------------------------------------------------
-# Order of the outer chunks in the single-split curve V1(alpha)  (2026-11-04; default "average" since CE's
-# go of 2026-11-04: every sample gain of the paper uses the order-averaged curve; "stored" reproduces the
-# values before, also through $GAIN_CHUNK_ORDER=stored)
+# Order of the outer chunks in the single-split curve V1(alpha). Default "average" (since 2026-11-04): every sample
+# gain of the paper uses the order-averaged curve; "stored" gives the values of the stored chunk order, also through
+# $GAIN_CHUNK_ORDER=stored.
 # ---------------------------------------------------------------------------
 
 CHUNK_ORDERS = ("stored", "average")
@@ -746,7 +746,7 @@ def sample_gain_bootstrap(
 
     *plugin_estimate* (default False): also return the estimate on the original seeds (no resampling) as the
     rows with ``bootstrap_iter == -1``. It is computed before the bootstrap draws and does not use the random
-    generator, so the draws are identical with or without it (CE, 2026-10-31: the figures' thick line is this
+    generator, so the draws are identical with or without it (the figures' thick line is this
     estimate; the draws give the thin lines and the percentile intervals).
     *interpolate* (default True): the crossing is read between the two
     bracketing whole multiples of the test-set size (log-log interpolation, see
@@ -1735,7 +1735,7 @@ def compute_retrieval(
 
 
 # ---------------------------------------------------------------------------
-# Significance-decision replicability curves (rebuttal experiment)
+# Significance-decision replicability curves (Appendix N)
 # ---------------------------------------------------------------------------
 
 def _betacf(a: float, b: float, x: float, itmax: int = 200, eps: float = 3e-12) -> float:

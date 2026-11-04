@@ -49,7 +49,7 @@ THREE_PANEL_SAMPLE_GAIN_LABEL_FONTSIZE = 13
 THREE_PANEL_SAMPLE_GAIN_TITLE_FONTSIZE = 13
 
 MODEL_DISPLAY_NAMES = {'bert': 'BERT', 'roberta': 'XLM-RoBERTa', 'qwen3-0.6b': 'Qwen3-0.6B'}
-VIOLIN_CUT = 2  # fig7_v6 (item 34): seaborn default, as published; 0 would end the violins at the observed extremes
+VIOLIN_CUT = 2  # Figure 7 (right): seaborn default, as published; 0 would end the violins at the observed extremes
 
 # %% ──────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -261,7 +261,7 @@ def _plot_yelp_pairwise_score_distributions(
         order=order, hue_order=hue_order, palette=palette,
         split=True, inner="quartile", bw_adjust=0.9, linewidth=1.0,
         saturation=0.95, ax=ax,
-        cut=VIOLIN_CUT,  # fig7_v6 (item 34): 0 ends each violin at the observed extremes (seaborn default 2 bandwidths)
+        cut=VIOLIN_CUT,  # 0 ends each violin at the observed extremes (seaborn default 2 bandwidths)
     )
     sns.stripplot(
         data=dist_df, x="K", y="score", hue="model",

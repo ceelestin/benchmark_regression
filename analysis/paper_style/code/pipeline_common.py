@@ -537,7 +537,7 @@ def _bootstrap_binary_mean_ci(
 
 
 def _binomial_ci(successes: int, n: int, method: str = "wilson", conf: float = 0.95) -> tuple[float, float]:
-    """Closed-form interval for a proportion of *n* independent binary outcomes (fig7_v6, item 34).
+    """Closed-form interval for a proportion of *n* independent binary outcomes (Figure 7).
 
     ``wilson``: Wilson score interval; ``clopper-pearson``: exact (conservative) interval. Unlike the percentile
     bootstrap of a 0/1 mean, neither collapses to a point at 0 or n successes, and neither depends on a random draw.
@@ -745,11 +745,11 @@ def run_retrieval_analysis(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Run the shared retrieval analysis and emit retrieval plots.
 
-    fig7_v6 (item 34): *retrieval_ci_method* is ``bootstrap`` (percentile bootstrap over seeds, as published),
+    *retrieval_ci_method* is ``bootstrap`` (percentile bootstrap over seeds, as published),
     ``wilson`` or ``clopper-pearson`` (closed-form, over the same seeds); *retrieval_cv_strip* draws the CV
     estimates in a strip of their own instead of at arbitrary positions of the multiplier axis; with
     *retrieval_figsize* (inches) the figure is saved at exactly that size. The ties and paired McNemar tests between
-    split counts are printed. fig7_v7 (item 34): *retrieval_ylim* fixes the y range of the published layout, either
+    split counts are printed. *retrieval_ylim* fixes the y range of the published layout, either
     one (low, high) pair or a dict {study size: (low, high)}.
     """
     if cv_colors_retrieval is None:

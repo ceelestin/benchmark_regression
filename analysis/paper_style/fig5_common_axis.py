@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Figure 5 of the paper with one y axis for its three panels (item 32, CE 2026-11-04): the panels are redrawn from
+"""Figure 5 of the paper with one y axis for its three panels: the panels are redrawn from
 the gain tables of the figure scripts, with exactly the plotting calls of those scripts (paper_style_figs.py
 for the simulated panel, pcam.py for PCam, regen_real_data_gain_figures.py fig5_yelp_aligned for Yelp), plus a common y range (top
 8% above the highest thick line of the three panels) and common y ticks (code/plot.py GAIN_DISPLAY ylim / yticks).
