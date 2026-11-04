@@ -584,9 +584,9 @@ def plot_sample_gain_vs_splits(
     if xlim is not None:
         ax.set_xlim(*xlim)
 
-    ax.set_xlabel("Number of Splits (K)", fontsize=axis_label_fontsize)
+    ax.set_xlabel("Number of splits (K)", fontsize=axis_label_fontsize)
     ax.set_ylabel(
-        r"Test Sample Gain ($G^{\mathrm{test}}_K$)",
+        r"Test sample gain ($G^{\mathrm{test}}_K$)",
         fontsize=axis_label_fontsize,
     )
     if tick_label_fontsize is not None:
@@ -766,7 +766,7 @@ def plot_sample_gain_facets(
                 line.set_dashes(dashes[st])
         ax.xaxis.set_major_locator(FixedLocator(xticks))
         ax.set_xlim(*(xlim if xlim is not None else (0, max(xticks))))
-        ax.set_xlabel("Number of Splits (K)" if ax in bottom else "", fontsize=axis_label_fontsize)
+        ax.set_xlabel("Number of splits (K)" if ax in bottom else "", fontsize=axis_label_fontsize)
         if ax not in bottom:
             ax.tick_params(labelbottom=False)
         ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -774,7 +774,7 @@ def plot_sample_gain_facets(
         sns.despine(ax=ax)
         ax.set_ylim(top=top)
     for ax in left_col:
-        ax.set_ylabel(r"Test Sample Gain ($G^{\mathrm{test}}_K$)", fontsize=axis_label_fontsize)
+        ax.set_ylabel(r"Test sample gain ($G^{\mathrm{test}}_K$)", fontsize=axis_label_fontsize)
     handles = []
     for st in style_order:
         h = Line2D([0], [0], color="0.25", linewidth=1.6, label=str(st))
