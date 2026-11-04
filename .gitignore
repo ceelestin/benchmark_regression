@@ -17,6 +17,9 @@ core.[0-9]*
 *.log
 *.ipynb
 
+# Internal research notes (not published)
+analysis/notes/
+
 # Data and figure roots of the analysis scripts (see analysis/paper_style/code/datapaths.py)
 /data/
 /figs/
