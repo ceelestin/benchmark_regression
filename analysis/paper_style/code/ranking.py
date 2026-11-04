@@ -57,8 +57,12 @@ SPLIT_COUNTS = [1, 2, 3, 5, 10, 20, 50, 100, 200]
 # Ranking-retrieval confidence level alpha (the dashed threshold of O.1b).
 ALPHA = 0.95
 
-# Bootstrap resamples over seeds used to build the gain distribution (O.1a).
+# Bootstrap resamples over seeds for the 95% bands of the retrieval curves (O.1b).
 N_BOOTSTRAPS = 500
+
+# Paired bootstrap resamples over seeds for the 95% intervals of the gain (O.1a):
+# each resample gives both the numerator N*_1 and every N*_K.
+N_GAIN_BOOTSTRAPS = 10_000
 
 # Family specification: how to recognise a solver family and how its
 # hyperparameter maps to oracle quality.
@@ -253,7 +257,12 @@ def build_correct(df_fam: pd.DataFrame, groups, split_counts):
     matrices : dict
         ``(label, K) -> (N_grid, M)`` where ``M`` is a ``[n_seeds, n_N]``
         float matrix of retrieval indicators, used for the seed bootstrap.
+        Every matrix has the same rows (all seeds of the family, sorted) and
+        columns (all study sizes, sorted), NaN where a cell was not run, so
+        that one seed resample applies to every group and every K.
     """
+    seeds = np.sort(df_fam["seed"].unique())
+    sizes = np.sort(df_fam["train_size"].unique())
     correct_rows = []
     matrices = {}
     for K in split_counts:
@@ -273,7 +282,8 @@ def build_correct(df_fam: pd.DataFrame, groups, split_counts):
                 "correct": ok.astype(float),
             })
             correct_rows.append(tmp)
-            mat = tmp.pivot_table(index="seed", columns="train_size", values="correct")
+            mat = (tmp.pivot_table(index="seed", columns="train_size", values="correct")
+                   .reindex(index=seeds, columns=sizes))
             matrices[(label, K)] = (
                 mat.columns.to_numpy(dtype=float),
                 mat.to_numpy(dtype=float),
@@ -321,42 +331,72 @@ def family_retrieval_curve(correct_df: pd.DataFrame, n_bootstraps: int = 0,
 # Threshold-crossing study size N*_{K,alpha} (paper eq. O.2)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def threshold_crossing_N(N_grid, pi, alpha: float) -> float:
+def isotonic_fit(y, weights):
+    """Weighted least-squares non-decreasing fit of the sequence *y*.
+
+    Pool-adjacent-violators: adjacent values that decrease are pooled into a
+    block holding their weighted mean, until the block means are non-decreasing;
+    every value is then replaced by the mean of its block.
+    """
+    sums, wsums, sizes = [], [], []  # per block: sum of w*y, sum of w, length
+    for yi, wi in zip(y, weights):
+        sums.append(wi * yi)
+        wsums.append(wi)
+        sizes.append(1)
+        while len(sums) > 1 and sums[-2] / wsums[-2] > sums[-1] / wsums[-1]:
+            s, ws, n = sums.pop(), wsums.pop(), sizes.pop()
+            sums[-1] += s
+            wsums[-1] += ws
+            sizes[-1] += n
+    return np.repeat(np.divide(sums, wsums), sizes)
+
+
+def threshold_crossing_N(N_grid, pi, alpha: float, weights=None) -> float:
     """Smallest study size at which retrieval reaches *alpha* (paper eq. H.2).
 
-    The retrieval probability is monotone non-decreasing in N in theory, so we
-    take a running maximum over increasing N to absorb finite-sample noise, then
-    read off the first crossing with linear interpolation in ``log10(N)``. If the
-    threshold is never reached within the grid, the value is right-censored to
-    the largest available study size.
+    The retrieval probability is monotone non-decreasing in N in theory, but
+    the empirical proportions *pi* are noisy and need not be. We replace them by
+    their isotonic fit in N (:func:`isotonic_fit`, weighted by *weights*, the
+    number of seeds behind each proportion; equal weights if None), then read
+    off the first size where the fit reaches *alpha*, with linear interpolation
+    in ``log10(N)`` from the size before. If the threshold is never reached
+    within the grid, the value is right-censored to the largest available study
+    size. Sizes without any seed (NaN proportion) are left out.
     """
     N = np.asarray(N_grid, dtype=float)
-    p = np.maximum.accumulate(np.asarray(pi, dtype=float))
+    pi = np.asarray(pi, dtype=float)
+    w = np.ones_like(pi) if weights is None else np.asarray(weights, dtype=float)
+    keep = np.isfinite(pi) & (w > 0)
+    N, p = N[keep], isotonic_fit(pi[keep], w[keep])
     reached = p >= alpha
     if not reached.any():
         return float(N[-1])
     idx = int(np.argmax(reached))
     if idx == 0:
         return float(N[0])
-    p0, p1 = p[idx - 1], p[idx]
+    p0, p1 = p[idx - 1], p[idx]  # p0 < alpha <= p1
     x0, x1 = np.log10(N[idx - 1]), np.log10(N[idx])
-    if p1 <= p0:
-        return float(N[idx])
     frac = (alpha - p0) / (p1 - p0)
     return float(10.0 ** (x0 + frac * (x1 - x0)))
 
 
 def threshold_table(matrices, groups, split_counts, alpha) -> pd.DataFrame:
-    """Population (full-sample) N*_{K,alpha} for every comparison group."""
+    """All-seeds N*_{K,alpha} and gain N*_1 / N*_K for every comparison group."""
+    def n_star(label, K):
+        N_grid, M = matrices[(label, K)]
+        return threshold_crossing_N(N_grid, np.nanmean(M, axis=0), alpha,
+                                    weights=(~np.isnan(M)).sum(axis=0))
+
     rows = []
     for label, _ in groups:
+        n_star_1 = n_star(label, 1)
         for K in split_counts:
-            N_grid, M = matrices[(label, K)]
-            pi = np.nanmean(M, axis=0)
+            n_star_K = n_star(label, K)
             rows.append({
                 "comparison": label,
                 "K": K,
-                "N_star": threshold_crossing_N(N_grid, pi, alpha),
+                "N_star": n_star_K,
+                "gain": n_star_1 / n_star_K,
             })
     return pd.DataFrame(rows)
 
@@ -368,33 +408,64 @@ def threshold_table(matrices, groups, split_counts, alpha) -> pd.DataFrame:
 def compute_gain_distribution(
     matrices, groups, split_counts, alpha, n_bootstraps, random_state=0
 ) -> pd.DataFrame:
-    """Bootstrap distribution of G^rank_{K,alpha} = N*_{1} / N*_{K}.
+    """Paired seed-bootstrap distribution of G^rank_{K,alpha} = N*_{1} / N*_{K}.
 
-    The numerator N*_{1} is fixed to its population value (the figure's
-    "numerator fixed to population mean"); the denominator N*_{K} is recomputed
-    on each seed bootstrap resample, so the spread reflects estimation noise on
-    the K-split threshold-crossing size. Results are pooled over the family's
-    comparison groups (3 ordered pairs in pairwise mode, a single full-ranking
-    group in full mode).
+    Each draw resamples the seeds once, with replacement, and that one resample
+    gives both the numerator N*_{1} and every denominator N*_{K} (of every
+    comparison group). The spread therefore includes the estimation noise of
+    the numerator as well as of the denominator, and G^rank_{1,alpha} = 1 in
+    every draw. On a resample, pi_K(N) is the mean retrieval over the drawn
+    seeds, and N*_{K} is read off its isotonic fit exactly as for the all-seeds
+    value (:func:`threshold_crossing_N`). One row per comparison group, K and
+    draw (``bootstrap_iter``); the figure pools the comparison groups (3
+    ordered pairs in pairwise mode, a single full-ranking group in full mode).
     """
     rng = np.random.default_rng(random_state)
-    rows = []
+    n_seeds = matrices[(groups[0][0], 1)][1].shape[0]  # same rows in every matrix
+    idx = rng.integers(0, n_seeds, size=(n_bootstraps, n_seeds))
+    times = np.zeros((n_bootstraps, n_seeds))  # times seed s is drawn in resample b
+    np.add.at(times, (np.arange(n_bootstraps)[:, None], idx), 1.0)
+    frames = []
     for label, _ in groups:
-        N_grid_1, M1 = matrices[(label, 1)]
-        N_star_1 = threshold_crossing_N(N_grid_1, np.nanmean(M1, axis=0), alpha)
-        for K in split_counts:
+        N_star = {}
+        for K in sorted(set(split_counts) | {1}):
             N_grid, M = matrices[(label, K)]
-            n_seeds = M.shape[0]
-            idx = rng.integers(0, n_seeds, size=(n_bootstraps, n_seeds))
-            boot_pi = np.nanmean(M[idx], axis=1)  # [n_bootstraps, n_N]
-            for b in range(n_bootstraps):
-                N_star_K = threshold_crossing_N(N_grid, boot_pi[b], alpha)
-                rows.append({
-                    "comparison": label,
-                    "K": K,
-                    "gain": N_star_1 / N_star_K,
-                })
-    return pd.DataFrame(rows)
+            seen = ~np.isnan(M)
+            n_obs = times @ seen.astype(float)  # drawn seeds behind each pi: [n_bootstraps, n_N]
+            with np.errstate(invalid="ignore", divide="ignore"):
+                boot_pi = (times @ np.where(seen, M, 0.0)) / n_obs
+            N_star[K] = np.array([
+                threshold_crossing_N(N_grid, boot_pi[b], alpha, weights=n_obs[b])
+                for b in range(n_bootstraps)
+            ])
+        for K in split_counts:
+            frames.append(pd.DataFrame({
+                "comparison": label,
+                "K": K,
+                "bootstrap_iter": np.arange(n_bootstraps),
+                "gain": N_star[1] / N_star[K],
+            }))
+    return pd.concat(frames, ignore_index=True)
+
+
+def gain_summary(gain_df, thresh_df=None) -> pd.DataFrame:
+    """Per-K estimate and 95% interval of G^rank_{K,alpha}.
+
+    The interval is the 2.5-97.5 percentiles of the bootstrap draws, pooled
+    over the comparison groups. The estimate is the all-seeds gain of
+    *thresh_df* when there is a single comparison group (full mode); with
+    several groups (pairwise mode), or without *thresh_df*, it is the median of
+    the pooled draws.
+    """
+    by_K = gain_df.groupby("K")["gain"]
+    out = pd.DataFrame({
+        "estimate": by_K.median(),
+        "ci_low": by_K.quantile(0.025),
+        "ci_high": by_K.quantile(0.975),
+    })
+    if thresh_df is not None and thresh_df["comparison"].nunique() == 1:
+        out["estimate"] = thresh_df.set_index("K")["gain"].reindex(out.index)
+    return out
 
 
 # %% ──────────────────────────────────────────────────────────────────────────
@@ -449,32 +520,72 @@ def plot_retrieval_vs_studysize(
 
 
 def plot_ranking_gain_violin(gain_df, split_counts, family, mode="pairwise",
-                             output_path=None):
-    """Figure O.1(a): distribution of G^rank_{K,alpha} vs number of splits K."""
+                             output_path=None, summary=None):
+    """Figure O.1(a): distribution of G^rank_{K,alpha} vs number of splits K.
+
+    Violins of the bootstrap draws, their 95% interval (vertical line) and the
+    estimate of *summary* (white dot; default :func:`gain_summary` of
+    *gain_df*). A K whose draws are all equal (K = 1, where G = 1 in every
+    draw) has no violin and no line, only its dot.
+    """
     ks = [k for k in split_counts if k in gain_df["K"].unique()]
     color = FAMILY_COLORS.get(family, "#4E9D63")
     order = [str(k) for k in ks]
     gdf = gain_df.copy()
     gdf["K_str"] = gdf["K"].astype(int).astype(str)
+    spread = gdf.groupby("K")["gain"].transform(lambda g: g.max() > g.min())
+    if summary is None:
+        summary = gain_summary(gain_df)
+    summary = summary.reindex(ks)
+    x = np.arange(len(ks))
+    has_bar = (summary["ci_high"] > summary["ci_low"]).to_numpy()
 
     # fig, ax = plt.subplots(figsize=(3.8, 3.0), layout="tight")
     fig, ax = plt.subplots(figsize=(3.8, 3.0))
     sns.violinplot(
-        data=gdf, x="K_str", y="gain", order=order,
+        data=gdf[spread], x="K_str", y="gain", order=order,
         color=color, cut=0, inner=None, linewidth=0.6, ax=ax,
     )
     for art in ax.collections:
         art.set_alpha(0.75)
-    # 95% interval (2.5–97.5 percentiles of the bootstrap gains) + median dot.
-    q_lo = gdf.groupby("K")["gain"].quantile(0.025).reindex(ks)
-    q_hi = gdf.groupby("K")["gain"].quantile(0.975).reindex(ks)
-    ax.vlines(range(len(ks)), q_lo.to_numpy(), q_hi.to_numpy(),
+    # 95% interval (2.5–97.5 percentiles of the bootstrap gains) + estimate dot.
+    ax.vlines(x[has_bar], summary["ci_low"].to_numpy()[has_bar],
+              summary["ci_high"].to_numpy()[has_bar],
               color="0.2", linewidth=1.0, zorder=4)
-    medians = gdf.groupby("K")["gain"].median().reindex(ks)
-    ax.scatter(range(len(ks)), medians.to_numpy(), color="white",
+    ax.scatter(x, summary["estimate"].to_numpy(), color="white",
                edgecolor="black", s=16, zorder=5)
 
     ax.set_yscale("log")
+    ax.set_xlabel("Number of Splits ($K$)")
+    ax.set_ylabel("Rank.-Eq. Sample Gain ($G^{\\mathrm{rank}}_{K,0.95}$)")
+    if output_path:
+        P.save_figure(fig, output_path)
+    _show_if_interactive()
+    return fig
+
+
+def plot_ranking_gain_bars(summary, split_counts, family, mode="pairwise",
+                           output_path=None):
+    """Panel (a) drawn as dots and bars: estimate of G^rank_{K,alpha} (dot) and
+    its 95% bootstrap interval (bar) vs number of splits K, from
+    :func:`gain_summary`. A K with a zero-width interval (K = 1) has no bar."""
+    ks = [k for k in split_counts if k in summary.index]
+    color = FAMILY_COLORS.get(family, "#4E9D63")
+    summary = summary.reindex(ks)
+    x = np.arange(len(ks))
+    has_bar = (summary["ci_high"] > summary["ci_low"]).to_numpy()
+
+    fig, ax = plt.subplots(figsize=(3.8, 3.0))
+    ax.vlines(x[has_bar], summary["ci_low"].to_numpy()[has_bar],
+              summary["ci_high"].to_numpy()[has_bar],
+              color=color, linewidth=1.6, zorder=3)
+    ax.plot(x, summary["estimate"].to_numpy(), "o", markersize=4.5,
+            markerfacecolor="white", markeredgecolor=color,
+            markeredgewidth=1.4, zorder=4)
+
+    ax.set_yscale("log")
+    ax.set_xticks(x, [str(k) for k in ks])
+    ax.set_xlim(-0.5, len(ks) - 0.5)
     ax.set_xlabel("Number of Splits ($K$)")
     ax.set_ylabel("Rank.-Eq. Sample Gain ($G^{\\mathrm{rank}}_{K,0.95}$)")
     if output_path:
@@ -488,8 +599,13 @@ def plot_ranking_gain_violin(gain_df, split_counts, family, mode="pairwise",
 # ─────────────────────────────────────────────────────────────────────────────
 
 def analyze_family(data, family, split_counts, alpha, n_bootstraps,
-                   plots_dir, results_dir, ranking_mode="pairwise"):
-    """Run the full Appendix-H analysis for one family and emit plots + CSVs."""
+                   plots_dir, results_dir, ranking_mode="pairwise",
+                   n_gain_bootstraps=N_GAIN_BOOTSTRAPS):
+    """Run the full Appendix-H analysis for one family and emit plots + CSVs.
+
+    *n_bootstraps* seed resamples give the bands of the retrieval curves,
+    *n_gain_bootstraps* paired resamples the intervals of the gain.
+    """
     spec = FAMILIES[family]
     df_fam = data[data["family"] == family].copy()
     params = sorted(df_fam["param"].unique())
@@ -516,8 +632,9 @@ def analyze_family(data, family, split_counts, alpha, n_bootstraps,
     curve_df = family_retrieval_curve(correct_df, n_bootstraps=n_bootstraps)
     thresh_df = threshold_table(matrices, groups, split_counts, alpha)
     gain_df = compute_gain_distribution(
-        matrices, groups, split_counts, alpha, n_bootstraps
+        matrices, groups, split_counts, alpha, n_gain_bootstraps
     )
+    summary = gain_summary(gain_df, thresh_df)
 
     # ── Persist numbers ──────────────────────────────────────────────────────
     tag = f"{family.lower()}_{ranking_mode}"
@@ -529,18 +646,22 @@ def analyze_family(data, family, split_counts, alpha, n_bootstraps,
         os.path.join(results_dir, f"ranking_gain_distribution_{tag}.csv"), index=False)
 
     # ── Console summary (paper sanity checks) ────────────────────────────────
-    gain_med = gain_df.groupby("K")["gain"].median()
-    print("  median ranking-equivalent gain by K:")
-    print("   " + "  ".join(f"K={k}:{gain_med[k]:.1f}" for k in split_counts
-                            if k in gain_med.index))
+    print("  ranking-equivalent gain by K, estimate [95% interval]:")
+    for k in split_counts:
+        if k in summary.index:
+            r = summary.loc[k]
+            print(f"   K={k}: {r['estimate']:.2f} [{r['ci_low']:.2f}, {r['ci_high']:.2f}]")
 
     # ── Plots ────────────────────────────────────────────────────────────────
     plot_retrieval_vs_studysize(
         curve_df, alpha, split_counts, family, mode=ranking_mode,
         output_path=os.path.join(plots_dir, f"ranking_retrieval_curves_{tag}.pdf"))
     plot_ranking_gain_violin(
-        gain_df, split_counts, family, mode=ranking_mode,
+        gain_df, split_counts, family, mode=ranking_mode, summary=summary,
         output_path=os.path.join(plots_dir, f"ranking_equivalent_gain_violin_{tag}.pdf"))
+    plot_ranking_gain_bars(
+        summary, split_counts, family, mode=ranking_mode,
+        output_path=os.path.join(plots_dir, f"ranking_equivalent_gain_bars_{tag}.pdf"))
 
     return curve_df, thresh_df, gain_df
 
@@ -552,7 +673,10 @@ def parse_args(argv=None):
     parser.add_argument("--plots-dir", default=DEFAULT_PLOTS_DIR)
     parser.add_argument("--results-dir", default=DEFAULT_RESULTS_DIR)
     parser.add_argument("--alpha", type=float, default=ALPHA)
-    parser.add_argument("--n-bootstraps", type=int, default=N_BOOTSTRAPS)
+    parser.add_argument("--n-bootstraps", type=int, default=N_BOOTSTRAPS,
+                        help="seed resamples for the bands of the retrieval curves")
+    parser.add_argument("--n-gain-bootstraps", type=int, default=N_GAIN_BOOTSTRAPS,
+                        help="paired seed resamples for the intervals of the gain")
     parser.add_argument("--split-counts", type=int, nargs="+", default=SPLIT_COUNTS)
     parser.add_argument("--families", nargs="+", default=DEFAULT_FAMILIES,
                         choices=list(FAMILIES.keys()))
@@ -572,6 +696,7 @@ def main(
     split_counts=None,
     families=None,
     ranking_modes=None,
+    n_gain_bootstraps=N_GAIN_BOOTSTRAPS,
 ):
     if data_paths is None:
         data_paths = DEFAULT_DATA_PATHS
@@ -593,12 +718,14 @@ def main(
           f"seeds={n_seeds} | study sizes={n_sizes} | "
           f"N range={data['train_size'].min()}..{data['train_size'].max()}")
     print(f"Split counts K={split_counts} | alpha={alpha} | "
-          f"bootstraps={n_bootstraps} | ranking modes={ranking_modes}")
+          f"bootstraps={n_bootstraps} (curves), {n_gain_bootstraps} (gain) | "
+          f"ranking modes={ranking_modes}")
 
     for family in families:
         for ranking_mode in ranking_modes:
             analyze_family(data, family, split_counts, alpha, n_bootstraps,
-                           plots_dir, results_dir, ranking_mode=ranking_mode)
+                           plots_dir, results_dir, ranking_mode=ranking_mode,
+                           n_gain_bootstraps=n_gain_bootstraps)
 
 
 # %% ──────────────────────────────────────────────────────────────────────────
@@ -622,6 +749,7 @@ if __name__ == "__main__":
             split_counts=args.split_counts,
             families=args.families,
             ranking_modes=args.ranking_mode,
+            n_gain_bootstraps=args.n_gain_bootstraps,
         )
 
 # %%

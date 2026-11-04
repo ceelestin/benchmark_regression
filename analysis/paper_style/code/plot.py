@@ -56,6 +56,13 @@ GAIN_DISPLAY = {
     # share the same axis: ylim = (bottom, top), yticks = list. None = per-figure axis, as before.
     "ylim": None,
     "yticks": None,
+    # (2026-11-04, Figure 5) figure size of a gain panel when the caller passes none, and whether the panel drops
+    # its y label and y tick values (the middle and right panels of Figure 5 share the left panel's axis).
+    "figsize": None,
+    "hide_ylabel": False,
+    # (left, bottom, width, height) of the axes in points inside a figure of exactly GAIN_DISPLAY["figsize"]; the
+    # figure is then saved at that size (no tight bbox), so that panels drawn separately line up.
+    "axes_box_pt": None,
 }
 
 
@@ -545,7 +552,12 @@ def plot_sample_gain_vs_splits(
         errorbar = None
     central_df, rep_df = _estimate_and_replicates(results_df)
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=figsize if figsize is not None else GAIN_DISPLAY.get("figsize"))
+    if GAIN_DISPLAY.get("axes_box_pt") is not None:
+        fig.set_layout_engine("none")
+        fw, fh = fig.get_size_inches() * 72
+        l, b, w, h = GAIN_DISPLAY["axes_box_pt"]
+        ax.set_position([l / fw, b / fh, w / fw, h / fh])
 
     sns.lineplot(
         data=central_df if use_hair else rep_df,
@@ -601,6 +613,9 @@ def plot_sample_gain_vs_splits(
         ax.set_ylim(*GAIN_DISPLAY["ylim"])
     if GAIN_DISPLAY.get("yticks") is not None:
         ax.yaxis.set_major_locator(FixedLocator(GAIN_DISPLAY["yticks"]))
+    if GAIN_DISPLAY.get("hide_ylabel"):
+        ax.set_ylabel("")
+        ax.tick_params(axis="y", which="both", labelleft=False)
 
     if title_text is not None:
         # clip_on keeps the in-axes "fake title" from expanding the tight-bbox
@@ -673,7 +688,8 @@ def plot_sample_gain_vs_splits(
         _style_legend_halo(ax.get_legend(), title=legend_title)
 
     if output_path is not None:
-        save_figure(fig, output_path, format="pdf", bbox_inches="tight")
+        save_figure(fig, output_path, format="pdf",
+                    bbox_inches=None if GAIN_DISPLAY.get("axes_box_pt") is not None else "tight")
 
     return fig
 
@@ -994,6 +1010,7 @@ def plot_pedagogical_variance_diagnostic_paper_style(
     cv_label_xy: dict | None = None,
     crossing_label_row: dict | None = None,
     figsize: tuple[float, float] | None = None,
+    crossing_label_dx: dict | None = None,
 ) -> plt.Figure:
     """Cleaner paper-style version of the pedagogical variance diagnostic.
 
@@ -1001,7 +1018,8 @@ def plot_pedagogical_variance_diagnostic_paper_style(
     end of the x axis; *major_ticks* the numbered x ticks; *curve_label_xy* the (x, y) data position of the
     "Single split + extra test data" label (its bottom centre); *cv_label_xy* {K: (x, y, ha)} data positions of the
     "CV, K=..." labels; *crossing_label_row* {K: points} extra downward offset of the G^test_K label under the axis;
-    *figsize* the figure size in inches.
+    *crossing_label_dx* {K: points} horizontal offset of that label (positive: to the right); *figsize* the figure
+    size in inches.
     """
     if cv_colors is None:
         cv_colors = ["#4C78A8", "#59A14F", "#E15759"][:len(target_splits)]
@@ -1189,10 +1207,12 @@ def plot_pedagogical_variance_diagnostic_paper_style(
             label.set_color(color)
             label.set_fontsize(7.8 if x_scale == "log" else 8.5)
             label.set_path_effects(halo)
-            if crossing_label_row and crossing_label_row.get(K_split):
+            dy = (crossing_label_row or {}).get(K_split, 0)
+            dx = (crossing_label_dx or {}).get(K_split, 0)
+            if dx or dy:
                 from matplotlib.transforms import ScaledTranslation
                 label.set_transform(label.get_transform()
-                                    + ScaledTranslation(0, -crossing_label_row[K_split] / 72, fig.dpi_scale_trans))
+                                    + ScaledTranslation(dx / 72, -dy / 72, fig.dpi_scale_trans))
     ax.set_xlabel(xlabel, labelpad=7, fontsize=9.5)
     ax.set_ylabel("Estimation error variance")
     ax.grid(False)
