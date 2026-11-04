@@ -1221,6 +1221,7 @@ def plot_retrieval_curve(
     x_lim: tuple[float, float] = (0.5, 20.5),
     y_as_percent: bool = True,
     output_path: str | None = None,
+    y_lim: tuple[float, float] | None = None,
 ) -> plt.Figure:
     """Plot the pairwise ranking retrieval proportion versus test multiplier.
 
@@ -1247,6 +1248,9 @@ def plot_retrieval_curve(
     y_as_percent : bool
         Format y-axis ticks as percentages (True) or raw fractions (False).
     output_path : str, optional
+    y_lim : tuple, optional
+        fig7_v7 (item 34): fixed y range (fractions) instead of the data-driven one, e.g. to keep the published
+        range and ticks when the interval method changes.
 
     Returns
     -------
@@ -1327,6 +1331,10 @@ def plot_retrieval_curve(
         margin = max((max_ref - min_ref) * 0.18, 0.05)
         plot_min = max(0.0, min_ref - margin)
         plot_max = min(1.0, max_ref + margin)
+        print(f"retrieval y range from the data: [{plot_min:.4f}, {plot_max:.4f}]")
+        if y_lim is not None:  # fig7_v7 (item 34)
+            plot_min, plot_max = y_lim
+            print(f"retrieval y range fixed to: [{plot_min:.4f}, {plot_max:.4f}]")
         ax.set_ylim(plot_min, plot_max)
         ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
         if y_as_percent:
@@ -1366,8 +1374,12 @@ def plot_retrieval_curve(
         label_offsets = {}
         for K_split, val, _ in cv_label_data:
             label_offsets[K_split] = gap
-        if 10 in label_offsets:
-            label_offsets[10] = -gap
+        # CE, 2026-11-04: every label just above its line; only if two CV lines are closer than about one label height
+        # does the lower label go below its line (the K = 10 label used to be forced below, onto the K = 5 one).
+        _vals = sorted((v, k) for k, v, _ in cv_label_data)
+        for (v_lo, k_lo), (v_hi, _k_hi) in zip(_vals[:-1], _vals[1:]):
+            if v_hi - v_lo < 1.5 * gap:
+                label_offsets[k_lo] = -gap
         if 20 in label_offsets:
             label_offsets[20] = gap
         if 5 in label_offsets:
@@ -1386,6 +1398,115 @@ def plot_retrieval_curve(
     if output_path is not None:
         save_figure(fig, output_path, format="pdf", bbox_inches="tight")
 
+    return fig
+
+
+def plot_retrieval_curve_cv_strip(
+    curve_data: pd.DataFrame,
+    cv_lines: dict[int, float],
+    best_model: str,
+    worst_model: str,
+    target_splits: list[int] | None = None,
+    cv_colors: list | None = None,
+    curve_ci_data: pd.DataFrame | None = None,
+    cv_ci_lines: dict[int, tuple[float, float]] | None = None,
+    x_lim: tuple[float, float] = (0.5, 20.5),
+    y_as_percent: bool = True,
+    figsize: tuple[float, float] | None = None,
+    output_path: str | None = None,
+) -> plt.Figure:
+    """fig7_v6 (item 34): the retrieval curve of :func:`plot_retrieval_curve`, with the CV estimates and their
+    intervals in a strip of their own (x = K) instead of at arbitrary positions of the multiplier axis.
+
+    Left: single split + extra test data against the test-size multiplier, with its pointwise interval band.
+    Right: one point and interval per split count K. The dashed level of each K runs across the left panel as a
+    reference. With *figsize* the figure is saved at exactly that size (no tight bbox), so that it can replace the
+    published panel without moving the page.
+    """
+    if target_splits is None:
+        target_splits = sorted(cv_lines.keys())
+    if cv_colors is None:
+        cv_colors = sns.color_palette("mako", n_colors=len(target_splits))
+    if cv_ci_lines is None:
+        cv_ci_lines = {}
+    if figsize is None:
+        figsize = (238.8010295187 / 72, 191.9985372776 / 72)  # the published Figure 7(a), in inches
+
+    fig = plt.figure(figsize=figsize, layout="none")
+    # axes boxes in figure fractions, matched to the published panel (left spine, bottom spine and top)
+    left, bottom, top, right = 0.2221, 0.2150, 0.9625, 0.9628
+    split_x, gap = 0.735, 0.025
+    strip_w = right - split_x - gap
+    ax = fig.add_axes([left, bottom, split_x - left, top - bottom])
+    axs = fig.add_axes([split_x + gap, bottom, strip_w, top - bottom], sharey=ax)
+
+    grey = "#6F6F6F"
+    all_vals = list(curve_data["correct_pick"])
+    if curve_ci_data is not None and not curve_ci_data.empty:
+        ci = curve_ci_data.sort_values("multiplier")
+        ax.fill_between(ci["multiplier"].to_numpy(dtype=float), ci["ci_low"].to_numpy(dtype=float),
+                        ci["ci_high"].to_numpy(dtype=float), color=grey, alpha=0.18, linewidth=0, zorder=1)
+        all_vals.extend(ci["ci_low"].dropna().tolist())
+        all_vals.extend(ci["ci_high"].dropna().tolist())
+    cd = curve_data.sort_values("multiplier")
+    ax.plot(cd["multiplier"], cd["correct_pick"], color=grey, linewidth=2.0, zorder=3)
+
+    plotted = [k for k in target_splits if k in cv_lines]
+    for j, K_split in enumerate(plotted):
+        color = cv_colors[target_splits.index(K_split) % len(cv_colors)]
+        val = cv_lines[K_split]
+        ax.axhline(val, color=color, linestyle="--", linewidth=1.4, alpha=0.9, zorder=2)
+        axs.plot([-0.6, j], [val, val], color=color, linestyle="--", linewidth=1.4, alpha=0.9, zorder=2,
+                 clip_on=False)
+        if K_split in cv_ci_lines:
+            lo, hi = cv_ci_lines[K_split]
+            axs.errorbar([j], [val], yerr=[[val - lo], [hi - val]], fmt="none", ecolor=color, elinewidth=1.6,
+                         capsize=3.0, capthick=1.2, zorder=8)
+            all_vals.extend([lo, hi])
+        axs.plot([j], [val], marker="o", markersize=6, color=color, markeredgecolor="white",
+                 markeredgewidth=0.7, zorder=10, linestyle="none")
+        all_vals.append(val)
+
+    # y range as in plot_retrieval_curve
+    min_ref, max_ref = min(min(all_vals), 0.5), max(max(all_vals), 0.5)
+    margin = max((max_ref - min_ref) * 0.18, 0.05)
+    plot_min, plot_max = max(0.0, min_ref - margin), min(1.0, max_ref + margin)
+    ax.set_ylim(plot_min, plot_max)
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
+    if y_as_percent:
+        ax.yaxis.set_major_formatter(mpl.ticker.PercentFormatter(1.0, decimals=0))
+    for a in (ax, axs):
+        if plot_min < 0.5 < plot_max:
+            a.axhline(0.5, color="0.55", linestyle=":", linewidth=1.0, zorder=0)
+        a.grid(axis="y", color="0.88", linewidth=0.8)
+
+    ax.set_xlim(*x_lim)
+    ax.set_xticks([1, 5, 10, 15, 20])
+    ax.set_xticklabels(["1", "5", "10", "15", "20"])
+    ax.set_xlabel("Test-size multiplier", labelpad=4)
+    ax.set_ylabel(f"P({best_model} ≻ {worst_model})")
+    sns.despine(ax=ax)
+
+    axs.set_xlim(-0.6, len(plotted) - 0.4)
+    axs.set_xticks(range(len(plotted)))
+    axs.set_xticklabels([str(k) for k in plotted])
+    for tick, K_split in zip(axs.get_xticklabels(), plotted):
+        tick.set_color(cv_colors[target_splits.index(K_split) % len(cv_colors)])
+    axs.set_xlabel("CV, K", labelpad=4)
+    axs.tick_params(axis="y", left=False, labelleft=False)
+    sns.despine(ax=axs, left=True)
+
+    halo = _white_text_halo()
+    if not curve_data.empty:
+        x_label = 13.0
+        y_label = float(np.interp(x_label, cd["multiplier"].to_numpy(dtype=float),
+                                  cd["correct_pick"].to_numpy(dtype=float)))
+        y_off = 0.06 * (plot_max - plot_min)
+        ax.text(x_label, y_label + y_off, "Single split\n+ extra test data", color=grey, ha="center",
+                va="bottom", fontsize=8.8, path_effects=halo, zorder=12)
+
+    if output_path is not None:
+        save_figure(fig, output_path, format="pdf")
     return fig
 
 

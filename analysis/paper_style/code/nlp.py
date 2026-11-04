@@ -47,6 +47,7 @@ THREE_PANEL_SAMPLE_GAIN_LABEL_FONTSIZE = 13
 THREE_PANEL_SAMPLE_GAIN_TITLE_FONTSIZE = 13
 
 MODEL_DISPLAY_NAMES = {'bert': 'BERT', 'roberta': 'XLM-RoBERTa', 'qwen3-0.6b': 'Qwen3-0.6B'}
+VIOLIN_CUT = 2  # fig7_v6 (item 34): seaborn default, as published; 0 would end the violins at the observed extremes
 
 # %% ──────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -258,6 +259,7 @@ def _plot_yelp_pairwise_score_distributions(
         order=order, hue_order=hue_order, palette=palette,
         split=True, inner="quartile", bw_adjust=0.9, linewidth=1.0,
         saturation=0.95, ax=ax,
+        cut=VIOLIN_CUT,  # fig7_v6 (item 34): 0 ends each violin at the observed extremes (seaborn default 2 bandwidths)
     )
     sns.stripplot(
         data=dist_df, x="K", y="score", hue="model",
@@ -626,6 +628,12 @@ def main(
         gt_score_col='objective_score_bench',
         cv_colors_retrieval=["#4C78A8", "#59A14F", "#E15759"],
         retrieval_n_bootstraps=1000,  # 95% percentile intervals of Figure 7 from 1,000 draws (CE, 2026-11-02)
+        # fig7_v7 (item 34): 95% Wilson intervals over the 50 seeds (pointwise along the curve) in the published
+        # layout: CV dashed lines, their labels and their error bars inside the axes (CE, 2026-11-04: no CV strip);
+        # the y range of the published panels is kept
+        retrieval_ci_method="wilson",
+        retrieval_cv_strip=False,
+        retrieval_ylim={1250: (0.428, 0.972), 3750: (0.0, 0.8188)},
         test_size=test_size,
         y_as_percent=True,
     )
