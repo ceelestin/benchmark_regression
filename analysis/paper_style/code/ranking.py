@@ -88,7 +88,7 @@ FAMILY_COLORS = {"ExtraTrees": "#1f77b4", "Ridge": "#d62728"}
 # 2026-11-05). The box leaves room for the tick and axis labels of both panels (on each side, the larger of the
 # two margins that the constrained layout gives them). None: each panel has its own constrained layout.
 PANEL_FIGSIZE = (3.8, 3.0)
-PANEL_AXES_BOX_PT = (52.0, 44.0, 218.6, 169.0)
+PANEL_AXES_BOX_PT = (52.0, 40.0, 218.6, 169.0)
 
 # Columns we actually need from the (large) parquet files.
 _NEEDED_COLUMNS = [
@@ -523,7 +523,7 @@ def plot_retrieval_vs_studysize(
         fontsize=8, color="0.35",
     )
     ax.set_xscale("log")
-    ax.set_xlabel("Study size ($N$)")
+    ax.set_xlabel(r"Training size ($n_{\mathrm{tr}}$)")   # the runs are indexed by n_tr; study sets are 1.25 n_tr
     ax.set_ylabel("Oracle-ranking retrieval  $\\widehat{\\pi}_K(N)$")
     ax.set_ylim(0.4, 1.02)
     leg = ax.legend(title="$K$ (splits)", fontsize=7, title_fontsize=8,
