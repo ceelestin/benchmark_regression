@@ -273,11 +273,15 @@ def _add_curve_labels(
     font_size: float | None = None,
     densify: int = 1,
     obstacle_curves: list | None = None,
+    fixed_positions: dict | None = None,
 ) -> None:
     """Place readable labels near curves, avoiding label/curve collisions.
 
     ``obstacle_curves`` (optional): extra curves, DataFrames with ``x_col`` / ``y_col``, that labels must avoid
     but that get no label themselves (e.g. the other line style of a one-learner panel).
+
+    ``fixed_positions`` (optional): ``{label: (x, y, ha, va)}`` in data coordinates, for labels drawn at that place
+    instead of an automatic one. They are placed first, and the other labels avoid them.
 
     A legend already on the axes is treated as an obstacle, like the other texts.
     ``densify`` > 1 adds that many interpolated points between consecutive curve
@@ -385,8 +389,9 @@ def _add_curve_labels(
     fractions = [0.95, 0.80, 0.65, 0.50, 0.35, 0.20, 0.08]
     placed_boxes: list[Bbox] = []
 
-    # Longer labels are harder to place; place them first.
-    for item in sorted(curves, key=lambda cur: len(str(cur["label"])), reverse=True):
+    fixed_positions = fixed_positions or {}
+    # Labels at a fixed place first, then the longer labels, which are harder to place.
+    for item in sorted(curves, key=lambda cur: (str(cur["label"]) not in fixed_positions, -len(str(cur["label"])))):
         label = str(item["label"])
         curve = item["curve"].reset_index(drop=True)
         width, height, _ = renderer.get_text_width_height_descent(
@@ -395,7 +400,12 @@ def _add_curve_labels(
             ismath=mpl.cbook.is_math_text(label),
         )
         candidates = []
-        if len(curve) == 1:
+        if label in fixed_positions:
+            x, y, ha, va = fixed_positions[label]
+            anchor = tuple(ax.transData.transform([float(x), float(y)]))
+            candidates.append((0.0, anchor, _text_bbox(anchor, width, height, ha, va), ha, va))
+            point_indices = []
+        elif len(curve) == 1:
             point_indices = [0]
         else:
             point_indices = sorted(
@@ -485,6 +495,7 @@ def plot_sample_gain_vs_splits(
     title_fontsize: float | None = None,
     direct_label_fontsize: float | None = None,
     direct_label_densify: int = 1,
+    direct_label_positions: dict | None = None,
     errorbar=("pi", 95),
     output_path: str | None = None,
     hairlines: int | None = None,
@@ -536,6 +547,9 @@ def plot_sample_gain_vs_splits(
     direct_labels : bool, optional
         If True, remove the legend and write each hue label next to the
         corresponding curve inside the plot box.
+    direct_label_positions : dict, optional
+        ``{label: (x, y, ha, va)}`` in data coordinates: direct labels drawn at that
+        place instead of an automatic one (the other labels avoid them).
     output_path : str, optional
         If provided, save the figure to this path.
 
@@ -673,6 +687,7 @@ def plot_sample_gain_vs_splits(
             palette=palette,
             font_size=direct_label_fontsize,
             densify=direct_label_densify,
+            fixed_positions=direct_label_positions,
         )
     elif legend_loc is not None and ax.get_legend() is not None:
         handles, labels = ax.get_legend_handles_labels()

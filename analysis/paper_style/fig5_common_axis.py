@@ -86,7 +86,7 @@ def draw_all(s, p, y, out, ylim=None, yticks=None, shared_layout=False):
     # simulated (paper_style_figs.main: draw(main_[K <= 20], base, K20, ..., f(1000)))
     P.set_paper_style()
     P.GAIN_DISPLAY["y_top"] = "mean"
-    fig = SIMF.draw(s, BASE, SIMF.K20, f"{out}/{NAMES['sim']}", "$y = X\\beta$, $n_{\\mathrm{tr}}=1000$")
+    fig = SIMF.draw(s, BASE, SIMF.K20, f"{out}/{NAMES['sim']}", "$y = X\\beta$\n$n_{\\mathrm{tr}}=1000$")
     print("sim ylim", fig.axes[0].get_ylim()); plt.close(fig)
     # PCam (pcam.py main, Plot 1, accuracy, unstratified, MCCV; hairlines 20 from regen's PIPE_ARGS)
     P.set_paper_style()
