@@ -218,8 +218,9 @@ def figL1(code_dir, data, out):
     P.set_paper_style()
     fig = P.plot_sample_gain_vs_splits(
         res, y_col="sample_gain", hue_col="metric", hue_order=["Accuracy", "Brier", "NLL"], palette=pal,
-        xticks=[1, 5, 10, 15, 20], title_text=r"PCam WideResNet101_2, $n_{\mathrm{tr}}=400$",  # study set 500: n_tr = 0.8 x 500 (CE, 2026-11-02)
-        title_text_xy=(0.5, 0.02), title_text_ha="center", title_text_va="bottom", xlim=(0, 20), direct_labels=True,
+        xticks=[1, 5, 10, 15, 20], title_text="PCam\nWideResNet101_2\n$n_{\\mathrm{tr}}=400$",  # study set 500: n_tr = 0.8 x 500 (CE, 2026-11-02)
+        # top-left corner, one item per line, as on the real-data panels of Figure 5 (CE, 2026-11-05)
+        title_text_xy=(0.03, 0.97), title_text_ha="left", title_text_va="top", xlim=(0, 20), direct_labels=True,
         hairlines=HAIR,                                                                                       # v3
         output_path=os.path.join(out, "sample_gain_by_metric_wide_resnet101_2_N500_stratTrue.pdf"))
     plt.close(fig)

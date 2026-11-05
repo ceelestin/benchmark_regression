@@ -247,7 +247,14 @@ def main():
         r = gains(data, a.n_bootstraps, 0.20, chunk_order=a.chunk_order)                           # 2026-11-04
         r.to_parquet(f"{a.out_dir}/sample_gain_bootstrap_{name}.parquet", index=False)
         res[name] = r
-    f = lambda t: f"$y = X\\beta$, $n_{{\\mathrm{{tr}}}}={t}$"
+    # Top-left text of a panel: the data process and n_tr on two lines, as on the real-data panels ("PCam" /
+    # "n_tr = 400") (CE, 2026-11-05). Figure G.1 keeps one line (f1): its style legend sits just below the text.
+    f = lambda t: f"$y = X\\beta$\n$n_{{\\mathrm{{tr}}}}={t}$"
+    f1 = lambda t: f"$y = X\\beta$, $n_{{\\mathrm{{tr}}}}={t}$"
+    # Next to the two-line text, the automatic placement would move the RandomFeatures label of Figure 4 and of
+    # Figure L.1 (n_tr = 100) onto the thin lines: it stays where the paper's version (one-line text) placed it.
+    keep_rf = {"fig4": {"RandomFeatures": (79.2064, 12.5388, "left", "top")},
+               100: {"RandomFeatures": (12.1947, 8.7846, "right", "center")}}
     base = ["ExtraTrees", "MLP", "Ridge", "RandomFeatures"]                     # v4: no GradientBoosting
     hpo = [f"{n}{p}" for n in a.hpo_learners for p in ("", "_GridSearch", "_RandomSearch")]
     r1 = disp(pd.concat([swap(res["n1000"], res["mlp32_n1000"]), res["hpo_ridge"], res["hpo_rff"]], ignore_index=True)); r1 = r1[~r1["fixed_split"]]
@@ -258,7 +265,8 @@ def main():
                                             ("solver_disp", "procedure_disp", "split_mode", "solver_name", "dataset_type")],
                                    errors="ignore").to_parquet(f"{tdir}/{tag}.parquet", index=False)
     save(main_, "fig4")
-    fig = draw(main_, base, K200, f"{a.out_dir}/aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_full.pdf", f(1000)); figs.append(fig)
+    fig = draw(main_, base, K200, f"{a.out_dir}/aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_full.pdf", f(1000),
+               direct_label_positions=keep_rf["fig4"]); figs.append(fig)
     fig = draw(main_[main_["K"] <= 20], base, K20, f"{a.out_dir}/aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_K20.pdf", f(1000)); figs.append(fig)
     # v4b (CE, 2026-10-30): colour = learner as in every other figure, line style = tuning procedure.
     proc = {f"{n}{p}": (n, lab) for n in a.hpo_learners
@@ -266,7 +274,7 @@ def main():
     h = r1[r1["solver_disp"].isin(hpo) & (r1["K"] <= 20)].copy(); save(h, "figI1")
     h["procedure_disp"] = h["solver_disp"].map(lambda x: proc[x][1])
     h["solver_disp"] = h["solver_disp"].map(lambda x: proc[x][0])
-    fig = draw(h, a.hpo_learners, K20, f"{a.out_dir}/aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_K20_hpo.pdf", f(1000),
+    fig = draw(h, a.hpo_learners, K20, f"{a.out_dir}/aggregated_test_gain_k_1000_sim_linear_fixedFalse_mse_K20_hpo.pdf", f1(1000),
                style_col="procedure_disp", style_order=["Fixed", "Grid search", "Random search"],
                dashes={"Fixed": (), "Grid search": (4, 2), "Random search": (1, 1)}, style_legend=True,
                style_legend_loc="upper left", style_legend_bbox=(0.02, 0.86)); figs.append(fig)
@@ -286,7 +294,8 @@ def main():
     top = max(P._y_top(r5[r5["N"] == n], "K", "sample_gain", ["solver_disp"]) for n in (30, 100))
     panels = []
     for n in (30, 100):
-        fig = draw(r5[r5["N"] == n], small_names, K20, None, f(n), save=False, ylim_top=top)
+        fig = draw(r5[r5["N"] == n], small_names, K20, None, f(n), save=False, ylim_top=top,
+                   direct_label_positions=keep_rf.get(n))
         panels.append((n, fig))
     for n, fig in panels:
         ax = fig.axes[0]

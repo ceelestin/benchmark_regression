@@ -83,6 +83,13 @@ DEFAULT_RANKING_MODES = ["pairwise", "full"]
 # The learners' colours of the other figures of the paper (ExtraTrees C0, Ridge C3; CE, 2026-11-04).
 FAMILY_COLORS = {"ExtraTrees": "#1f77b4", "Ridge": "#d62728"}
 
+# Figure O.1 sets panels (a) and (b) side by side, so both are drawn in a figure of PANEL_FIGSIZE inches with the
+# axes at PANEL_AXES_BOX_PT (left, bottom, width, height, in points): their axes then line up on the page (CE,
+# 2026-11-05). The box leaves room for the tick and axis labels of both panels (on each side, the larger of the
+# two margins that the constrained layout gives them). None: each panel has its own constrained layout.
+PANEL_FIGSIZE = (3.8, 3.0)
+PANEL_AXES_BOX_PT = (52.0, 44.0, 218.6, 169.0)
+
 # Columns we actually need from the (large) parquet files.
 _NEEDED_COLUMNS = [
     "solver_name", "p_obj_train_size", "p_dataset_seed",
@@ -470,6 +477,18 @@ def gain_summary(gain_df, thresh_df=None) -> pd.DataFrame:
 # Plots
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _panel_figure():
+    """Figure and axes of one panel of Figure O.1: PANEL_FIGSIZE, with the axes at PANEL_AXES_BOX_PT and no layout
+    engine (the file is saved at exactly that size), or the constrained layout if PANEL_AXES_BOX_PT is None."""
+    fig, ax = plt.subplots(figsize=PANEL_FIGSIZE)
+    if PANEL_AXES_BOX_PT is not None:
+        fig.set_layout_engine("none")
+        fw, fh = fig.get_size_inches() * 72
+        left, bottom, width, height = PANEL_AXES_BOX_PT
+        ax.set_position([left / fw, bottom / fh, width / fw, height / fh])
+    return fig, ax
+
+
 def plot_retrieval_vs_studysize(
     curve_df, alpha, split_counts, family, mode="pairwise", thin=True,
     output_path=None
@@ -487,8 +506,7 @@ def plot_retrieval_vs_studysize(
     colors = plt.cm.viridis(np.linspace(0.0, 0.92, len(ks)))
 
     has_ci = "ci_low" in curve_df.columns
-    # fig, ax = plt.subplots(figsize=(3.8, 3.0), layout="tight")
-    fig, ax = plt.subplots(figsize=(3.8, 3.0))
+    fig, ax = _panel_figure()
     for color, K in zip(colors, ks):
         sub = curve_df[curve_df["K"] == K].sort_values("train_size")
         if has_ci and sub["ci_low"].notna().any():
@@ -538,8 +556,7 @@ def plot_ranking_gain_violin(gain_df, split_counts, family, mode="pairwise",
     x = np.arange(len(ks))
     has_bar = (summary["ci_high"] > summary["ci_low"]).to_numpy()
 
-    # fig, ax = plt.subplots(figsize=(3.8, 3.0), layout="tight")
-    fig, ax = plt.subplots(figsize=(3.8, 3.0))
+    fig, ax = _panel_figure()
     sns.violinplot(
         data=gdf[spread], x="K_str", y="gain", order=order,
         color=color, cut=0, inner=None, linewidth=0.6, ax=ax,
